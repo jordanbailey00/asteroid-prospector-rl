@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pytest black ruff
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Black
+        run: black --check python tests tools
+
+      - name: Ruff
+        run: ruff check python tests tools
+
+      - name: clang-format
+        run: |
+          find engine_core -type f \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 -r clang-format --dry-run --Werror
+
+      - name: Pytest
+        run: pytest -q
