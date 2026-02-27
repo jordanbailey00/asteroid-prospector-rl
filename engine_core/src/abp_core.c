@@ -1,5 +1,7 @@
 #include "abp_core.h"
 
+#include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 
 static void abp_pack_obs(AbpCoreState *state, float *obs_out) {
@@ -90,8 +92,30 @@ void abp_core_default_config(AbpCoreConfig *config) {
     config->invalid_action_penalty = 0.01f;
 }
 
+AbpCoreState *abp_core_create(const AbpCoreConfig *config, uint64_t seed) {
+    AbpCoreState *state = (AbpCoreState *)malloc(sizeof(AbpCoreState));
+    if (state == NULL) {
+        return NULL;
+    }
+
+    abp_core_init(state, config, seed);
+    return state;
+}
+
+void abp_core_destroy(AbpCoreState *state) {
+    if (state == NULL) {
+        return;
+    }
+
+    free(state);
+}
+
 void abp_core_init(AbpCoreState *state, const AbpCoreConfig *config, uint64_t seed) {
     uint32_t c_idx = 0;
+
+    if (state == NULL) {
+        return;
+    }
 
     memset(state, 0, sizeof(*state));
 
@@ -123,7 +147,14 @@ void abp_core_init(AbpCoreState *state, const AbpCoreConfig *config, uint64_t se
 }
 
 void abp_core_reset(AbpCoreState *state, uint64_t seed, float *obs_out) {
-    abp_core_init(state, &state->config, seed);
+    AbpCoreConfig cfg;
+
+    if (state == NULL) {
+        return;
+    }
+
+    cfg = state->config;
+    abp_core_init(state, &cfg, seed);
     abp_pack_obs(state, obs_out);
 }
 
@@ -133,6 +164,10 @@ void abp_core_step(AbpCoreState *state, uint8_t action, AbpCoreStepResult *out) 
     uint8_t invalid_action = 0u;
     uint16_t dt = 1u;
     float reward = 0.0f;
+
+    if (state == NULL || out == NULL) {
+        return;
+    }
 
     if (action >= ABP_N_ACTIONS) {
         invalid_action = 1u;

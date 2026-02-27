@@ -11,6 +11,15 @@ venv/
 .ruff_cache/
 .mypy_cache/
 
+# Native build outputs
+engine_core/build/
+*.dll
+*.exe
+*.obj
+*.o
+*.a
+*.so
+
 # OS / editor noise
 .DS_Store
 Thumbs.db

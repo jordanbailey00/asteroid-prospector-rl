@@ -5,6 +5,10 @@
 
 #include "abp_rng.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ABP_N_COMMODITIES 6
 #define ABP_MAX_NODES 32
 #define ABP_MAX_NEIGHBORS 6
@@ -68,8 +72,16 @@ typedef struct AbpCoreState {
 } AbpCoreState;
 
 void abp_core_default_config(AbpCoreConfig *config);
+
+AbpCoreState *abp_core_create(const AbpCoreConfig *config, uint64_t seed);
+void abp_core_destroy(AbpCoreState *state);
+
 void abp_core_init(AbpCoreState *state, const AbpCoreConfig *config, uint64_t seed);
 void abp_core_reset(AbpCoreState *state, uint64_t seed, float *obs_out);
 void abp_core_step(AbpCoreState *state, uint8_t action, AbpCoreStepResult *out);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
