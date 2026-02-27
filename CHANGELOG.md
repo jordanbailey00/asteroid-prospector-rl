@@ -11,7 +11,10 @@ All notable changes to this project will be documented in this file.
 - `HelloProspectorEnv` contract-only stub with frozen interface shape/action checks.
 - `ProspectorReferenceEnv` M1 pure-Python baseline with deterministic reset, full action decode, obs packing, reward computation, and required info metrics.
 - Tier-1/Tier-2 pytest coverage for resource bounds, station rules, dt/time behavior, scan normalization, market stability, rollout stability, and info key presence.
+- Additional M1 hardening tests for determinism, reward sanity, and frozen observation layout contract checks.
+- M2 native scaffold for `engine_core` with deterministic PCG32 RNG and C API skeleton (`abp_core_init/reset/step`).
 
 ### Docs
 - Added authoritative root `AGENTS.md` instructions requiring commit/push after each completed change.
 - Updated README files to reflect M1 status and run commands.
+- Updated `engine_core/README.md` to reflect M2 scaffold status.

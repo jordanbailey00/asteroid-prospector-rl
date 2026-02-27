@@ -1,8 +1,8 @@
 #ifndef ASTEROID_PROSPECTOR_ENGINE_CORE_H
 #define ASTEROID_PROSPECTOR_ENGINE_CORE_H
 
-#define ABP_OBS_DIM 260
-#define ABP_N_ACTIONS 69
+#include "abp_core.h"
+#include "abp_rng.h"
 
 int abp_hello_core_contract(void);
 

@@ -1,7 +1,10 @@
 # engine_core
 
-C core scaffold for the authoritative simulation engine.
+Native C scaffolding for the authoritative simulation core.
 
-M0 status:
-- constants frozen (`ABP_OBS_DIM=260`, `ABP_N_ACTIONS=69`)
-- placeholder source file for formatter/tooling wiring
+Current status (M2 scaffold):
+- deterministic RNG module (`abp_rng`, PCG32)
+- core state/config structs (`abp_core`)
+- contract-safe `reset`/`step` API skeleton with fixed obs/action sizes
+
+This is scaffold-only and does not yet implement full game dynamics.
