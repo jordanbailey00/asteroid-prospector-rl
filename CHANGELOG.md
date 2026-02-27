@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - `engine_core/core_test_runner.c` smoke CLI for action-trace execution.
 - `tools/build_native_core.ps1` for building `abp_core.dll` and `core_test_runner.exe`.
 - Python ctypes native wrapper `NativeProspectorCore` and wrapper tests.
+- MIT License (`LICENSE`).
 
 ### Environment
 - Installed missing development dependencies and toolchains:
@@ -30,3 +31,4 @@ All notable changes to this project will be documented in this file.
 ### Docs
 - Added authoritative root `AGENTS.md` instructions requiring commit/push after each completed change.
 - Updated README files to reflect M2 scaffold status and native build commands.
+- Rewrote root `README.md` as a public GitHub-facing project overview (purpose, goals, stack, quick start, and roadmap context).
