@@ -1,73 +1,66 @@
-# Asteroid Belt Prospector — Docs Index (Read Order)
+# Asteroid Belt Prospector - Docs Index (Read Order)
 
-This index is the “table of contents” for the project specs. Start at the top and read in order.
-
----
+This index is the table of contents for project specs and operating docs.
+Read top to bottom.
 
 ## 1) Product and RL intent
 
-1. `asteroid_belt_prospector_rl_gdd.md`
-   - High-level game design, strategic depth, and what success means.
+1. `game design/asteroid_belt_prospector_rl_gdd.md`
+   - High-level game design and strategic goals.
 
----
+## 2) Frozen RL interface (highest precedence)
 
-## 2) Frozen RL interface (do not change once training begins)
-
-These define the stable interface contract for training and replays.
-
-2. `01_core_constants.md`
-   - OBS_DIM, N_ACTIONS, padding limits, normalization constants.
-3. `02_observation_vector.md`
-   - Exact observation vector field mapping (indices).
-4. `03_action_space.md`
-   - Exact action indexing (0..68).
-5. `04_transition_function.md`
-   - Step ordering + transition pseudocode.
-6. `05_reward_function.md`
-   - Code-ready reward definition.
-7. `06_gym_puffer_compat.md`
-   - Gym/Puffer compatibility requirements + required info metrics.
-
----
+2. `RL spec/01_core_constants.md`
+   - `OBS_DIM`, `N_ACTIONS`, normalization constants.
+3. `RL spec/02_observation_vector.md`
+   - Exact observation layout and indices.
+4. `RL spec/03_action_space.md`
+   - Exact action indexing (`0..68`).
+5. `RL spec/04_transition_function.md`
+   - Step ordering and transition logic.
+6. `RL spec/05_reward_function.md`
+   - Reward definition.
+7. `RL spec/06_gym_puffer_compat.md`
+   - Gym/Puffer compatibility and required info keys.
 
 ## 3) Benchmarks
 
-8. `07_baseline_bots.md`
-   - Greedy miner, cautious scanner, market timer.
-9. `08_benchmarking_protocol.md`
-   - How to compare learning vs baselines.
-
----
+8. `RL spec/07_baseline_bots.md`
+   - Baseline bot definitions.
+9. `RL spec/08_benchmarking_protocol.md`
+   - Benchmark comparison protocol.
 
 ## 4) Backend implementation
 
-10. `asteroid_belt_prospector_backend_engine_c_wandb.md`
-   - Authoritative engine architecture (includes C/native core boundary + W&B logging expectations).
-
----
+10. `backend/asteroid_belt_prospector_backend_engine_c_wandb.md`
+    - Authoritative backend architecture and observability requirements.
 
 ## 5) Frontend implementation
 
-11. `asteroid_belt_prospector_frontend_spec_wandb.md`
-   - Vercel-hosted UI requirements: replay, play mode, analytics (with W&B/Constellation integration links).
-
----
+11. `frontend/asteroid_belt_prospector_frontend_spec_wandb.md`
+    - Replay/player/analytics frontend requirements.
 
 ## 6) Graphics and audio
 
-12. `asteroid_belt_prospector_graphics_spec.md`
-   - How to map Kenney pack assets + sound cues to entities/actions/events + manifest-driven rendering.
+12. `graphics/asteroid_belt_prospector_graphics_spec.md`
+    - Asset mapping and rendering/audio manifests.
 
----
-
-## 7) Project context (agent-facing)
+## 7) Agent operating docs
 
 13. `AGENT_HANDOFF_BRIEF.md`
-   - Why this exists, system overview, build order, acceptance criteria, naming conventions.
-
----
+    - Purpose, milestones, acceptance criteria.
+14. `AGENT_HYGIENE_GUARDRAILS.md`
+    - Non-negotiables and repo hygiene rules.
+15. `ACCEPTANCE_TESTS_PARITY_HARNESS.md`
+    - Determinism and parity gates.
+16. `BUILD_CHECKLIST.md`
+    - Ordered implementation checklist.
+17. `PROJECT_STATUS.md`
+    - Current project state, milestone board, and ordered next work.
+18. `DECISION_LOG.md`
+    - Architecture/process decisions with consequences.
 
 ## Notes
 
-- If anything conflicts: the “Frozen RL interface” docs win.
-- Avoid changes to the obs/action/reward contract unless you intentionally version the environment.
+- If any docs conflict, frozen interface docs (Section 2) win.
+- Do not change observation/action/reward contracts unless intentionally versioning to `v2` and updating tests/docs.

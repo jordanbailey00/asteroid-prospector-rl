@@ -27,3 +27,11 @@ repos:
     hooks:
       - id: clang-format
         files: ^engine_core/.*\.(c|h)$
+
+  - repo: local
+    hooks:
+      - id: project-tracking-update
+        name: project-tracking-update
+        entry: python tools/check_project_tracking.py
+        language: system
+        pass_filenames: false

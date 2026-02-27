@@ -1,14 +1,14 @@
-# Asteroid Belt Prospector — Agent Handoff Brief
+# Asteroid Belt Prospector â€” Agent Handoff Brief
 
 ## Purpose
 
-Build a high-throughput RL game environment (“Asteroid Belt Prospector”) with:
+Build a high-throughput RL game environment (â€œAsteroid Belt Prospectorâ€) with:
 - **Local training** via PufferLib (fast CPU stepping).
 - **Eval-run replays** produced every **window_env_steps** and served for **record-then-play** viewing on a website.
 - A **human-play mode** (no accounts, no persistence) so humans can learn the game.
-- **Observability** via **Weights & Biases** (metrics + artifacts) and PufferLib dashboards (including “Constellation” if enabled).
+- **Observability** via **Weights & Biases** (metrics + artifacts) and PufferLib dashboards (including â€œConstellationâ€ if enabled).
 
-This brief explains **what we’re building, why we’re building it, and how to use the accompanying specs**.
+This brief explains **what weâ€™re building, why weâ€™re building it, and how to use the accompanying specs**.
 
 ---
 
@@ -21,7 +21,7 @@ The project is designed as a **strategic, long-horizon, partially observable RL 
 - Market timing + slippage
 
 The website exists to make training progress understandable to humans through:
-- Watchable “best” / “every-window” replays
+- Watchable â€œbestâ€ / â€œevery-windowâ€ replays
 - Window summaries + historical training charts
 - A playable version of the same environment
 
@@ -46,9 +46,9 @@ The website exists to make training progress understandable to humans through:
 - **window_id**: monotonically increasing window index within a run
 - **replay_id**: unique ID for a recorded eval episode
 - **replay tags**:
-  - `every_window` (or `every_n`) — the canonical replay produced each window
-  - `best_so_far` — replay beats prior best by margin
-  - `milestone:*` — threshold-based replays (profit, survival, etc.)
+  - `every_window` (or `every_n`) â€” the canonical replay produced each window
+  - `best_so_far` â€” replay beats prior best by margin
+  - `milestone:*` â€” threshold-based replays (profit, survival, etc.)
 
 ---
 
@@ -99,22 +99,22 @@ The website exists to make training progress understandable to humans through:
 
 ## Build order (milestones / gates)
 
-### M0 — Repo scaffold + CI shape
+### M0 â€” Repo scaffold + CI shape
 - repo structure with `engine_core/` (C), `python/` wrapper, `server/`, `frontend/`
-- runnable “hello env” stub with fixed obs/action sizes
+- runnable â€œhello envâ€ stub with fixed obs/action sizes
 
-### M1 — Python reference env (correctness baseline)
+### M1 â€” Python reference env (correctness baseline)
 - Implement a pure-Python reference that matches the RL spec.
 - This is used ONLY to validate C parity.
 
-### M2 — Native core v1 (C) + parity harness
+### M2 â€” Native core v1 (C) + parity harness
 - Implement core state + reset + step in C.
 - Build Python bindings.
 - Create a parity test harness:
   - same seed + same action sequence
   - compare obs/reward/done (within tolerances)
 
-### M3 — Trainer + windowing + W&B logging
+### M3 â€” Trainer + windowing + W&B logging
 - Train loop produces window metrics every window_env_steps
 - Saves checkpoints
 - W&B logs:
@@ -122,24 +122,24 @@ The website exists to make training progress understandable to humans through:
   - config
   - checkpoint artifacts
 
-### M4 — Eval runner + replay recording
+### M4 â€” Eval runner + replay recording
 - Every window:
   - load checkpoint
   - run eval episode(s)
   - produce replay files and replay index
 
-### M5 — API server endpoints
+### M5 â€” API server endpoints
 - run + replay catalogs
 - replay playback endpoint (WS or download)
 - human-play session endpoints
 - metrics/windows endpoint
 
-### M6 — Frontend integration
+### M6 â€” Frontend integration
 - replay player + window analytics
 - human-play mode
 - historical analytics charts
 
-### M7 — Performance + stability pass
+### M7 â€” Performance + stability pass
 - target steps/sec reached
 - memory leak checks
 - deterministic seeds confirmed
@@ -147,7 +147,7 @@ The website exists to make training progress understandable to humans through:
 
 ---
 
-## Acceptance criteria (definition of “done enough to iterate”)
+## Acceptance criteria (definition of â€œdone enough to iterateâ€)
 
 - Training can run for at least 3 windows without crashing.
 - Each window produces:
@@ -156,7 +156,7 @@ The website exists to make training progress understandable to humans through:
   - at least one replay (every_window)
 - Frontend can:
   - play latest replay at a controlled FPS
-  - show window summary metrics for that replay’s window
+  - show window summary metrics for that replayâ€™s window
   - allow a human to play (reset/step) and see the same HUD
   - show historical metrics across windows
 
@@ -181,7 +181,7 @@ The website exists to make training progress understandable to humans through:
 
 ---
 
-## Required specs to follow (don’t improvise)
+## Required specs to follow (donâ€™t improvise)
 
 - RL Game Design Document (GDD)
 - RL spec modules (constants, obs layout, actions, transition, reward, compatibility, baselines, benchmarking)
@@ -209,3 +209,13 @@ The website exists to make training progress understandable to humans through:
 - API server
 - Frontend
 - Docs index (so an agent can find everything quickly)
+
+## Project tracking artifacts
+
+Use these files to understand current execution state and remaining work:
+- `docs/PROJECT_STATUS.md`: single current-state board and ordered next steps.
+- `docs/DECISION_LOG.md`: ADR-style decision history with consequences.
+- `CHANGELOG.md`: user-visible change history.
+
+Operational rule:
+- Every commit updates at least one of the tracking artifacts above.

@@ -18,6 +18,9 @@ All notable changes to this project will be documented in this file.
 - `tools/build_native_core.ps1` for building `abp_core.dll` and `core_test_runner.exe`.
 - Python ctypes native wrapper `NativeProspectorCore` and wrapper tests.
 - MIT License (`LICENSE`).
+- `docs/PROJECT_STATUS.md` as the single current-state board (status, progress, next work).
+- `docs/DECISION_LOG.md` for ADR-style technical/process decisions.
+- `tools/check_project_tracking.py` pre-commit guard requiring tracking updates on each commit.
 
 ### Environment
 - Installed missing development dependencies and toolchains:
@@ -32,3 +35,4 @@ All notable changes to this project will be documented in this file.
 - Added authoritative root `AGENTS.md` instructions requiring commit/push after each completed change.
 - Updated README files to reflect M2 scaffold status and native build commands.
 - Rewrote root `README.md` as a public GitHub-facing project overview (purpose, goals, stack, quick start, and roadmap context).
+- Updated `docs/DOCS_INDEX.md` to include hygiene/parity/checklist/status/decision tracking docs in the authoritative read order.
