@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+_ALIAS_ALLOWED = re.compile(r"[^a-zA-Z0-9_.-]+")
 
 
 def append_jsonl(path: Path, row: dict[str, Any]) -> None:
@@ -12,6 +15,11 @@ def append_jsonl(path: Path, row: dict[str, Any]) -> None:
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(row, separators=(",", ":")))
         handle.write("\n")
+
+
+def _artifact_alias(raw: str) -> str:
+    alias = _ALIAS_ALLOWED.sub("-", raw.strip())
+    return alias.strip("-") or "latest"
 
 
 class JsonlWindowLogger:
@@ -87,6 +95,28 @@ class WandbWindowLogger:
         artifact = self._artifact_ctor(name=f"model-{run_id}", type="model")
         artifact.add_file(str(checkpoint_path))
         self._run.log_artifact(artifact, aliases=["latest", f"window-{window_id}"])
+
+    def log_replay(
+        self,
+        *,
+        replay_path: Path,
+        run_id: str,
+        window_id: int,
+        replay_id: str,
+        tags: list[str],
+    ) -> None:
+        if self._artifact_ctor is None:
+            return
+
+        artifact = self._artifact_ctor(
+            name=f"replay-{run_id}-{window_id:06d}-{replay_id}", type="replay"
+        )
+        artifact.add_file(str(replay_path))
+
+        aliases = ["latest", f"window-{window_id}"]
+        aliases.extend(_artifact_alias(tag) for tag in tags)
+        deduped_aliases = list(dict.fromkeys(aliases))
+        self._run.log_artifact(artifact, aliases=deduped_aliases)
 
     def finish(self, summary: dict[str, Any] | None = None) -> None:
         if summary:

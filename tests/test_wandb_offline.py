@@ -41,16 +41,33 @@ def test_wandb_logger_logs_windows_and_checkpoint_artifacts(tmp_path: Path) -> N
     ckpt.write_text("checkpoint", encoding="utf-8")
     logger.log_checkpoint(checkpoint_path=ckpt, run_id="run-abc", window_id=3)
 
+    replay = tmp_path / "replay-000003-xyz.jsonl.gz"
+    replay.write_text("{}\n", encoding="utf-8")
+    logger.log_replay(
+        replay_path=replay,
+        run_id="run-abc",
+        window_id=3,
+        replay_id="replay-000003-xyz",
+        tags=["every_window", "best_so_far"],
+    )
+
     logger.finish({"env_steps_total": 300})
 
     assert logger.run_url == run.url
     assert run.logged == [({"window_id": 3, "reward_mean": 1.25}, 300)]
-    assert len(run.artifacts) == 1
+    assert len(run.artifacts) == 2
 
-    artifact, aliases = run.artifacts[0]
-    assert artifact.name == "model-run-abc"
-    assert artifact.type == "model"
-    assert artifact.files == [str(ckpt)]
-    assert aliases == ["latest", "window-3"]
+    ckpt_artifact, ckpt_aliases = run.artifacts[0]
+    assert ckpt_artifact.name == "model-run-abc"
+    assert ckpt_artifact.type == "model"
+    assert ckpt_artifact.files == [str(ckpt)]
+    assert ckpt_aliases == ["latest", "window-3"]
+
+    replay_artifact, replay_aliases = run.artifacts[1]
+    assert replay_artifact.name == "replay-run-abc-000003-replay-000003-xyz"
+    assert replay_artifact.type == "replay"
+    assert replay_artifact.files == [str(replay)]
+    assert replay_aliases == ["latest", "window-3", "every_window", "best_so_far"]
+
     assert run.summary["env_steps_total"] == 300
     assert run.finished is True

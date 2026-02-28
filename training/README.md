@@ -1,12 +1,13 @@
 # training
 
-M3 windowed training pipeline with checkpointing, optional W&B logging, and backend-selectable training loops.
+M3/M4 training pipeline with checkpointing, optional W&B logging, and eval replay generation.
 
 Current implementation:
 - `training/train_puffer.py` (windowed run loop + metadata persistence; `random` and `puffer_ppo` backends)
 - `training/puffer_backend.py` (PufferLib vectorized PPO training loop)
+- `training/eval_runner.py` (per-window eval episodes + replay recording)
 - `training/windowing.py` (window aggregation keyed by `window_env_steps`)
-- `training/logging.py` (JSONL metrics sink + W&B adapter)
+- `training/logging.py` (JSONL metrics sink + W&B adapter for checkpoints/replays)
 
 ## Local Windows usage
 
@@ -36,22 +37,37 @@ docker compose -f infra/docker-compose.yml run --rm -T trainer python training/t
 python training/train_puffer.py --trainer-backend random --total-env-steps 6000 --window-env-steps 2000 --wandb-mode disabled
 ```
 
+## Enable replay generation (M4)
+
+Generate one eval replay per checkpointed window:
+
+```powershell
+python training/train_puffer.py --trainer-backend random --total-env-steps 6000 --window-env-steps 2000 --checkpoint-every-windows 1 --eval-replays-per-window 1 --eval-max-steps-per-episode 512 --no-eval-include-info --wandb-mode disabled
+```
+
+Replay tags:
+- `every_window` on all generated replays
+- `best_so_far` when a replay exceeds all prior `return_total` values in the same run
+
 ## W&B offline mode
 
 ```powershell
 python training/train_puffer.py --wandb-mode offline --wandb-project asteroid-prospector
 ```
 
-Artifacts:
+## Artifacts
+
 - `runs/{run_id}/checkpoints/ckpt_{window_id}.pt`
 - `runs/{run_id}/metrics/windows.jsonl`
+- `runs/{run_id}/replays/{replay_id}.jsonl.gz` (when eval enabled)
+- `runs/{run_id}/replay_index.json` (when eval enabled)
 - `runs/{run_id}/config.json`
 - `runs/{run_id}/run_metadata.json`
 
-`run_metadata.json` includes live-updated fields used by API/frontend milestones:
+`run_metadata.json` live-updated fields used by API/frontend milestones:
 - `status` (`running`/`completed`/`failed`)
 - `latest_window`
 - `latest_checkpoint`
-- `latest_replay` (currently `null` until M4)
-- `replay_index_path` (currently `null` until M4)
+- `latest_replay` (present when eval replay generation is enabled)
+- `replay_index_path` (present when eval replay generation is enabled)
 - `wandb_run_url` and `constellation_url` (if available)

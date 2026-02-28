@@ -103,3 +103,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add `infra/trainer/Dockerfile` + `infra/docker-compose.yml` as the single installation path for trainer dependencies, with BuildKit pip cache mounts and a build-time `import pufferlib` smoke test. Wire `training/train_puffer.py` `puffer_ppo` backend to a real PPO loop implemented in `training/puffer_backend.py` and run it in the Linux container runtime.
 - Consequences: First build is still heavy due source build + torch dependency footprint, but subsequent builds are deterministic and cache-backed; M3 is unblocked for true PPO execution via Docker.
 - Related commits/docs: `infra/trainer/Dockerfile`, `infra/trainer/requirements.txt`, `infra/docker-compose.yml`, `training/puffer_backend.py`, `training/train_puffer.py`, `training/README.md`
+
+### ADR-0011 - Standardize M4 replay persistence on JSONL.GZ frames plus JSON index with monotonic best tagging
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: M4 needs per-window replay generation that is easy to inspect, stream, and validate in tests while remaining lightweight to integrate before API/frontend milestones.
+- Decision: Store each replay as `runs/{run_id}/replays/{replay_id}.jsonl.gz` with a stable frame schema (`t`, `dt`, `action`, `reward`, `terminated`, `truncated`, `render_state`, `events`, optional `info`) and maintain `runs/{run_id}/replay_index.json` as the run-scoped catalog. Tag every replay with `every_window`; additionally tag `best_so_far` when `return_total` is strictly greater than all previous entries in that run index.
+- Consequences: Replay artifacts are human-readable after decompression, easy to validate with lightweight tests, and directly consumable by upcoming API endpoints; strict greater-than best tagging avoids repeated `best_so_far` labels on ties.
+- Related commits/docs: `training/eval_runner.py`, `replay/schema.py`, `replay/index.py`, `tests/test_eval_runner.py`, `tests/test_replay_schema.py`, `training/README.md`, `replay/README.md`

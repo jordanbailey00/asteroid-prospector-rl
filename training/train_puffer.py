@@ -15,9 +15,11 @@ if __package__ is None or __package__ == "":
     REPO_ROOT = Path(__file__).resolve().parents[1]
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
+    from training.eval_runner import EvalReplayConfig, run_eval_and_record_replay
     from training.logging import JsonlWindowLogger, RunPaths, WandbWindowLogger
     from training.windowing import INFO_METRIC_KEYS, WindowMetricsAggregator, WindowRecord
 else:
+    from .eval_runner import EvalReplayConfig, run_eval_and_record_replay
     from .logging import JsonlWindowLogger, RunPaths, WandbWindowLogger
     from .windowing import INFO_METRIC_KEYS, WindowMetricsAggregator, WindowRecord
 
@@ -47,6 +49,12 @@ class TrainConfig:
     wandb_project: str = "asteroid-prospector"
 
     flush_partial_window: bool = False
+
+    # M4 eval/replay parameters.
+    eval_replays_per_window: int = 0
+    eval_max_steps_per_episode: int = 512
+    eval_include_info: bool = True
+    eval_seed_offset: int = 100000
 
     # PPO backend parameters (used when trainer_backend == "puffer_ppo")
     ppo_num_envs: int = 8
@@ -141,11 +149,19 @@ def choose_action(*, rng: np.random.Generator, obs: np.ndarray, backend: str) ->
     return int(rng.integers(0, DEFAULT_N_ACTIONS))
 
 
-def write_checkpoint(*, path: Path, run_id: str, window_id: int, env_steps_total: int) -> None:
+def write_checkpoint(
+    *,
+    path: Path,
+    run_id: str,
+    window_id: int,
+    env_steps_total: int,
+    trainer_backend: str,
+) -> None:
     payload = {
         "run_id": run_id,
         "window_id": int(window_id),
         "env_steps_total": int(env_steps_total),
+        "trainer_backend": trainer_backend,
         "created_at": now_iso(),
     }
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -163,6 +179,10 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
         raise ValueError("window_env_steps must be positive")
     if cfg.checkpoint_every_windows <= 0:
         raise ValueError("checkpoint_every_windows must be positive")
+    if cfg.eval_replays_per_window < 0:
+        raise ValueError("eval_replays_per_window must be non-negative")
+    if cfg.eval_max_steps_per_episode <= 0:
+        raise ValueError("eval_max_steps_per_episode must be positive")
     validate_backend(cfg.trainer_backend)
 
     run_id = cfg.run_id or default_run_id()
@@ -250,6 +270,7 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
                 run_id=run_id,
                 window_id=record.window_id,
                 env_steps_total=record.env_steps_total,
+                trainer_backend=cfg.trainer_backend,
             )
             checkpoints_written += 1
             metadata["checkpoints_written"] = checkpoints_written
@@ -265,6 +286,35 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
                     run_id=run_id,
                     window_id=record.window_id,
                 )
+
+            if cfg.eval_replays_per_window > 0:
+                eval_result = run_eval_and_record_replay(
+                    EvalReplayConfig(
+                        run_id=run_id,
+                        run_dir=run_paths.run_dir,
+                        checkpoint_path=ckpt_path,
+                        window_id=record.window_id,
+                        trainer_backend=cfg.trainer_backend,
+                        env_time_max=cfg.env_time_max,
+                        base_seed=cfg.seed + cfg.eval_seed_offset,
+                        num_episodes=cfg.eval_replays_per_window,
+                        max_steps_per_episode=cfg.eval_max_steps_per_episode,
+                        include_info=cfg.eval_include_info,
+                    )
+                )
+                metadata["latest_replay"] = eval_result.replay_entry
+                metadata["replay_index_path"] = eval_result.replay_index_path_relative
+
+                if wandb_logger is not None:
+                    replay_tags_raw = eval_result.replay_entry.get("tags", [])
+                    replay_tags = replay_tags_raw if isinstance(replay_tags_raw, list) else []
+                    wandb_logger.log_replay(
+                        replay_path=eval_result.replay_path,
+                        run_id=run_id,
+                        window_id=record.window_id,
+                        replay_id=eval_result.replay_id,
+                        tags=[str(tag) for tag in replay_tags],
+                    )
 
         metadata["updated_at"] = now_iso()
         write_metadata(run_paths.metadata_path, metadata)
@@ -424,7 +474,7 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
 
 
 def _parse_args() -> TrainConfig:
-    parser = argparse.ArgumentParser(description="Windowed training runner (M3)")
+    parser = argparse.ArgumentParser(description="Windowed training runner (M3/M4)")
     parser.add_argument("--run-root", type=Path, default=Path("runs"))
     parser.add_argument("--run-id", type=str, default=None)
     parser.add_argument("--total-env-steps", type=int, default=6000)
@@ -444,6 +494,24 @@ def _parse_args() -> TrainConfig:
     )
     parser.add_argument("--wandb-project", type=str, default="asteroid-prospector")
     parser.add_argument("--flush-partial-window", action="store_true")
+
+    parser.add_argument("--eval-replays-per-window", type=int, default=0)
+    parser.add_argument("--eval-max-steps-per-episode", type=int, default=512)
+    eval_info_group = parser.add_mutually_exclusive_group()
+    eval_info_group.add_argument(
+        "--eval-include-info",
+        dest="eval_include_info",
+        action="store_true",
+        help="Include raw info payload in replay frames (default: enabled).",
+    )
+    eval_info_group.add_argument(
+        "--no-eval-include-info",
+        dest="eval_include_info",
+        action="store_false",
+        help="Exclude raw info payload from replay frames.",
+    )
+    parser.set_defaults(eval_include_info=True)
+    parser.add_argument("--eval-seed-offset", type=int, default=100000)
 
     parser.add_argument("--ppo-num-envs", type=int, default=8)
     parser.add_argument("--ppo-num-workers", type=int, default=4)
@@ -476,6 +544,10 @@ def _parse_args() -> TrainConfig:
         wandb_mode=args.wandb_mode,
         wandb_project=args.wandb_project,
         flush_partial_window=args.flush_partial_window,
+        eval_replays_per_window=args.eval_replays_per_window,
+        eval_max_steps_per_episode=args.eval_max_steps_per_episode,
+        eval_include_info=args.eval_include_info,
+        eval_seed_offset=args.eval_seed_offset,
         ppo_num_envs=args.ppo_num_envs,
         ppo_num_workers=args.ppo_num_workers,
         ppo_rollout_steps=args.ppo_rollout_steps,

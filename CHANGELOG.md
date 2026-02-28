@@ -38,6 +38,12 @@ All notable changes to this project will be documented in this file.
 - `training/train_puffer.py` now executes true `puffer_ppo` training on Linux/Docker, while preserving window metrics/checkpoint cadence and live metadata updates.
 - Added Docker usage documentation for PPO backend execution in `training/README.md` and `infra/trainer/README.md`.
 
+- Added M4 replay modules (`replay/schema.py`, `replay/index.py`, `replay/__init__.py`) with schema/index versioning and frame validation helpers.
+- Added `training/eval_runner.py` and integrated per-window eval replay generation into `training/train_puffer.py`.
+- Replay index entries now include `every_window` tags and `best_so_far` promotion when a replay sets a new run-level best return.
+- Added replay artifact logging support in `training/logging.py` (`WandbWindowLogger.log_replay`).
+- Added M4 tests: `tests/test_replay_schema.py`, `tests/test_eval_runner.py`, and training-loop replay integration coverage.
+- Updated training/replay docs to document replay flags, artifact layout, and schema/index contracts.
 ### Environment
 - Installed missing development dependencies and toolchains:
   - `pre-commit` (Python package)
