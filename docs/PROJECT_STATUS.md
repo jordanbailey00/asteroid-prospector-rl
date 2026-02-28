@@ -1,15 +1,15 @@
 ﻿# Project Status
 
 Last updated: 2026-02-28
-Current focus: M6.5 presentation layer and M7 performance/stability
+Current focus: M7 streaming/performance follow-through
 
 ## Current state
 
 - Frozen interface status: unchanged (`OBS_DIM=260`, `N_ACTIONS=69`, action indexing `0..68`, reward definition unchanged).
-- Build health: local checks passing via `tools/run_checks.ps1` (`pytest -q` currently 46 passed, 2 skipped).
+- Build health: local checks passing via `tools/run_checks.ps1` (`pytest -q` currently 52 passed, 2 skipped).
 - Frontend build health: `npm --prefix frontend run build` passes for replay/play/analytics routes.
-- Completed milestones: M0, M1, M2, M2.5, M3, M4, M5, and M6 complete.
-- Active milestone: M6.5 graphics/audio presentation, then M7 perf/stability.
+- Completed milestones: M0, M1, M2, M2.5, M3, M4, M5, M6, and M6.5 complete.
+- Active milestone: M7 benchmark/stability and transport hardening.
 
 ## Milestone board
 
@@ -22,20 +22,21 @@ Current focus: M6.5 presentation layer and M7 performance/stability
 | M3 - Training + window metrics | Complete | Windowed trainer loop, checkpoint cadence, `windows.jsonl`, optional W&B logging, live `run_metadata.json`, and Dockerized Linux `puffer_ppo` backend with PufferLib PPO smoke validation (3 windows) | `1a90101`, `6dd1f89`, `4b3e684` |
 | M4 - Eval + replay generation | Complete | Policy-driven PPO eval replays from serialized checkpoints, replay schema/index validation, `every_window` + `best_so_far` + `milestone:*` tagging, replay index filtering helpers, and checkpoint format tests | `b8a1880`, `452754c` |
 | M5 - API server | Complete | FastAPI run/replay/metrics endpoints, replay frame pagination endpoint, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, `98149f2` |
-| M6 - Frontend integration | Complete | Next.js replay page (`/`), human play mode (`/play`), analytics page (`/analytics`) wired to M5 APIs with playback controls, run/window/replay selection, and historical trend visualizations | pending (this commit) |
+| M6 - Frontend integration | Complete | Next.js replay page (`/`), human play mode (`/play`), analytics page (`/analytics`) wired to M5 APIs with playback controls, run/window/replay selection, and historical trend visualizations | `27ab411` |
+| M6.5 - Graphics + audio integration | Complete | Manifest-driven sector/minimap renderer, action/event VFX overlays, audio cue playback (synth fallback), and manifest completeness validation tests | pending (this commit) |
 | M7+ - Perf and stability | Not started | Throughput targets, soak checks, benchmark automation | pending |
 
 ## Next work (ordered)
 
-1. Implement M6.5 visual presentation layer (graphics/audio) on top of current render-state dashboard.
-2. Add websocket replay streaming endpoint and optional frontend transport switch (HTTP vs WS).
-3. Add M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks.
+1. Add websocket replay streaming endpoint and optional frontend transport switch (HTTP vs WS).
+2. Implement M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks.
+3. Add long-run stability checks for replay playback and play-session lifecycle under sustained interaction.
 4. Add deployment hardening for frontend/backend env wiring and CI smoke tests.
 
 ## Active risks and blockers
 
 - Frontend replay playback currently uses full-frame HTTP fetch; very large replays may need WS streaming or chunked loading.
-- The web UI is functionally complete for M6 but still dashboard-first; graphics/audio polish remains for full MVP presentation goals.
+- M6.5 currently uses procedural/synth cues by default; shipping with richer audio requires dropping real assets into `/public/assets/audio` and updating manifests.
 
 ## Decision pointers
 
@@ -45,7 +46,8 @@ Current focus: M6.5 presentation layer and M7 performance/stability
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-02-28 | pending (this commit) | feat | Complete M6 frontend integration across replay/play/analytics routes |
+| 2026-02-28 | pending (this commit) | feat | Complete M6.5 graphics/audio presentation layer and manifest validation |
+| 2026-02-28 | `27ab411` | feat | Implement M6 frontend replay/play/analytics UI |
 | 2026-02-28 | `98149f2` | feat | Complete M5 metrics and play API endpoints |
 | 2026-02-28 | `18ae6b0` | chore | Configure shareable trainer base image tag |
 | 2026-02-28 | `e1fe165` | feat | Add M5 run and replay API endpoints |

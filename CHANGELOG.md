@@ -65,6 +65,11 @@ All notable changes to this project will be documented in this file.
 - Added human play console with play-session lifecycle controls, live HUD stats, auto-step mode, and full action palette for action indices `0..68`.
 - Added analytics dashboard with run selection, optional run comparison, checkpoint/replay timeline tags, and historical metric trend panels.
 - Added frontend local run/build documentation in `frontend/README.md`.
+- Added M6.5 sector/minimap presentation component (`frontend/components/sector-view.tsx`) and integrated it into replay (`/`) and human play (`/play`) flows.
+- Added manifest-driven graphics/audio layer with runtime loaders (`frontend/lib/assets.ts`) and action/event mapping contract (`frontend/lib/action_effects_manifest.json`, `frontend/lib/presentation.ts`).
+- Added frontend audio cue player (`frontend/lib/audio.ts`) with WebAudio synth fallback and UI toggles for cue playback.
+- Added presentation manifests and baseline background asset (`frontend/public/assets/manifests/graphics_manifest.json`, `frontend/public/assets/manifests/audio_manifest.json`, `frontend/public/assets/backgrounds/starfield.svg`).
+- Added M6.5 validation coverage (`tests/test_frontend_presentation.py`) for action/event mapping completeness and manifest key/path resolution.
 ### Environment
 - Installed missing development dependencies and toolchains:
   - `pre-commit` (Python package)

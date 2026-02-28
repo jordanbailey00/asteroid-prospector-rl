@@ -157,3 +157,12 @@ Use this file for non-trivial project decisions.
 - Decision: Build `frontend/` as a Next.js App Router TypeScript app with three pages (`/`, `/play`, `/analytics`) that consume existing M5 HTTP endpoints. Use HTTP replay frame fetch (`/frames`) plus client-side playback timing controls for replay mode, and keep websocket replay streaming as a follow-up item.
 - Consequences: M6 is unblocked and fully wired to current API contracts with minimal moving parts; replay UX on very large artifacts may require WS/chunked transport optimization in a later milestone.
 - Related commits/docs: `frontend/app/page.tsx`, `frontend/app/play/page.tsx`, `frontend/app/analytics/page.tsx`, `frontend/components/replay-dashboard.tsx`, `frontend/components/play-console.tsx`, `frontend/components/analytics-dashboard.tsx`, `frontend/README.md`, `docs/PROJECT_STATUS.md`
+
+### ADR-0017 - Deliver M6.5 with semantic manifests plus procedural rendering/audio fallback
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: M6.5 required graphics/audio integration, but the repo does not yet carry final external art/audio packs. We still need deterministic, testable presentation wiring that can be upgraded without changing gameplay/UI logic.
+- Decision: Implement a manifest-driven presentation layer now (`graphics_manifest.json`, `audio_manifest.json`, `action_effects_manifest.json`) and render sector/minimap visuals procedurally from observation state while playing cue sounds through a WebAudio synth fallback when audio files are absent. Add tests to enforce action/event mapping completeness and manifest key resolution.
+- Consequences: M6.5 is unblocked with stable runtime contracts and validation gates; swapping in real atlases/OGG assets becomes a manifest update task rather than a code rewrite.
+- Related commits/docs: `frontend/public/assets/manifests/graphics_manifest.json`, `frontend/public/assets/manifests/audio_manifest.json`, `frontend/lib/action_effects_manifest.json`, `frontend/lib/assets.ts`, `frontend/lib/presentation.ts`, `frontend/lib/audio.ts`, `frontend/components/sector-view.tsx`, `tests/test_frontend_presentation.py`, `docs/PROJECT_STATUS.md`

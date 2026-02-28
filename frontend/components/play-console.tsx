@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { allActionLabels, actionLabel } from "@/lib/actions";
+import { useCuePlayer } from "@/lib/audio";
 import {
   backendBaseUrl,
   createPlaySession,
@@ -11,7 +12,10 @@ import {
   stepPlaySession,
 } from "@/lib/api";
 import { formatNumber } from "@/lib/format";
+import { actionCueKey, eventCueKey } from "@/lib/presentation";
 import { PlaySessionState } from "@/lib/types";
+
+import { SectorView } from "@/components/sector-view";
 
 type ObsSummary = {
   fuelPct: number;
@@ -86,6 +90,43 @@ function inferCreditsFromObs(obs: number[] | undefined): number | null {
   return Math.expm1(norm * Math.log1p(CREDITS_CAP));
 }
 
+function deriveEvents(
+  currentInfo: Record<string, unknown>,
+  previousInfo: Record<string, unknown> | null,
+  session: PlaySessionState,
+): string[] {
+  const events: string[] = [];
+
+  if (Boolean(currentInfo.invalid_action)) {
+    events.push("invalid_action");
+  }
+
+  const currentPirates = Number(currentInfo.pirate_encounters ?? 0);
+  const previousPirates = Number(previousInfo?.pirate_encounters ?? 0);
+  if (Number.isFinite(currentPirates) && Number.isFinite(previousPirates) && currentPirates > previousPirates) {
+    events.push("pirate_encounter");
+  }
+
+  const currentOverheat = Number(currentInfo.overheat_ticks ?? 0);
+  const previousOverheat = Number(previousInfo?.overheat_ticks ?? 0);
+  if (
+    Number.isFinite(currentOverheat) &&
+    Number.isFinite(previousOverheat) &&
+    currentOverheat > previousOverheat
+  ) {
+    events.push("overheat_tick");
+  }
+
+  if (session.terminated) {
+    events.push("terminated");
+  }
+  if (session.truncated) {
+    events.push("truncated");
+  }
+
+  return events;
+}
+
 export function PlayConsole() {
   const [session, setSession] = useState<PlaySessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,14 +139,38 @@ export function PlayConsole() {
   const [autoRun, setAutoRun] = useState(false);
   const [stepsPerSecond, setStepsPerSecond] = useState(5);
 
+  const [derivedEvents, setDerivedEvents] = useState<string[]>([]);
+
   const sessionIdRef = useRef<string | null>(null);
   const steppingRef = useRef(false);
+  const prevInfoRef = useRef<Record<string, unknown> | null>(null);
+
+  const { enabled: audioEnabled, setEnabled: setAudioEnabled, playCue } = useCuePlayer(false);
 
   const sessionDone = Boolean(session?.terminated || session?.truncated);
 
   useEffect(() => {
     sessionIdRef.current = session?.session_id ?? null;
   }, [session]);
+
+  useEffect(() => {
+    if (!session) {
+      prevInfoRef.current = null;
+      setDerivedEvents([]);
+      return;
+    }
+
+    const info = (session.info ?? {}) as Record<string, unknown>;
+    const events = deriveEvents(info, prevInfoRef.current, session);
+    prevInfoRef.current = info;
+    setDerivedEvents(events);
+  }, [session]);
+
+  useEffect(() => {
+    for (const eventName of derivedEvents) {
+      void playCue(eventCueKey(eventName));
+    }
+  }, [derivedEvents, playCue]);
 
   const startSession = useCallback(async () => {
     setBusy(true);
@@ -117,6 +182,7 @@ export function PlayConsole() {
       const envTimeMax = parseOptionalNumber(envTimeMaxInput);
       const payload = await createPlaySession({ seed, env_time_max: envTimeMax });
       setSession(payload);
+      void playCue("ui.click");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
@@ -124,7 +190,7 @@ export function PlayConsole() {
     } finally {
       setBusy(false);
     }
-  }, [seedInput, envTimeMaxInput]);
+  }, [seedInput, envTimeMaxInput, playCue]);
 
   const resetSession = useCallback(async () => {
     if (!session?.session_id) {
@@ -139,13 +205,15 @@ export function PlayConsole() {
       const seed = parseOptionalInt(seedInput);
       const payload = await resetPlaySession(session.session_id, { seed });
       setSession(payload);
+      prevInfoRef.current = null;
+      void playCue("ui.click");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
     } finally {
       setBusy(false);
     }
-  }, [session?.session_id, seedInput]);
+  }, [session?.session_id, seedInput, playCue]);
 
   const endSession = useCallback(async () => {
     const activeSessionId = session?.session_id;
@@ -160,13 +228,14 @@ export function PlayConsole() {
     try {
       await deletePlaySession(activeSessionId);
       setSession(null);
+      void playCue("ui.click");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
     } finally {
       setBusy(false);
     }
-  }, [session?.session_id]);
+  }, [session?.session_id, playCue]);
 
   const performStep = useCallback(
     async (action: number) => {
@@ -179,6 +248,7 @@ export function PlayConsole() {
       setError(null);
 
       try {
+        void playCue(actionCueKey(action));
         const payload = await stepPlaySession(activeSessionId, { action });
         setSession(payload);
       } catch (err) {
@@ -188,7 +258,7 @@ export function PlayConsole() {
         steppingRef.current = false;
       }
     },
-    [session?.session_id],
+    [session?.session_id, playCue],
   );
 
   useEffect(() => {
@@ -223,7 +293,7 @@ export function PlayConsole() {
   }, []);
 
   const obsSummary = useMemo(() => decodeObsSummary(session?.obs), [session?.obs]);
-  const info = session?.info ?? {};
+  const info = (session?.info ?? {}) as Record<string, unknown>;
 
   const credits = Number(
     info.credits ?? info.net_profit ?? inferCreditsFromObs(session?.obs) ?? Number.NaN,
@@ -278,7 +348,10 @@ export function PlayConsole() {
             Selected Action
             <select
               value={selectedAction}
-              onChange={(event) => setSelectedAction(Number(event.target.value))}
+              onChange={(event) => {
+                setSelectedAction(Number(event.target.value));
+                void playCue("ui.select");
+              }}
             >
               {ACTION_LABELS.map((label, index) => (
                 <option key={label} value={index}>
@@ -306,13 +379,31 @@ export function PlayConsole() {
             </button>
             <button
               className={autoRun ? "warn" : "alt"}
-              onClick={() => setAutoRun((previous) => !previous)}
+              onClick={() => {
+                setAutoRun((previous) => !previous);
+                void playCue(autoRun ? "ui.pause" : "ui.play");
+              }}
               disabled={!session || sessionDone}
             >
               {autoRun ? "Stop Auto" : "Start Auto"}
             </button>
-            <button onClick={() => void performStep(HOLD_ACTION)} disabled={!session || busy || sessionDone}>
+            <button
+              onClick={() => void performStep(HOLD_ACTION)}
+              disabled={!session || busy || sessionDone}
+            >
               Hold
+            </button>
+          </div>
+          <div className="row">
+            <span className="muted">Audio cues</span>
+            <button
+              className={audioEnabled ? "warn" : "alt"}
+              onClick={() => {
+                setAudioEnabled((prev) => !prev);
+                void playCue("ui.click");
+              }}
+            >
+              {audioEnabled ? "Mute" : "Enable Audio"}
             </button>
           </div>
           <p className="muted">
@@ -320,10 +411,27 @@ export function PlayConsole() {
             {session?.action !== undefined ? actionLabel(session.action) : "-"})
           </p>
           {invalidAction ? <span className="badge warn">Invalid action on last step</span> : null}
+          <div className="list-inline">
+            {derivedEvents.map((eventName) => (
+              <span key={eventName} className="badge warn">
+                {eventName}
+              </span>
+            ))}
+          </div>
         </article>
       </aside>
 
       <section className="stack">
+        <article className="card stack">
+          <h2>Sector View</h2>
+          <SectorView
+            mode="human"
+            observation={session?.obs ?? null}
+            action={session?.action ?? selectedAction}
+            events={derivedEvents}
+          />
+        </article>
+
         <article className="card stack">
           <h2>Live HUD</h2>
           <div className="metric-grid">

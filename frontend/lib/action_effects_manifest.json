@@ -1,0 +1,384 @@
+{
+    "version":  "m6.5.v1",
+    "actions":  [
+                    {
+                        "id":  0,
+                        "vfx":  "vfx.travel.warp",
+                        "cue":  "sfx.travel.warp"
+                    },
+                    {
+                        "id":  1,
+                        "vfx":  "vfx.travel.warp",
+                        "cue":  "sfx.travel.warp"
+                    },
+                    {
+                        "id":  2,
+                        "vfx":  "vfx.travel.warp",
+                        "cue":  "sfx.travel.warp"
+                    },
+                    {
+                        "id":  3,
+                        "vfx":  "vfx.travel.warp",
+                        "cue":  "sfx.travel.warp"
+                    },
+                    {
+                        "id":  4,
+                        "vfx":  "vfx.travel.warp",
+                        "cue":  "sfx.travel.warp"
+                    },
+                    {
+                        "id":  5,
+                        "vfx":  "vfx.travel.warp",
+                        "cue":  "sfx.travel.warp"
+                    },
+                    {
+                        "id":  6,
+                        "vfx":  "vfx.none",
+                        "cue":  "sfx.none"
+                    },
+                    {
+                        "id":  7,
+                        "vfx":  "vfx.emergencyBurn",
+                        "cue":  "sfx.travel.boost"
+                    },
+                    {
+                        "id":  8,
+                        "vfx":  "vfx.scan.widePulse",
+                        "cue":  "sfx.scan.wide"
+                    },
+                    {
+                        "id":  9,
+                        "vfx":  "vfx.scan.focusBeam",
+                        "cue":  "sfx.scan.focus"
+                    },
+                    {
+                        "id":  10,
+                        "vfx":  "vfx.scan.deepSpectral",
+                        "cue":  "sfx.scan.deep"
+                    },
+                    {
+                        "id":  11,
+                        "vfx":  "vfx.scan.listenPing",
+                        "cue":  "sfx.scan.listen"
+                    },
+                    {
+                        "id":  12,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  13,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  14,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  15,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  16,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  17,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  18,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  19,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  20,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  21,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  22,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  23,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  24,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  25,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  26,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  27,
+                        "vfx":  "vfx.selection.ring",
+                        "cue":  "ui.select"
+                    },
+                    {
+                        "id":  28,
+                        "vfx":  "vfx.mine.conservative",
+                        "cue":  "sfx.mine.low"
+                    },
+                    {
+                        "id":  29,
+                        "vfx":  "vfx.mine.standard",
+                        "cue":  "sfx.mine.mid"
+                    },
+                    {
+                        "id":  30,
+                        "vfx":  "vfx.mine.aggressive",
+                        "cue":  "sfx.mine.high"
+                    },
+                    {
+                        "id":  31,
+                        "vfx":  "vfx.stabilize.field",
+                        "cue":  "sfx.utility.stabilize"
+                    },
+                    {
+                        "id":  32,
+                        "vfx":  "vfx.refine.sparkle",
+                        "cue":  "sfx.utility.refine"
+                    },
+                    {
+                        "id":  33,
+                        "vfx":  "vfx.cooldown.burst",
+                        "cue":  "sfx.utility.cooldown"
+                    },
+                    {
+                        "id":  34,
+                        "vfx":  "vfx.repair.tool",
+                        "cue":  "sfx.utility.tool_repair"
+                    },
+                    {
+                        "id":  35,
+                        "vfx":  "vfx.repair.hull",
+                        "cue":  "sfx.utility.hull_patch"
+                    },
+                    {
+                        "id":  36,
+                        "vfx":  "vfx.jettison",
+                        "cue":  "sfx.utility.jettison"
+                    },
+                    {
+                        "id":  37,
+                        "vfx":  "vfx.jettison",
+                        "cue":  "sfx.utility.jettison"
+                    },
+                    {
+                        "id":  38,
+                        "vfx":  "vfx.jettison",
+                        "cue":  "sfx.utility.jettison"
+                    },
+                    {
+                        "id":  39,
+                        "vfx":  "vfx.jettison",
+                        "cue":  "sfx.utility.jettison"
+                    },
+                    {
+                        "id":  40,
+                        "vfx":  "vfx.jettison",
+                        "cue":  "sfx.utility.jettison"
+                    },
+                    {
+                        "id":  41,
+                        "vfx":  "vfx.jettison",
+                        "cue":  "sfx.utility.jettison"
+                    },
+                    {
+                        "id":  42,
+                        "vfx":  "vfx.dock",
+                        "cue":  "sfx.station.dock"
+                    },
+                    {
+                        "id":  43,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  44,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  45,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  46,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  47,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  48,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  49,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  50,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  51,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  52,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  53,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  54,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  55,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  56,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  57,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  58,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  59,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  60,
+                        "vfx":  "vfx.sell",
+                        "cue":  "sfx.station.sell"
+                    },
+                    {
+                        "id":  61,
+                        "vfx":  "vfx.station.confirm",
+                        "cue":  "sfx.station.buy"
+                    },
+                    {
+                        "id":  62,
+                        "vfx":  "vfx.station.confirm",
+                        "cue":  "sfx.station.buy"
+                    },
+                    {
+                        "id":  63,
+                        "vfx":  "vfx.station.confirm",
+                        "cue":  "sfx.station.buy"
+                    },
+                    {
+                        "id":  64,
+                        "vfx":  "vfx.station.confirm",
+                        "cue":  "sfx.station.buy"
+                    },
+                    {
+                        "id":  65,
+                        "vfx":  "vfx.station.confirm",
+                        "cue":  "sfx.station.buy"
+                    },
+                    {
+                        "id":  66,
+                        "vfx":  "vfx.station.confirm",
+                        "cue":  "sfx.station.buy"
+                    },
+                    {
+                        "id":  67,
+                        "vfx":  "vfx.station.overhaul",
+                        "cue":  "sfx.station.overhaul"
+                    },
+                    {
+                        "id":  68,
+                        "vfx":  "vfx.ui.run_end",
+                        "cue":  "sfx.ui.run_end"
+                    }
+                ],
+    "events":  {
+                   "invalid_action":  {
+                                          "vfx":  "vfx.warning.alert",
+                                          "cue":  "ui.error"
+                                      },
+                   "pirate_encounter":  {
+                                            "vfx":  "vfx.warning.alert",
+                                            "cue":  "sfx.event.pirate_alarm"
+                                        },
+                   "overheat_tick":  {
+                                         "vfx":  "vfx.event.overheat",
+                                         "cue":  "sfx.event.overheat_alarm"
+                                     },
+                   "fracture":  {
+                                    "vfx":  "vfx.explosion.medium",
+                                    "cue":  "sfx.event.explosion"
+                                },
+                   "stranded":  {
+                                    "vfx":  "vfx.event.engine_fail",
+                                    "cue":  "sfx.event.engine_fail"
+                                },
+                   "destroyed":  {
+                                     "vfx":  "vfx.explosion.large",
+                                     "cue":  "sfx.event.big_explosion"
+                                 },
+                   "terminated":  {
+                                      "vfx":  "vfx.explosion.medium",
+                                      "cue":  "sfx.event.explosion"
+                                  },
+                   "truncated":  {
+                                     "vfx":  "vfx.ui.run_end",
+                                     "cue":  "sfx.ui.run_end"
+                                 }
+               }
+}

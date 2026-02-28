@@ -1,0 +1,279 @@
+{
+    "version":  "m6.5.v1",
+    "groups":  {
+                   "ui":  {
+                              "basePath":  "/assets/audio/ui/",
+                              "volume":  0.6
+                          },
+                   "sfx":  {
+                               "basePath":  "/assets/audio/sfx/",
+                               "volume":  0.8
+                           }
+               },
+    "cues":  {
+                 "sfx.event.big_explosion":  {
+                                                 "group":  "sfx",
+                                                 "files":  [
+
+                                                           ],
+                                                 "synth":  "explosion",
+                                                 "volume":  1
+                                             },
+                 "sfx.event.engine_fail":  {
+                                               "group":  "sfx",
+                                               "files":  [
+
+                                                         ],
+                                               "synth":  "engine_fail",
+                                               "volume":  1
+                                           },
+                 "sfx.event.explosion":  {
+                                             "group":  "sfx",
+                                             "files":  [
+
+                                                       ],
+                                             "synth":  "explosion",
+                                             "volume":  1
+                                         },
+                 "sfx.event.overheat_alarm":  {
+                                                  "group":  "sfx",
+                                                  "files":  [
+
+                                                            ],
+                                                  "synth":  "alarm",
+                                                  "volume":  1
+                                              },
+                 "sfx.event.pirate_alarm":  {
+                                                "group":  "sfx",
+                                                "files":  [
+
+                                                          ],
+                                                "synth":  "alarm",
+                                                "volume":  1
+                                            },
+                 "sfx.mine.high":  {
+                                       "group":  "sfx",
+                                       "files":  [
+
+                                                 ],
+                                       "synth":  "laser",
+                                       "volume":  1
+                                   },
+                 "sfx.mine.low":  {
+                                      "group":  "sfx",
+                                      "files":  [
+
+                                                ],
+                                      "synth":  "laser",
+                                      "volume":  1
+                                  },
+                 "sfx.mine.mid":  {
+                                      "group":  "sfx",
+                                      "files":  [
+
+                                                ],
+                                      "synth":  "laser",
+                                      "volume":  1
+                                  },
+                 "sfx.none":  {
+                                  "group":  "sfx",
+                                  "files":  [
+
+                                            ],
+                                  "synth":  "none",
+                                  "volume":  1
+                              },
+                 "sfx.scan.deep":  {
+                                       "group":  "sfx",
+                                       "files":  [
+
+                                                 ],
+                                       "synth":  "scan",
+                                       "volume":  1
+                                   },
+                 "sfx.scan.focus":  {
+                                        "group":  "sfx",
+                                        "files":  [
+
+                                                  ],
+                                        "synth":  "scan",
+                                        "volume":  1
+                                    },
+                 "sfx.scan.listen":  {
+                                         "group":  "sfx",
+                                         "files":  [
+
+                                                   ],
+                                         "synth":  "scan",
+                                         "volume":  1
+                                     },
+                 "sfx.scan.wide":  {
+                                       "group":  "sfx",
+                                       "files":  [
+
+                                                 ],
+                                       "synth":  "scan",
+                                       "volume":  1
+                                   },
+                 "sfx.station.buy":  {
+                                         "group":  "sfx",
+                                         "files":  [
+
+                                                   ],
+                                         "synth":  "confirm",
+                                         "volume":  1
+                                     },
+                 "sfx.station.dock":  {
+                                          "group":  "sfx",
+                                          "files":  [
+
+                                                    ],
+                                          "synth":  "confirm",
+                                          "volume":  1
+                                      },
+                 "sfx.station.overhaul":  {
+                                              "group":  "sfx",
+                                              "files":  [
+
+                                                        ],
+                                              "synth":  "confirm",
+                                              "volume":  1
+                                          },
+                 "sfx.station.sell":  {
+                                          "group":  "sfx",
+                                          "files":  [
+
+                                                    ],
+                                          "synth":  "cash",
+                                          "volume":  1
+                                      },
+                 "sfx.travel.boost":  {
+                                          "group":  "sfx",
+                                          "files":  [
+
+                                                    ],
+                                          "synth":  "warp",
+                                          "volume":  1
+                                      },
+                 "sfx.travel.warp":  {
+                                         "group":  "sfx",
+                                         "files":  [
+
+                                                   ],
+                                         "synth":  "warp",
+                                         "volume":  1
+                                     },
+                 "sfx.ui.run_end":  {
+                                        "group":  "sfx",
+                                        "files":  [
+
+                                                  ],
+                                        "synth":  "run_end",
+                                        "volume":  1
+                                    },
+                 "sfx.utility.cooldown":  {
+                                              "group":  "sfx",
+                                              "files":  [
+
+                                                        ],
+                                              "synth":  "hiss",
+                                              "volume":  1
+                                          },
+                 "sfx.utility.hull_patch":  {
+                                                "group":  "sfx",
+                                                "files":  [
+
+                                                          ],
+                                                "synth":  "utility",
+                                                "volume":  1
+                                            },
+                 "sfx.utility.jettison":  {
+                                              "group":  "sfx",
+                                              "files":  [
+
+                                                        ],
+                                              "synth":  "utility",
+                                              "volume":  1
+                                          },
+                 "sfx.utility.refine":  {
+                                            "group":  "sfx",
+                                            "files":  [
+
+                                                      ],
+                                            "synth":  "utility",
+                                            "volume":  1
+                                        },
+                 "sfx.utility.stabilize":  {
+                                               "group":  "sfx",
+                                               "files":  [
+
+                                                         ],
+                                               "synth":  "utility",
+                                               "volume":  1
+                                           },
+                 "sfx.utility.tool_repair":  {
+                                                 "group":  "sfx",
+                                                 "files":  [
+
+                                                           ],
+                                                 "synth":  "utility",
+                                                 "volume":  1
+                                             },
+                 "ui.click":  {
+                                  "group":  "ui",
+                                  "files":  [
+
+                                            ],
+                                  "synth":  "click",
+                                  "volume":  1
+                              },
+                 "ui.error":  {
+                                  "group":  "ui",
+                                  "files":  [
+
+                                            ],
+                                  "synth":  "alarm_short",
+                                  "volume":  1
+                              },
+                 "ui.none":  {
+                                 "group":  "ui",
+                                 "files":  [
+
+                                           ],
+                                 "synth":  "none",
+                                 "volume":  1
+                             },
+                 "ui.pause":  {
+                                  "group":  "ui",
+                                  "files":  [
+
+                                            ],
+                                  "synth":  "ui_pause",
+                                  "volume":  1
+                              },
+                 "ui.play":  {
+                                 "group":  "ui",
+                                 "files":  [
+
+                                           ],
+                                 "synth":  "ui_play",
+                                 "volume":  1
+                             },
+                 "ui.select":  {
+                                   "group":  "ui",
+                                   "files":  [
+
+                                             ],
+                                   "synth":  "click",
+                                   "volume":  1
+                               },
+                 "ui.step":  {
+                                 "group":  "ui",
+                                 "files":  [
+
+                                           ],
+                                 "synth":  "ui_step",
+                                 "volume":  1
+                             }
+             }
+}

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { actionLabel } from "@/lib/actions";
+import { useCuePlayer } from "@/lib/audio";
 import {
   backendBaseUrl,
   getMetricsWindows,
@@ -12,8 +13,10 @@ import {
   listRuns,
 } from "@/lib/api";
 import { formatNumber, formatTimestamp, toNumericSeries } from "@/lib/format";
+import { actionCueKey, eventCueKey } from "@/lib/presentation";
 import { ReplayEntry, ReplayFrame, RunDetailResponse, RunSummary, WindowMetric } from "@/lib/types";
 
+import { SectorView } from "@/components/sector-view";
 import { Sparkline } from "@/components/sparkline";
 
 type FrameHud = {
@@ -97,6 +100,23 @@ function decodeFrameHud(frame: ReplayFrame | null): FrameHud | null {
   };
 }
 
+function frameObservation(frame: ReplayFrame | null): number[] | null {
+  if (!frame || typeof frame.render_state !== "object" || frame.render_state === null) {
+    return null;
+  }
+
+  const raw = (frame.render_state as Record<string, unknown>).observation;
+  if (!Array.isArray(raw)) {
+    return null;
+  }
+
+  const numeric = raw.map((value) => Number(value));
+  if (numeric.some((value) => !Number.isFinite(value))) {
+    return null;
+  }
+  return numeric;
+}
+
 export function ReplayDashboard() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [runsError, setRunsError] = useState<string | null>(null);
@@ -122,6 +142,8 @@ export function ReplayDashboard() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
   const [jumpTarget, setJumpTarget] = useState("1");
+
+  const { enabled: audioEnabled, setEnabled: setAudioEnabled, playCue } = useCuePlayer(false);
 
   const refreshRuns = useCallback(async () => {
     setLoadingRuns(true);
@@ -258,6 +280,18 @@ export function ReplayDashboard() {
 
   const currentFrame = frames[cursor] ?? null;
   const frameHud = useMemo(() => decodeFrameHud(currentFrame), [currentFrame]);
+  const obsForRender = useMemo(() => frameObservation(currentFrame), [currentFrame]);
+
+  useEffect(() => {
+    if (!currentFrame) {
+      return;
+    }
+
+    void playCue(actionCueKey(Number(currentFrame.action)));
+    for (const eventName of currentFrame.events ?? []) {
+      void playCue(eventCueKey(eventName));
+    }
+  }, [currentFrame?.frame_index, currentFrame, playCue]);
 
   const replayWindow = useMemo(() => {
     if (!selectedReplay) {
@@ -288,7 +322,8 @@ export function ReplayDashboard() {
     }
     const frameIndex = Math.max(1, Math.min(Math.trunc(raw), frames.length)) - 1;
     setCursor(frameIndex);
-  }, [jumpTarget, frames.length]);
+    void playCue("ui.step");
+  }, [jumpTarget, frames.length, playCue]);
 
   return (
     <section className="panel-grid">
@@ -300,7 +335,10 @@ export function ReplayDashboard() {
             Run ID
             <select
               value={selectedRunId}
-              onChange={(event) => setSelectedRunId(event.target.value)}
+              onChange={(event) => {
+                setSelectedRunId(event.target.value);
+                void playCue("ui.click");
+              }}
               disabled={loadingRuns || runs.length === 0}
             >
               {runs.map((run) => (
@@ -322,7 +360,10 @@ export function ReplayDashboard() {
             Window ID
             <select
               value={selectedWindowId}
-              onChange={(event) => setSelectedWindowId(event.target.value)}
+              onChange={(event) => {
+                setSelectedWindowId(event.target.value);
+                void playCue("ui.click");
+              }}
               disabled={windowOptions.length === 0}
             >
               <option value="all">All windows</option>
@@ -337,7 +378,10 @@ export function ReplayDashboard() {
             Replay ID
             <select
               value={selectedReplayId}
-              onChange={(event) => setSelectedReplayId(event.target.value)}
+              onChange={(event) => {
+                setSelectedReplayId(event.target.value);
+                void playCue("ui.click");
+              }}
               disabled={filteredReplays.length === 0}
             >
               {filteredReplays.map((replay) => (
@@ -394,24 +438,43 @@ export function ReplayDashboard() {
             </div>
           </label>
           <div className="row">
-            <button onClick={() => setIsPlaying((prev) => !prev)} disabled={frames.length <= 1}>
+            <button
+              onClick={() => {
+                setIsPlaying((prev) => !prev);
+                void playCue(isPlaying ? "ui.pause" : "ui.play");
+              }}
+              disabled={frames.length <= 1}
+            >
               {isPlaying ? "Pause" : "Play"}
             </button>
             <button
               className="alt"
-              onClick={() => setCursor((prev) => Math.max(prev - 1, 0))}
+              onClick={() => {
+                setCursor((prev) => Math.max(prev - 1, 0));
+                void playCue("ui.step");
+              }}
               disabled={frames.length <= 1}
             >
               Back
             </button>
             <button
               className="alt"
-              onClick={() => setCursor((prev) => Math.min(prev + 1, Math.max(frames.length - 1, 0)))}
+              onClick={() => {
+                setCursor((prev) => Math.min(prev + 1, Math.max(frames.length - 1, 0)));
+                void playCue("ui.step");
+              }}
               disabled={frames.length <= 1}
             >
               Step
             </button>
-            <button className="alt" onClick={() => setCursor(0)} disabled={frames.length === 0}>
+            <button
+              className="alt"
+              onClick={() => {
+                setCursor(0);
+                void playCue("ui.step");
+              }}
+              disabled={frames.length === 0}
+            >
               Reset
             </button>
           </div>
@@ -419,12 +482,34 @@ export function ReplayDashboard() {
             <span className="badge">frame {frames.length === 0 ? 0 : cursor + 1}</span>
             <span className="badge">total {frames.length}</span>
           </div>
+          <div className="row">
+            <span className="muted">Audio cues</span>
+            <button
+              className={audioEnabled ? "warn" : "alt"}
+              onClick={() => {
+                setAudioEnabled((prev) => !prev);
+                void playCue("ui.click");
+              }}
+            >
+              {audioEnabled ? "Mute" : "Enable Audio"}
+            </button>
+          </div>
           {loadingFrames ? <p className="muted">Loading frames...</p> : null}
           {frameError ? <p className="notice error">{frameError}</p> : null}
         </article>
       </aside>
 
       <section className="stack">
+        <article className="card stack">
+          <h2>Sector View</h2>
+          <SectorView
+            mode="agent"
+            observation={obsForRender}
+            action={currentFrame ? Number(currentFrame.action) : null}
+            events={currentFrame?.events ?? []}
+          />
+        </article>
+
         <article className="card stack">
           <h2>Current Frame</h2>
           {currentFrame ? (
