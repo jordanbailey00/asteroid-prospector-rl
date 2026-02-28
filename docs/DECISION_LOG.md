@@ -121,3 +121,12 @@ Use this file for non-trivial project decisions.
 - Decision: Extend checkpoint writing to support backend-specific formats: `json_v1` for random backend and `ppo_torch_v1` for PPO backend. Capture PPO model state (`policy_arch`, `obs_shape`, `n_actions`, `model_state_dict`) at each checkpoint window and load that state in eval runner to select actions from the saved policy.
 - Consequences: Eval replays now reflect checkpointed PPO behavior instead of random rollouts, with a stable checkpoint contract that supports future resume/eval tooling.
 - Related commits/docs: `training/train_puffer.py`, `training/puffer_backend.py`, `training/policy.py`, `training/eval_runner.py`, `tests/test_checkpoint_io.py`, `tests/test_eval_runner.py`, `training/README.md`
+
+### ADR-0013 - Bootstrap M5 API from filesystem artifacts (`run_metadata.json` + `replay_index.json` + replay files)
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: M5 needs immediate run/replay catalog APIs without introducing a separate database before replay/storage contracts settle.
+- Decision: Implement initial FastAPI endpoints backed directly by `runs/{run_id}` artifacts: run catalog from `run_metadata.json`, replay catalog/detail from `replay_index.json`, and replay frame fetch by reading replay files (`jsonl.gz`). Include query-time filtering (`tag`, `tags_any`, `tags_all`, `window_id`, `limit`) and frame pagination (`offset`, `limit`).
+- Consequences: API bootstrap is fast and aligned with current trainer outputs; future storage backends can preserve endpoint contracts while swapping internal persistence.
+- Related commits/docs: `server/app.py`, `server/main.py`, `server/README.md`, `tests/test_server_api.py`, `replay/index.py`, `docs/PROJECT_STATUS.md`

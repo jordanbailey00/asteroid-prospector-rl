@@ -50,6 +50,10 @@ All notable changes to this project will be documented in this file.
 - Added `milestone:*` replay tagging support with configurable return/profit/survival thresholds.
 - Added replay index query helpers `filter_replay_entries(...)` and `get_replay_entry_by_id(...)` in `replay/index.py`.
 - Added tests for checkpoint formats and replay index filtering (`tests/test_checkpoint_io.py`, `tests/test_replay_index.py`).
+- Added initial M5 FastAPI server implementation (`server/app.py`, `server/main.py`) for run/replay catalog and replay frame fetch endpoints.
+- Added replay query/filter support in API (`tag`, `tags_any`, `tags_all`, `window_id`, `limit`) and frame pagination (`offset`, `limit`).
+- Added API endpoint test coverage with temp run artifacts in `tests/test_server_api.py`.
+- Updated `server/README.md` with local startup instructions and endpoint list.
 ### Environment
 - Installed missing development dependencies and toolchains:
   - `pre-commit` (Python package)
