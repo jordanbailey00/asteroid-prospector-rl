@@ -85,3 +85,12 @@ Use this file for non-trivial project decisions.
 - Decision: Introduce a `WindowMetricsAggregator` that emits one metrics row per closed window, persist rows to `runs/{run_id}/metrics/windows.jsonl`, and mirror rows to W&B when enabled via an adapter.
 - Consequences: Window metrics are available immediately for backend/frontend development and tests; trainer backend can evolve from random-policy scaffold to PPO without changing metrics schema.
 - Related commits/docs: `training/windowing.py`, `training/logging.py`, `training/train_puffer.py`, `tests/test_windowing.py`, `tests/test_wandb_offline.py`, `tests/test_training_loop.py`
+
+### ADR-0009 - Treat `run_metadata.json` as the live run-state contract for M5/M6
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: Upcoming API/frontend milestones need stable run-level pointers (`latest_window`, checkpoint location, run status, and URLs) while training is still running, not only after the process exits.
+- Decision: Persist `runs/{run_id}/run_metadata.json` as a live-updated document with lifecycle status (`running`/`completed`/`failed`), progress counters, and latest pointers (`latest_window`, `latest_checkpoint`, replay placeholders, and observability URLs).
+- Consequences: M5 endpoints can serve current run state without tailing metrics files directly; trainer now performs metadata writes at run start, per emitted window, and on completion/failure.
+- Related commits/docs: `training/train_puffer.py`, `tests/test_training_loop.py`, `training/README.md`, `docs/PROJECT_STATUS.md`

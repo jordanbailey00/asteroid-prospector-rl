@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -27,9 +27,12 @@ All notable changes to this project will be documented in this file.
 - `.gitignore` now excludes `artifacts/` parity output directories.
 - Python-side `Pcg32Rng` implementation aligned to native stochastic primitives.
 - `ProspectorReferenceEnv` now uses `Pcg32Rng`, enabling parity convergence under fixed seed/action traces.
-- M3 training modules: 	raining/windowing.py, 	raining/logging.py, and 	raining/train_puffer.py for windowed metrics, checkpoint cadence, and optional W&B logging.
-- New M3 tests: 	ests/test_windowing.py, 	ests/test_wandb_offline.py, and 	ests/test_training_loop.py (window logic, offline logger behavior, trainer artifact emission).
-- 	raining/README.md now documents M3 run commands and output artifact layout.
+- M3 training modules: `training/windowing.py`, `training/logging.py`, and `training/train_puffer.py` for windowed metrics, checkpoint cadence, and optional W&B logging.
+- New M3 tests: `tests/test_windowing.py`, `tests/test_wandb_offline.py`, and `tests/test_training_loop.py` (window logic, offline logger behavior, trainer artifact emission).
+- `training/README.md` now documents M3 run commands and output artifact layout.
+- `training/train_puffer.py` now persists live `run_metadata.json` updates (`status`, `latest_window`, `latest_checkpoint`, replay placeholders, and observability URLs).
+- Trainer backend validation now surfaces explicit `puffer_ppo` blocker errors for unsupported environments (including Windows).
+- Expanded M3 training-loop coverage to assert metadata contract fields and backend-blocker behavior.
 
 ### Environment
 - Installed missing development dependencies and toolchains:
