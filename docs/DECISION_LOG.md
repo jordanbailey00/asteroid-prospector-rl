@@ -112,3 +112,12 @@ Use this file for non-trivial project decisions.
 - Decision: Store each replay as `runs/{run_id}/replays/{replay_id}.jsonl.gz` with a stable frame schema (`t`, `dt`, `action`, `reward`, `terminated`, `truncated`, `render_state`, `events`, optional `info`) and maintain `runs/{run_id}/replay_index.json` as the run-scoped catalog. Tag every replay with `every_window`; additionally tag `best_so_far` when `return_total` is strictly greater than all previous entries in that run index.
 - Consequences: Replay artifacts are human-readable after decompression, easy to validate with lightweight tests, and directly consumable by upcoming API endpoints; strict greater-than best tagging avoids repeated `best_so_far` labels on ties.
 - Related commits/docs: `training/eval_runner.py`, `replay/schema.py`, `replay/index.py`, `tests/test_eval_runner.py`, `tests/test_replay_schema.py`, `training/README.md`, `replay/README.md`
+
+### ADR-0012 - Serialize PPO policy state in window checkpoints and use it as the eval replay authority
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: M4 required policy-driven eval replays from actual trainer checkpoints; JSON-only checkpoint payloads could not carry PPO policy parameters, and eval used random actions even for PPO windows.
+- Decision: Extend checkpoint writing to support backend-specific formats: `json_v1` for random backend and `ppo_torch_v1` for PPO backend. Capture PPO model state (`policy_arch`, `obs_shape`, `n_actions`, `model_state_dict`) at each checkpoint window and load that state in eval runner to select actions from the saved policy.
+- Consequences: Eval replays now reflect checkpointed PPO behavior instead of random rollouts, with a stable checkpoint contract that supports future resume/eval tooling.
+- Related commits/docs: `training/train_puffer.py`, `training/puffer_backend.py`, `training/policy.py`, `training/eval_runner.py`, `tests/test_checkpoint_io.py`, `tests/test_eval_runner.py`, `training/README.md`

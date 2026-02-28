@@ -48,3 +48,66 @@ def append_replay_entry(*, path: Path, run_id: str, entry: dict[str, Any]) -> di
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(index_payload, indent=2), encoding="utf-8")
     return index_payload
+
+
+def _entry_tags(entry: dict[str, Any]) -> set[str]:
+    raw = entry.get("tags", [])
+    if not isinstance(raw, list):
+        return set()
+    return {str(tag) for tag in raw}
+
+
+def filter_replay_entries(
+    entries: list[dict[str, Any]],
+    *,
+    tag: str | None = None,
+    tags_any: list[str] | None = None,
+    tags_all: list[str] | None = None,
+    window_id: int | None = None,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    normalized_any = {str(value) for value in (tags_any or []) if str(value) != ""}
+    normalized_all = {str(value) for value in (tags_all or []) if str(value) != ""}
+
+    filtered: list[dict[str, Any]] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+
+        entry_tags = _entry_tags(entry)
+        if tag is not None and tag not in entry_tags:
+            continue
+        if normalized_any and not (entry_tags & normalized_any):
+            continue
+        if normalized_all and not normalized_all.issubset(entry_tags):
+            continue
+        if window_id is not None and int(entry.get("window_id", -1)) != int(window_id):
+            continue
+
+        filtered.append(entry)
+
+    filtered.sort(
+        key=lambda item: (
+            int(item.get("window_id", -1)),
+            str(item.get("created_at", "")),
+            str(item.get("replay_id", "")),
+        ),
+        reverse=True,
+    )
+
+    if limit is not None and limit >= 0:
+        return filtered[:limit]
+    return filtered
+
+
+def get_replay_entry_by_id(index_payload: dict[str, Any], replay_id: str) -> dict[str, Any] | None:
+    entries = index_payload.get("entries", [])
+    if not isinstance(entries, list):
+        return None
+
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("replay_id")) == replay_id:
+            return entry
+    return None

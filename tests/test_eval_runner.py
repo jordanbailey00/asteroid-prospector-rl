@@ -2,6 +2,8 @@ import gzip
 import json
 from pathlib import Path
 
+import pytest
+
 from replay.index import REPLAY_INDEX_SCHEMA_VERSION
 from replay.schema import validate_replay_frame
 from training.eval_runner import EvalReplayConfig, run_eval_and_record_replay
@@ -41,6 +43,7 @@ def test_eval_runner_writes_replay_and_index(tmp_path: Path) -> None:
             num_episodes=2,
             max_steps_per_episode=20,
             include_info=True,
+            milestone_survival_thresholds=(0.0,),
         )
     )
 
@@ -49,6 +52,7 @@ def test_eval_runner_writes_replay_and_index(tmp_path: Path) -> None:
     assert result.replay_index_path.exists()
     assert "every_window" in result.replay_entry["tags"]
     assert "best_so_far" in result.replay_entry["tags"]
+    assert "milestone:survival:0" in result.replay_entry["tags"]
 
     frames = _read_replay_frames(result.replay_path)
     assert frames
@@ -117,3 +121,54 @@ def test_eval_runner_skips_best_tag_when_prior_return_is_higher(tmp_path: Path) 
     index_payload = json.loads(replay_index_path.read_text(encoding="utf-8"))
     assert len(index_payload["entries"]) == 2
     assert index_payload["entries"][1]["replay_id"] == result.replay_id
+
+
+def test_eval_runner_uses_checkpoint_policy_for_puffer_backend(tmp_path: Path) -> None:
+    torch = pytest.importorskip("torch")
+
+    from training.policy import POLICY_ARCH, create_actor_critic, export_policy_state_dict_cpu
+
+    run_id = "eval-run-ppo"
+    run_dir = tmp_path / run_id
+    ckpt = run_dir / "checkpoints" / "ckpt_000010.pt"
+
+    model = create_actor_critic(obs_shape=(260,), n_actions=69, device="cpu")
+    with torch.no_grad():
+        for parameter in model.parameters():
+            parameter.zero_()
+
+    payload = {
+        "checkpoint_format": "ppo_torch_v1",
+        "run_id": run_id,
+        "window_id": 10,
+        "env_steps_total": 1000,
+        "trainer_backend": "puffer_ppo",
+        "created_at": "2026-02-28T00:00:00+00:00",
+        "policy_arch": POLICY_ARCH,
+        "obs_shape": [260],
+        "n_actions": 69,
+        "model_state_dict": export_policy_state_dict_cpu(model),
+    }
+    ckpt.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(payload, ckpt)
+
+    result = run_eval_and_record_replay(
+        EvalReplayConfig(
+            run_id=run_id,
+            run_dir=run_dir,
+            checkpoint_path=ckpt,
+            window_id=10,
+            trainer_backend="puffer_ppo",
+            env_time_max=1000.0,
+            base_seed=7,
+            num_episodes=1,
+            max_steps_per_episode=12,
+            include_info=False,
+            policy_deterministic=True,
+        )
+    )
+
+    assert result.replay_entry["trainer_backend"] == "puffer_ppo"
+    frames = _read_replay_frames(result.replay_path)
+    assert frames
+    assert all(int(frame["action"]) == 0 for frame in frames)

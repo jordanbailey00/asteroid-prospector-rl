@@ -4,6 +4,7 @@ import argparse
 import json
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -54,7 +55,11 @@ class TrainConfig:
     eval_replays_per_window: int = 0
     eval_max_steps_per_episode: int = 512
     eval_include_info: bool = True
+    eval_policy_deterministic: bool = True
     eval_seed_offset: int = 100000
+    eval_milestone_profit_thresholds: tuple[float, ...] = (100.0, 500.0, 1000.0)
+    eval_milestone_return_thresholds: tuple[float, ...] = (10.0, 25.0, 50.0)
+    eval_milestone_survival_thresholds: tuple[float, ...] = (1.0,)
 
     # PPO backend parameters (used when trainer_backend == "puffer_ppo")
     ppo_num_envs: int = 8
@@ -111,6 +116,37 @@ def as_posix_relative(path: Path, *, start: Path) -> str:
         return path.as_posix()
 
 
+def parse_thresholds_csv(raw: str) -> tuple[float, ...]:
+    text = raw.strip()
+    if text == "":
+        return tuple()
+
+    values: list[float] = []
+    for item in text.split(","):
+        part = item.strip()
+        if part == "":
+            continue
+        try:
+            value = float(part)
+        except ValueError as exc:
+            raise ValueError(f"Invalid threshold value: {part!r}") from exc
+        if not np.isfinite(value):
+            raise ValueError(f"Invalid threshold value: {part!r}")
+        if value < 0.0:
+            raise ValueError(f"Threshold values must be non-negative: {part!r}")
+        values.append(value)
+
+    return tuple(sorted(set(values)))
+
+
+def validate_thresholds(name: str, values: tuple[float, ...]) -> None:
+    for value in values:
+        if not np.isfinite(float(value)):
+            raise ValueError(f"{name} contains non-finite value: {value}")
+        if float(value) < 0.0:
+            raise ValueError(f"{name} contains negative value: {value}")
+
+
 def write_metadata(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -156,15 +192,31 @@ def write_checkpoint(
     window_id: int,
     env_steps_total: int,
     trainer_backend: str,
+    extra_payload: dict[str, Any] | None = None,
 ) -> None:
-    payload = {
+    payload: dict[str, Any] = {
         "run_id": run_id,
         "window_id": int(window_id),
         "env_steps_total": int(env_steps_total),
         "trainer_backend": trainer_backend,
         "created_at": now_iso(),
     }
+    if extra_payload is not None:
+        payload.update(extra_payload)
+
     path.parent.mkdir(parents=True, exist_ok=True)
+
+    if trainer_backend == "puffer_ppo":
+        try:
+            import torch  # type: ignore
+        except ImportError as exc:  # pragma: no cover - guarded by validate_backend
+            raise RuntimeError("torch is required to write puffer_ppo checkpoints") from exc
+
+        payload["checkpoint_format"] = "ppo_torch_v1"
+        torch.save(payload, path)
+        return
+
+    payload["checkpoint_format"] = "json_v1"
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
@@ -183,6 +235,18 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
         raise ValueError("eval_replays_per_window must be non-negative")
     if cfg.eval_max_steps_per_episode <= 0:
         raise ValueError("eval_max_steps_per_episode must be positive")
+    validate_thresholds(
+        "eval_milestone_profit_thresholds",
+        cfg.eval_milestone_profit_thresholds,
+    )
+    validate_thresholds(
+        "eval_milestone_return_thresholds",
+        cfg.eval_milestone_return_thresholds,
+    )
+    validate_thresholds(
+        "eval_milestone_survival_thresholds",
+        cfg.eval_milestone_survival_thresholds,
+    )
     validate_backend(cfg.trainer_backend)
 
     run_id = cfg.run_id or default_run_id()
@@ -239,6 +303,8 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
     }
     write_metadata(run_paths.metadata_path, metadata)
 
+    ppo_checkpoint_state_getter: Callable[[], dict[str, Any]] | None = None
+
     def emit_window_record(record: WindowRecord) -> None:
         nonlocal windows_emitted
         nonlocal checkpoints_written
@@ -265,12 +331,21 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
 
         if record.window_id % cfg.checkpoint_every_windows == 0:
             ckpt_path = run_paths.checkpoints_dir / f"ckpt_{record.window_id:06d}.pt"
+            checkpoint_extra_payload: dict[str, Any] | None = None
+            if cfg.trainer_backend == "puffer_ppo":
+                if ppo_checkpoint_state_getter is None:
+                    raise RuntimeError(
+                        "puffer_ppo checkpoint requested before policy state getter was registered"
+                    )
+                checkpoint_extra_payload = ppo_checkpoint_state_getter()
+
             write_checkpoint(
                 path=ckpt_path,
                 run_id=run_id,
                 window_id=record.window_id,
                 env_steps_total=record.env_steps_total,
                 trainer_backend=cfg.trainer_backend,
+                extra_payload=checkpoint_extra_payload,
             )
             checkpoints_written += 1
             metadata["checkpoints_written"] = checkpoints_written
@@ -300,6 +375,10 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
                         num_episodes=cfg.eval_replays_per_window,
                         max_steps_per_episode=cfg.eval_max_steps_per_episode,
                         include_info=cfg.eval_include_info,
+                        policy_deterministic=cfg.eval_policy_deterministic,
+                        milestone_profit_thresholds=cfg.eval_milestone_profit_thresholds,
+                        milestone_return_thresholds=cfg.eval_milestone_return_thresholds,
+                        milestone_survival_thresholds=cfg.eval_milestone_survival_thresholds,
                     )
                 )
                 metadata["latest_replay"] = eval_result.replay_entry
@@ -371,6 +450,10 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
                     emit_window_record(record)
                 return aggregator.env_steps_total >= cfg.total_env_steps
 
+            def register_checkpoint_state_getter(getter: Callable[[], dict[str, Any]]) -> None:
+                nonlocal ppo_checkpoint_state_getter
+                ppo_checkpoint_state_getter = getter
+
             ppo_summary = run_puffer_ppo_training(
                 cfg=PpoConfig(
                     total_env_steps=cfg.total_env_steps,
@@ -391,6 +474,7 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
                     vector_backend=cfg.ppo_vector_backend,
                 ),
                 on_step=on_step,
+                register_checkpoint_state_getter=register_checkpoint_state_getter,
             )
             metadata.update(ppo_summary)
             metadata["updated_at"] = now_iso()
@@ -428,6 +512,7 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
                 "ppo_rollout_steps",
                 "ppo_policy_updates",
                 "ppo_vector_backend",
+                "ppo_policy_arch",
             ):
                 if key in metadata:
                     summary[key] = metadata[key]
@@ -497,6 +582,7 @@ def _parse_args() -> TrainConfig:
 
     parser.add_argument("--eval-replays-per-window", type=int, default=0)
     parser.add_argument("--eval-max-steps-per-episode", type=int, default=512)
+
     eval_info_group = parser.add_mutually_exclusive_group()
     eval_info_group.add_argument(
         "--eval-include-info",
@@ -510,8 +596,42 @@ def _parse_args() -> TrainConfig:
         action="store_false",
         help="Exclude raw info payload from replay frames.",
     )
+
+    eval_policy_group = parser.add_mutually_exclusive_group()
+    eval_policy_group.add_argument(
+        "--eval-policy-deterministic",
+        dest="eval_policy_deterministic",
+        action="store_true",
+        help="Use argmax action selection for PPO eval replays (default).",
+    )
+    eval_policy_group.add_argument(
+        "--eval-policy-stochastic",
+        dest="eval_policy_deterministic",
+        action="store_false",
+        help="Sample PPO eval actions from the checkpoint policy distribution.",
+    )
+
     parser.set_defaults(eval_include_info=True)
+    parser.set_defaults(eval_policy_deterministic=True)
     parser.add_argument("--eval-seed-offset", type=int, default=100000)
+    parser.add_argument(
+        "--eval-milestone-profit-thresholds",
+        type=str,
+        default="100,500,1000",
+        help="Comma-separated profit thresholds for milestone tags.",
+    )
+    parser.add_argument(
+        "--eval-milestone-return-thresholds",
+        type=str,
+        default="10,25,50",
+        help="Comma-separated return thresholds for milestone tags.",
+    )
+    parser.add_argument(
+        "--eval-milestone-survival-thresholds",
+        type=str,
+        default="1.0",
+        help="Comma-separated survival thresholds for milestone tags.",
+    )
 
     parser.add_argument("--ppo-num-envs", type=int, default=8)
     parser.add_argument("--ppo-num-workers", type=int, default=4)
@@ -547,7 +667,17 @@ def _parse_args() -> TrainConfig:
         eval_replays_per_window=args.eval_replays_per_window,
         eval_max_steps_per_episode=args.eval_max_steps_per_episode,
         eval_include_info=args.eval_include_info,
+        eval_policy_deterministic=args.eval_policy_deterministic,
         eval_seed_offset=args.eval_seed_offset,
+        eval_milestone_profit_thresholds=parse_thresholds_csv(
+            args.eval_milestone_profit_thresholds
+        ),
+        eval_milestone_return_thresholds=parse_thresholds_csv(
+            args.eval_milestone_return_thresholds
+        ),
+        eval_milestone_survival_thresholds=parse_thresholds_csv(
+            args.eval_milestone_survival_thresholds
+        ),
         ppo_num_envs=args.ppo_num_envs,
         ppo_num_workers=args.ppo_num_workers,
         ppo_rollout_steps=args.ppo_rollout_steps,

@@ -6,6 +6,11 @@ from typing import Any
 
 import numpy as np
 
+if __package__ is None or __package__ == "":
+    from training.policy import POLICY_ARCH, create_actor_critic, export_policy_state_dict_cpu
+else:
+    from .policy import POLICY_ARCH, create_actor_critic, export_policy_state_dict_cpu
+
 
 @dataclass(frozen=True)
 class PpoConfig:
@@ -28,6 +33,8 @@ class PpoConfig:
 
 
 StepCallback = Callable[[float, dict[str, Any], bool, bool], bool]
+StateGetter = Callable[[], dict[str, Any]]
+RegisterStateGetter = Callable[[StateGetter], None]
 
 
 def _validate_config(cfg: PpoConfig) -> None:
@@ -98,55 +105,12 @@ class _ProspectorGymEnv:
         return None
 
 
-class _MlpActorCritic:  # Runtime-only torch model wrapper
-    def __init__(self, *, obs_shape: tuple[int, ...], n_actions: int, device: str) -> None:
-        import torch
-        import torch.nn as nn
-
-        obs_dim = int(np.prod(obs_shape))
-
-        class _Model(nn.Module):
-            def __init__(self) -> None:
-                super().__init__()
-                self.encoder = nn.Sequential(
-                    nn.Linear(obs_dim, 256),
-                    nn.Tanh(),
-                    nn.Linear(256, 256),
-                    nn.Tanh(),
-                )
-                self.actor = nn.Linear(256, n_actions)
-                self.critic = nn.Linear(256, 1)
-
-            def _features(self, obs: torch.Tensor) -> torch.Tensor:
-                return self.encoder(obs.view(obs.shape[0], -1))
-
-            def get_value(self, obs: torch.Tensor) -> torch.Tensor:
-                return self.critic(self._features(obs)).squeeze(-1)
-
-            def get_action_and_value(
-                self,
-                obs: torch.Tensor,
-                action: torch.Tensor | None = None,
-            ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-                from torch.distributions.categorical import Categorical
-
-                features = self._features(obs)
-                logits = self.actor(features)
-                dist = Categorical(logits=logits)
-                if action is None:
-                    action = dist.sample()
-                return (
-                    action,
-                    dist.log_prob(action),
-                    dist.entropy(),
-                    self.critic(features).squeeze(-1),
-                )
-
-        self.torch = torch
-        self.model = _Model().to(device)
-
-
-def run_puffer_ppo_training(*, cfg: PpoConfig, on_step: StepCallback) -> dict[str, Any]:
+def run_puffer_ppo_training(
+    *,
+    cfg: PpoConfig,
+    on_step: StepCallback,
+    register_checkpoint_state_getter: RegisterStateGetter | None = None,
+) -> dict[str, Any]:
     _validate_config(cfg)
 
     import pufferlib.emulation
@@ -185,9 +149,20 @@ def run_puffer_ppo_training(*, cfg: PpoConfig, on_step: StepCallback) -> dict[st
         n_actions = int(envs.single_action_space.n)
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        wrapped = _MlpActorCritic(obs_shape=obs_shape, n_actions=n_actions, device=device)
-        agent = wrapped.model
+        agent = create_actor_critic(obs_shape=obs_shape, n_actions=n_actions, device=device)
         optimizer = optim.Adam(agent.parameters(), lr=cfg.learning_rate, eps=1e-5)
+
+        if register_checkpoint_state_getter is not None:
+
+            def snapshot_state() -> dict[str, Any]:
+                return {
+                    "policy_arch": POLICY_ARCH,
+                    "obs_shape": list(obs_shape),
+                    "n_actions": int(n_actions),
+                    "model_state_dict": export_policy_state_dict_cpu(agent),
+                }
+
+            register_checkpoint_state_getter(snapshot_state)
 
         rollout_obs = torch.zeros((cfg.rollout_steps, cfg.num_envs) + obs_shape, device=device)
         rollout_actions = torch.zeros(
@@ -332,6 +307,7 @@ def run_puffer_ppo_training(*, cfg: PpoConfig, on_step: StepCallback) -> dict[st
             "ppo_rollout_steps": cfg.rollout_steps,
             "ppo_policy_updates": policy_updates,
             "ppo_vector_backend": cfg.vector_backend,
+            "ppo_policy_arch": POLICY_ARCH,
         }
     finally:
         envs.close()

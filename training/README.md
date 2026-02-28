@@ -5,6 +5,7 @@ M3/M4 training pipeline with checkpointing, optional W&B logging, and eval repla
 Current implementation:
 - `training/train_puffer.py` (windowed run loop + metadata persistence; `random` and `puffer_ppo` backends)
 - `training/puffer_backend.py` (PufferLib vectorized PPO training loop)
+- `training/policy.py` (shared actor-critic architecture + checkpoint serialization helpers)
 - `training/eval_runner.py` (per-window eval episodes + replay recording)
 - `training/windowing.py` (window aggregation keyed by `window_env_steps`)
 - `training/logging.py` (JSONL metrics sink + W&B adapter for checkpoints/replays)
@@ -45,9 +46,18 @@ Generate one eval replay per checkpointed window:
 python training/train_puffer.py --trainer-backend random --total-env-steps 6000 --window-env-steps 2000 --checkpoint-every-windows 1 --eval-replays-per-window 1 --eval-max-steps-per-episode 512 --no-eval-include-info --wandb-mode disabled
 ```
 
+For PPO runs, eval replay generation is policy-driven from serialized checkpoint policy state.
+Use `--eval-policy-deterministic` (default) for argmax actions or `--eval-policy-stochastic` for sampled actions.
+
+Milestone tag thresholds are configurable with comma-separated lists:
+- `--eval-milestone-profit-thresholds` (default `100,500,1000`)
+- `--eval-milestone-return-thresholds` (default `10,25,50`)
+- `--eval-milestone-survival-thresholds` (default `1.0`)
+
 Replay tags:
 - `every_window` on all generated replays
-- `best_so_far` when a replay exceeds all prior `return_total` values in the same run
+- `best_so_far` when replay return exceeds all previous run replays
+- `milestone:*` tags when configured thresholds are met
 
 ## W&B offline mode
 
@@ -58,6 +68,8 @@ python training/train_puffer.py --wandb-mode offline --wandb-project asteroid-pr
 ## Artifacts
 
 - `runs/{run_id}/checkpoints/ckpt_{window_id}.pt`
+  - `random` backend checkpoints are JSON payloads (`checkpoint_format=json_v1`)
+  - `puffer_ppo` checkpoints are torch payloads (`checkpoint_format=ppo_torch_v1`) and include serialized policy state
 - `runs/{run_id}/metrics/windows.jsonl`
 - `runs/{run_id}/replays/{replay_id}.jsonl.gz` (when eval enabled)
 - `runs/{run_id}/replay_index.json` (when eval enabled)

@@ -44,6 +44,12 @@ All notable changes to this project will be documented in this file.
 - Added replay artifact logging support in `training/logging.py` (`WandbWindowLogger.log_replay`).
 - Added M4 tests: `tests/test_replay_schema.py`, `tests/test_eval_runner.py`, and training-loop replay integration coverage.
 - Updated training/replay docs to document replay flags, artifact layout, and schema/index contracts.
+- Added `training/policy.py` to centralize PPO actor-critic architecture and checkpoint state export/load helpers.
+- `training/train_puffer.py` checkpoints are now backend-aware: `json_v1` for random backend and `ppo_torch_v1` (serialized model state) for PPO backend.
+- `training/eval_runner.py` now loads serialized PPO checkpoint policy state and generates policy-driven eval replays (deterministic or stochastic mode).
+- Added `milestone:*` replay tagging support with configurable return/profit/survival thresholds.
+- Added replay index query helpers `filter_replay_entries(...)` and `get_replay_entry_by_id(...)` in `replay/index.py`.
+- Added tests for checkpoint formats and replay index filtering (`tests/test_checkpoint_io.py`, `tests/test_replay_index.py`).
 ### Environment
 - Installed missing development dependencies and toolchains:
   - `pre-commit` (Python package)

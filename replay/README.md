@@ -1,6 +1,6 @@
 # replay
 
-Replay schema and index utilities used by the M4 eval runner.
+Replay schema and index utilities used by the M4 eval runner and upcoming M5 API endpoints.
 
 ## Files
 
@@ -11,6 +11,7 @@ Replay schema and index utilities used by the M4 eval runner.
 - `replay/index.py`
   - `REPLAY_INDEX_SCHEMA_VERSION = 1`
   - `load_replay_index(...)` and `append_replay_entry(...)`
+  - `filter_replay_entries(...)` and `get_replay_entry_by_id(...)`
 
 ## Frame format (`jsonl.gz`)
 
@@ -38,8 +39,19 @@ Top-level keys:
 Each entry includes:
 - `run_id`, `window_id`, `replay_id`
 - `replay_path`, `checkpoint_path`
-- `tags` (`every_window`, optional `best_so_far`)
+- `tags` (`every_window`, optional `best_so_far`, optional `milestone:*`)
 - `return_total`, `profit`, `survival`, `steps`
 - `terminated`, `truncated`
 - `checkpoint_env_steps_total`
 - `created_at`
+
+## Filtering helpers
+
+`filter_replay_entries(...)` supports filtering by:
+- `tag`
+- `tags_any`
+- `tags_all`
+- `window_id`
+- `limit`
+
+`get_replay_entry_by_id(...)` resolves a single replay from index payload by `replay_id`.
