@@ -23,7 +23,7 @@ docker compose -f infra/docker-compose.yml build --progress=plain trainer
 Smoke check:
 
 ```powershell
-docker compose -f infra/docker-compose.yml run --rm trainer python -c "import pufferlib; print(pufferlib.__version__)"
+docker compose -f infra/docker-compose.yml run --rm trainer python -c "import importlib.metadata as im, pufferlib; print(im.version('pufferlib-core')); print(pufferlib.__version__)"
 ```
 
 Run short PPO training in container:

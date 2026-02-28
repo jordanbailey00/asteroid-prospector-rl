@@ -80,6 +80,9 @@ All notable changes to this project will be documented in this file.
 - Updated reusable trainer image tag defaults/docs to `py311-puffercore3.0.17` in compose and trainer handoff docs.
 - Updated PPO backend for newer Puffer vector semantics by accepting vector-provided env factory seeds and normalizing `infos` payload extraction across dict/list/array forms.
 - Fixed script-mode import path behavior in `training/train_puffer.py` to prevent stdlib `logging` shadowing by `training/logging.py` when running `python training/train_puffer.py`.
+- Published updated reusable trainer image jordanbailey00/rl-puffer-base:py311-puffercore3.0.17 with digest sha256:723c58843d9ed563fa66c0927da975bdbab5355c913ec965dbea25a2af67bb71.
+- Refreshed root README.md to reflect current milestone completion state and current trainer/image baseline.
+- Expanded infra/trainer/README.md with copy/paste cross-project handoff details including digest pinning.
 
 ### Environment
 - Installed missing development dependencies and toolchains:

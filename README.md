@@ -1,93 +1,73 @@
 # Asteroid Prospector RL
 
-Asteroid Prospector RL is a reinforcement learning project focused on a strategic asteroid-belt simulation where agents balance scanning, mining, travel risk, fuel, heat, and market timing over long horizons.
+Asteroid Prospector RL is an end-to-end reinforcement learning project for a strategic asteroid-belt simulation with deterministic training/eval, replay generation, API delivery, and web playback.
 
-This repository is building both:
-- a high-throughput training environment for RL experimentation, and
-- a replay and web visualization stack so training progress is understandable to humans.
+## Current Status (2026-02-28)
 
-## Why this project exists
+- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`.
+- Active milestone: `M6.5` (final graphics/audio verification + polish).
+- Trainer runtime baseline: `pufferlib-core==3.0.17` (runtime `import pufferlib` reports `3.0.3`).
+- Published reusable trainer image:
+  - `jordanbailey00/rl-puffer-base:py311-puffercore3.0.17`
+  - digest `sha256:723c58843d9ed563fa66c0927da975bdbab5355c913ec965dbea25a2af67bb71`
 
-Most RL demos are hard to interpret from raw metrics alone. This project combines environment correctness, deterministic evaluation, and replay tooling so each training window can be inspected with concrete gameplay traces.
+## What Is Implemented
 
-Design goals:
-- Keep a frozen RL interface contract for stable training.
-- Use a Python reference implementation first, then a C core for performance.
-- Produce replay artifacts and analytics that map directly to training progress.
-- Provide a human-play mode against the same environment rules.
+- Frozen RL interface (`OBS_DIM=260`, `N_ACTIONS=69`) with deterministic Python reference env.
+- Native C core and Python bridge with parity harness and deterministic RNG alignment.
+- Dockerized PPO training loop with windowed metrics, checkpointing, and optional W&B logging.
+- Policy-driven eval replay generation from serialized PPO checkpoints.
+- Replay schema/indexing with `every_window`, `best_so_far`, and `milestone:*` tags.
+- FastAPI backend for run catalog, metrics windows, replay fetch, and human play sessions.
+- Next.js frontend for replay playback, human play mode, and historical analytics.
+- Kenney asset-backed presentation layer (world/UI/VFX/audio manifests and runtime wiring).
 
-## Current status
+## Repository Layout
 
-Milestones completed so far:
-- M0: Repository scaffold, quality gates, and hello-environment contract stub.
-- M1: Pure Python reference environment and contract/determinism tests.
-- M2 (in progress): Native C core scaffold and Python wrapper smoke path.
+- `engine_core/` native C simulation core
+- `python/` reference env and wrappers
+- `training/` PPO trainer + eval runner
+- `replay/` replay schema/index helpers
+- `server/` FastAPI API layer
+- `frontend/` Next.js replay/play/analytics UI
+- `infra/` Docker trainer runtime and compose config
+- `tests/` contract, parity, replay, API, and frontend-presentation tests
+- `docs/` specs, checklist, status, and ADR decision log
 
-Interface contract currently held constant:
-- Observation dimension: `260`
-- Action count: `69` (indexed `0..68`)
+## Quick Start
 
-## Tech stack
-
-- Simulation core: C (`engine_core/`) with deterministic RNG and handle-based API.
-- RL/env layer: Python (`python/`) with Gym-style reset/step interfaces.
-- Testing: `pytest` (+ property tests where needed).
-- Code quality: Black, Ruff, clang-format, pre-commit.
-- CI: GitHub Actions (`.github/workflows/ci.yml`) running format/lint/tests.
-- Planned platform components: API server + frontend replay viewer/human-play mode.
-
-## Repository structure
-
-- `engine_core/` - native C environment core.
-- `python/` - Python package, wrappers, and reference env.
-- `server/` - API server scaffold.
-- `frontend/` - frontend scaffold.
-- `training/` - trainer/evaluator scaffolding.
-- `replay/` - replay pipeline scaffolding.
-- `tests/` - contract, parity, determinism, and wrapper tests.
-- `docs/` - specs, milestone brief, and authoritative design docs.
-- `tools/` - local check/build scripts.
-
-For module-level details, see:
-- `python/README.md`
-- `engine_core/README.md`
-
-## Quick start
-
-### 1) Install Python tooling
+1. Run local quality gates:
 
 ```powershell
-python -m pip install -U pip
-python -m pip install numpy pytest hypothesis black ruff pre-commit clang-format
-pre-commit install
+powershell -ExecutionPolicy Bypass -File tools/run_checks.ps1
 ```
 
-### 2) Run quality checks
+2. Build trainer image:
 
 ```powershell
-.\tools\run_checks.ps1
+$env:DOCKER_BUILDKIT='1'
+docker compose -f infra/docker-compose.yml build --progress=plain trainer
 ```
 
-### 3) Run tests only
+3. Verify runtime versions:
 
 ```powershell
-pytest -q
+docker compose -f infra/docker-compose.yml run --rm trainer python -c "import importlib.metadata as im, pufferlib; print(im.version('pufferlib-core')); print(pufferlib.__version__)"
 ```
 
-### 4) Build native C scaffold (optional, current M2 path)
+4. Run a short PPO smoke training job:
 
 ```powershell
-.\tools\build_native_core.ps1
+docker compose -f infra/docker-compose.yml run --rm -T trainer python training/train_puffer.py --trainer-backend puffer_ppo --total-env-steps 300 --window-env-steps 100 --checkpoint-every-windows 1 --ppo-num-envs 4 --ppo-num-workers 2 --ppo-rollout-steps 32 --ppo-num-minibatches 2 --ppo-update-epochs 1 --wandb-mode disabled
 ```
 
-## Documentation order
+## Documentation Entry Points
 
-Project docs are intentionally ordered. Start with:
-- `docs/DOCS_INDEX.md`
-- `docs/AGENT_HANDOFF_BRIEF.md`
-
-These point to the frozen RL contract docs and milestone plan.
+- `docs/DOCS_INDEX.md` (authoritative read order)
+- `docs/PROJECT_STATUS.md` (current milestone board)
+- `docs/DECISION_LOG.md` (ADR history)
+- `docs/BUILD_CHECKLIST.md` (ordered implementation plan)
 
 ## License
 
-This project is licensed under the MIT License. See `LICENSE`.
+MIT (`LICENSE`).
