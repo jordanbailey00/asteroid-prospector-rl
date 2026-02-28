@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -27,6 +27,9 @@ All notable changes to this project will be documented in this file.
 - `.gitignore` now excludes `artifacts/` parity output directories.
 - Python-side `Pcg32Rng` implementation aligned to native stochastic primitives.
 - `ProspectorReferenceEnv` now uses `Pcg32Rng`, enabling parity convergence under fixed seed/action traces.
+- M3 training modules: 	raining/windowing.py, 	raining/logging.py, and 	raining/train_puffer.py for windowed metrics, checkpoint cadence, and optional W&B logging.
+- New M3 tests: 	ests/test_windowing.py, 	ests/test_wandb_offline.py, and 	ests/test_training_loop.py (window logic, offline logger behavior, trainer artifact emission).
+- 	raining/README.md now documents M3 run commands and output artifact layout.
 
 ### Environment
 - Installed missing development dependencies and toolchains:

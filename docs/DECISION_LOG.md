@@ -76,3 +76,12 @@ Use this file for non-trivial project decisions.
 - Decision: Introduce `Pcg32Rng` in Python and route `ProspectorReferenceEnv` stochastic draws through this RNG with distribution helpers matching native core usage.
 - Consequences: Seeded Python/native rollouts now share stochastic streams and parity harness convergence is practical under strict tolerances.
 - Related commits/docs: `python/asteroid_prospector/pcg32_rng.py`, `python/asteroid_prospector/reference_env.py`, `tools/run_parity.py`
+
+### ADR-0008 - Use window-first training telemetry with JSONL as canonical local sink
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: M3 requires deterministic `window_env_steps` aggregation and offline-friendly telemetry before full Puffer/W&B infrastructure is complete.
+- Decision: Introduce a `WindowMetricsAggregator` that emits one metrics row per closed window, persist rows to `runs/{run_id}/metrics/windows.jsonl`, and mirror rows to W&B when enabled via an adapter.
+- Consequences: Window metrics are available immediately for backend/frontend development and tests; trainer backend can evolve from random-policy scaffold to PPO without changing metrics schema.
+- Related commits/docs: `training/windowing.py`, `training/logging.py`, `training/train_puffer.py`, `tests/test_windowing.py`, `tests/test_wandb_offline.py`, `tests/test_training_loop.py`
