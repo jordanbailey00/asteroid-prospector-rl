@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -21,6 +21,8 @@ All notable changes to this project will be documented in this file.
 - `docs/PROJECT_STATUS.md` as the single current-state board (status, progress, next work).
 - `docs/DECISION_LOG.md` for ADR-style technical/process decisions.
 - `tools/check_project_tracking.py` pre-commit guard requiring tracking updates on each commit.
+- M2 native core implementation now covers full world generation, action decode, global dynamics, reward computation, and frozen observation packing in C.
+- Native step result payload now includes parity-critical metrics consumed by Python wrapper and native trace runner.
 
 ### Environment
 - Installed missing development dependencies and toolchains:

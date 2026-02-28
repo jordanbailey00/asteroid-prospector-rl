@@ -49,3 +49,12 @@ Use this file for non-trivial project decisions.
 - Decision: Require each commit to update at least one tracking artifact (`docs/PROJECT_STATUS.md`, `docs/DECISION_LOG.md`, or `CHANGELOG.md`) and record significant decisions in this log.
 - Consequences: Higher documentation discipline and clearer current-state visibility; minor overhead added to each commit.
 - Related commits/docs: `AGENTS.md`, `.pre-commit-config.yaml`, `tools/check_project_tracking.py`
+
+### ADR-0005 - Expose parity metrics directly from native step results
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: Parity comparisons require the same per-step metrics (`credits`, `profit_per_tick`, `pirate_encounters`, etc.) from both Python and native runs, but deriving them externally risks drift.
+- Decision: Expand `AbpCoreStepResult` with a fixed metric set and map it 1:1 into the `NativeProspectorCore.step()` info payload.
+- Consequences: Parity harnesses can compare metrics without reconstructing internal state, and the C runner can emit traces with stable metric ordering.
+- Related commits/docs: `engine_core/include/abp_core.h`, `engine_core/src/abp_core.c`, `python/asteroid_prospector/native_core.py`, `engine_core/core_test_runner.c`

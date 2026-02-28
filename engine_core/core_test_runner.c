@@ -14,12 +14,15 @@ typedef struct TraceRecord {
     float reward;
     uint8_t terminated;
     uint8_t truncated;
+    uint8_t invalid_action;
+    int16_t resolved_action;
     float obs[ABP_OBS_DIM];
+    float info_selected[13];
 } TraceRecord;
 #pragma pack(pop)
 
 static void print_usage(const char *program_name) {
-    fprintf(stderr, "Usage: %s --seed <seed> --actions <actions.bin> --out <trace.bin>\\n",
+    fprintf(stderr, "Usage: %s --seed <seed> --actions <actions.bin> --out <trace.bin>\n",
             program_name);
 }
 
@@ -30,7 +33,7 @@ static int read_actions(const char *path, uint8_t **actions_out, size_t *count_o
 
     fp = fopen(path, "rb");
     if (fp == NULL) {
-        fprintf(stderr, "Failed to open actions file '%s': %s\\n", path, strerror(errno));
+        fprintf(stderr, "Failed to open actions file '%s': %s\n", path, strerror(errno));
         return 0;
     }
 
@@ -109,20 +112,20 @@ int main(int argc, char **argv) {
     }
 
     if (!read_actions(actions_path, &actions, &action_count)) {
-        fprintf(stderr, "Failed to read actions from '%s'\\n", actions_path);
+        fprintf(stderr, "Failed to read actions from '%s'\n", actions_path);
         return 1;
     }
 
     out_file = fopen(output_path, "wb");
     if (out_file == NULL) {
-        fprintf(stderr, "Failed to open output file '%s': %s\\n", output_path, strerror(errno));
+        fprintf(stderr, "Failed to open output file '%s': %s\n", output_path, strerror(errno));
         free(actions);
         return 1;
     }
 
     state = abp_core_create(NULL, seed);
     if (state == NULL) {
-        fprintf(stderr, "Failed to initialize core state\\n");
+        fprintf(stderr, "Failed to initialize core state\n");
         fclose(out_file);
         free(actions);
         return 1;
@@ -140,10 +143,26 @@ int main(int argc, char **argv) {
         record.reward = step_result.reward;
         record.terminated = step_result.terminated;
         record.truncated = step_result.truncated;
+        record.invalid_action = step_result.invalid_action;
+        record.resolved_action = step_result.action;
         memcpy(record.obs, step_result.obs, sizeof(step_result.obs));
 
+        record.info_selected[0] = step_result.credits;
+        record.info_selected[1] = step_result.net_profit;
+        record.info_selected[2] = step_result.profit_per_tick;
+        record.info_selected[3] = step_result.survival;
+        record.info_selected[4] = step_result.overheat_ticks;
+        record.info_selected[5] = step_result.pirate_encounters;
+        record.info_selected[6] = step_result.value_lost_to_pirates;
+        record.info_selected[7] = step_result.fuel_used;
+        record.info_selected[8] = step_result.hull_damage;
+        record.info_selected[9] = step_result.tool_wear;
+        record.info_selected[10] = step_result.scan_count;
+        record.info_selected[11] = step_result.mining_ticks;
+        record.info_selected[12] = step_result.cargo_utilization_avg;
+
         if (fwrite(&record, sizeof(record), 1, out_file) != 1) {
-            fprintf(stderr, "Failed writing trace output\\n");
+            fprintf(stderr, "Failed writing trace output\n");
             abp_core_destroy(state);
             fclose(out_file);
             free(actions);

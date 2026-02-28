@@ -31,6 +31,21 @@ class _AbpCoreStepResult(ctypes.Structure):
         ("truncated", ctypes.c_uint8),
         ("invalid_action", ctypes.c_uint8),
         ("dt", ctypes.c_uint16),
+        ("action", ctypes.c_int16),
+        ("credits", ctypes.c_float),
+        ("net_profit", ctypes.c_float),
+        ("profit_per_tick", ctypes.c_float),
+        ("survival", ctypes.c_float),
+        ("overheat_ticks", ctypes.c_float),
+        ("pirate_encounters", ctypes.c_float),
+        ("value_lost_to_pirates", ctypes.c_float),
+        ("fuel_used", ctypes.c_float),
+        ("hull_damage", ctypes.c_float),
+        ("tool_wear", ctypes.c_float),
+        ("scan_count", ctypes.c_float),
+        ("mining_ticks", ctypes.c_float),
+        ("cargo_utilization_avg", ctypes.c_float),
+        ("time_remaining", ctypes.c_float),
     ]
 
 
@@ -116,9 +131,26 @@ class NativeProspectorCore:
         terminated = bool(result.terminated)
         truncated = bool(result.truncated)
         info = {
-            "invalid_action": bool(result.invalid_action),
-            "dt": int(result.dt),
+            "action": int(result.action),
             "action_received": action_value,
+            "dt": int(result.dt),
+            "invalid_action": bool(result.invalid_action),
+            "credits": float(result.credits),
+            "net_profit": float(result.net_profit),
+            "profit_per_tick": float(result.profit_per_tick),
+            "survival": float(result.survival),
+            "overheat_ticks": float(result.overheat_ticks),
+            "pirate_encounters": float(result.pirate_encounters),
+            "value_lost_to_pirates": float(result.value_lost_to_pirates),
+            "fuel_used": float(result.fuel_used),
+            "hull_damage": float(result.hull_damage),
+            "tool_wear": float(result.tool_wear),
+            "scan_count": float(result.scan_count),
+            "mining_ticks": float(result.mining_ticks),
+            "cargo_utilization_avg": float(result.cargo_utilization_avg),
+            "time_remaining": float(result.time_remaining),
+            "terminated": terminated,
+            "truncated": truncated,
         }
         return obs, reward, terminated, truncated, info
 
