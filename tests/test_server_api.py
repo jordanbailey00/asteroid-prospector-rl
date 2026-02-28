@@ -12,6 +12,14 @@ def _write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def _write_jsonl(path: Path, rows: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row))
+            handle.write("\n")
+
+
 def _write_replay(path: Path, frames: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with gzip.open(path, mode="wt", encoding="utf-8") as handle:
@@ -32,6 +40,7 @@ def _make_run(tmp_path: Path, run_id: str, *, updated_at: str) -> None:
         "checkpoints_written": 3,
         "latest_checkpoint": {"path": "checkpoints/ckpt_000002.pt"},
         "latest_replay": None,
+        "metrics_windows_path": "metrics/windows.jsonl",
         "replay_index_path": "replay_index.json",
         "started_at": "2026-02-28T00:00:00+00:00",
         "updated_at": updated_at,
@@ -63,6 +72,15 @@ def _make_run(tmp_path: Path, run_id: str, *, updated_at: str) -> None:
     }
     _write_json(run_dir / "replay_index.json", replay_index)
 
+    _write_jsonl(
+        run_dir / "metrics/windows.jsonl",
+        [
+            {"window_id": 0, "env_steps_total": 40, "reward_mean": 1.0},
+            {"window_id": 1, "env_steps_total": 80, "reward_mean": 1.1},
+            {"window_id": 2, "env_steps_total": 120, "reward_mean": 1.2},
+        ],
+    )
+
     _write_replay(
         run_dir / replay_entry["replay_path"],
         [
@@ -93,6 +111,28 @@ def test_runs_catalog_and_run_detail(tmp_path: Path) -> None:
     assert run_payload["run_id"] == "run-new"
     assert run_payload["metadata"]["trainer_backend"] == "random"
     assert run_payload["replay_count"] == 1
+
+
+def test_run_metrics_windows_endpoint(tmp_path: Path) -> None:
+    run_id = "run-metrics"
+    _make_run(tmp_path, run_id, updated_at="2026-02-28T03:00:00+00:00")
+
+    app = create_app(runs_root=tmp_path)
+    client = TestClient(app)
+
+    latest_resp = client.get(f"/api/runs/{run_id}/metrics/windows", params={"limit": 1})
+    assert latest_resp.status_code == 200
+    latest_payload = latest_resp.json()
+    assert latest_payload["count"] == 1
+    assert latest_payload["windows"][0]["window_id"] == 2
+
+    asc_resp = client.get(
+        f"/api/runs/{run_id}/metrics/windows",
+        params={"limit": 2, "order": "asc"},
+    )
+    assert asc_resp.status_code == 200
+    asc_payload = asc_resp.json()
+    assert [row["window_id"] for row in asc_payload["windows"]] == [0, 1]
 
 
 def test_replay_catalog_filters_and_frame_fetch(tmp_path: Path) -> None:
@@ -187,3 +227,72 @@ def test_replay_catalog_filters_and_frame_fetch(tmp_path: Path) -> None:
     assert frames_payload["count"] == 1
     assert frames_payload["has_more"] is True
     assert frames_payload["frames"][0]["action"] == 4
+
+
+def test_play_session_lifecycle(tmp_path: Path) -> None:
+    app = create_app(runs_root=tmp_path)
+    client = TestClient(app)
+
+    create_resp = client.post(
+        "/api/play/session",
+        json={"seed": 123, "env_time_max": 2000.0},
+    )
+    assert create_resp.status_code == 200
+    created = create_resp.json()
+    session_id = created["session_id"]
+
+    assert created["seed"] == 123
+    assert isinstance(created["obs"], list)
+    assert len(created["obs"]) == 260
+    assert created["steps"] == 0
+
+    step_resp = client.post(
+        f"/api/play/session/{session_id}/step",
+        json={"action": 0},
+    )
+    assert step_resp.status_code == 200
+    stepped = step_resp.json()
+    assert stepped["session_id"] == session_id
+    assert stepped["action"] == 0
+    assert isinstance(stepped["reward"], float)
+    assert len(stepped["obs"]) == 260
+    assert stepped["steps"] == 1
+
+    reset_resp = client.post(
+        f"/api/play/session/{session_id}/reset",
+        json={"seed": 124},
+    )
+    assert reset_resp.status_code == 200
+    reset_payload = reset_resp.json()
+    assert reset_payload["seed"] == 124
+    assert reset_payload["steps"] == 0
+
+    delete_resp = client.delete(f"/api/play/session/{session_id}")
+    assert delete_resp.status_code == 200
+    assert delete_resp.json()["deleted"] is True
+
+    missing_resp = client.post(
+        f"/api/play/session/{session_id}/step",
+        json={"action": 0},
+    )
+    assert missing_resp.status_code == 404
+
+
+def test_cors_preflight_allows_localhost_origin(tmp_path: Path) -> None:
+    app = create_app(
+        runs_root=tmp_path,
+        cors_allow_origins=["http://localhost:3000"],
+        cors_allow_origin_regex=None,
+    )
+    client = TestClient(app)
+
+    response = client.options(
+        "/api/runs",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code in {200, 204}
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"

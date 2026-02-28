@@ -56,6 +56,10 @@ All notable changes to this project will be documented in this file.
 - Updated `server/README.md` with local startup instructions and endpoint list.
 - Configured `infra/docker-compose.yml` trainer service with an explicit publishable image tag and `TRAINER_IMAGE` override for cross-repo reuse.
 - Updated `infra/trainer/README.md` with share/push/consume workflow for using this trainer image as a reusable base in other RL projects.
+- Added remaining M5 API endpoints: `GET /api/runs/{run_id}/metrics/windows` and play session lifecycle (`POST /api/play/session`, `reset`, `step`, `DELETE`).
+- Added default CORS middleware configuration for localhost and Vercel-compatible origins, with env overrides (`ABP_CORS_ORIGINS`, `ABP_CORS_ORIGIN_REGEX`).
+- Expanded server API tests to cover metrics endpoint behavior, play-session lifecycle, and CORS preflight handling.
+- Updated `server/main.py` and `server/README.md` for runtime env configuration and endpoint documentation.
 ### Environment
 - Installed missing development dependencies and toolchains:
   - `pre-commit` (Python package)

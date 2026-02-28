@@ -1,14 +1,14 @@
 # Project Status
 
 Last updated: 2026-02-28
-Current focus: M5 API server implementation
+Current focus: M6 frontend integration planning
 
 ## Current state
 
 - Frozen interface status: unchanged (`OBS_DIM=260`, `N_ACTIONS=69`, action indexing `0..68`, reward definition unchanged).
-- Build health: local checks passing via `tools/run_checks.ps1` (`pytest -q` currently 43 passed, 2 skipped).
-- Completed milestones: M0, M1, M2, M2.5, M3, and M4 complete.
-- Active milestone: M5 API server (in progress).
+- Build health: local checks passing via `tools/run_checks.ps1` (`pytest -q` currently 46 passed, 2 skipped).
+- Completed milestones: M0, M1, M2, M2.5, M3, M4, and M5 complete.
+- Active milestone: M6 frontend integration.
 
 ## Milestone board
 
@@ -19,22 +19,22 @@ Current focus: M5 API server implementation
 | M2 - Native core + bindings | Complete | Full C world/step dynamics, reward + obs packing, expanded native parity metrics surfaced through ctypes | `5aa1058` |
 | M2.5 - Parity harness | Complete | Fixed-suite parity harness, mismatch bundles, and deterministic RNG alignment across Python/C | `1cd2dfc`, `cb2efbf` |
 | M3 - Training + window metrics | Complete | Windowed trainer loop, checkpoint cadence, `windows.jsonl`, optional W&B logging, live `run_metadata.json`, and Dockerized Linux `puffer_ppo` backend with PufferLib PPO smoke validation (3 windows) | `1a90101`, `6dd1f89`, `4b3e684` |
-| M4 - Eval + replay generation | Complete | Policy-driven PPO eval replays from serialized checkpoints, replay schema/index validation, `every_window` + `best_so_far` + `milestone:*` tagging, replay index filtering helpers, and checkpoint format tests | `b8a1880`, pending previous commit |
-| M5 - API server | In progress | Initial FastAPI run/replay catalog + replay detail + replay frame fetch endpoints with filter/pagination support and endpoint tests | pending (this commit) |
+| M4 - Eval + replay generation | Complete | Policy-driven PPO eval replays from serialized checkpoints, replay schema/index validation, `every_window` + `best_so_far` + `milestone:*` tagging, replay index filtering helpers, and checkpoint format tests | `b8a1880`, `452754c` |
+| M5 - API server | Complete | FastAPI run/replay/metrics endpoints, replay frame pagination endpoint, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, pending (this commit) |
 | M6 - Frontend integration | Not started | Replay player, play mode, analytics | pending |
 | M7+ - Perf and stability | Not started | Throughput targets, soak checks, benchmark automation | pending |
 
 ## Next work (ordered)
 
-1. Extend M5 with `metrics/windows` and play-session endpoints.
-2. Add websocket replay streaming endpoint for player mode.
-3. Begin M6 frontend integration against live run/replay/metrics endpoints.
+1. Start M6 frontend integration against live M5 endpoints (`/api/runs`, replay catalog/frames, metrics, play session APIs).
+2. Add websocket replay streaming endpoint for low-latency player mode.
+3. Implement M6 historical analytics page wiring and run selection UX.
 4. Add M7 profiling pass for trainer throughput and memory stability.
 
 ## Active risks and blockers
 
 - Main risk: Docker trainer build is heavy on first run because `pufferlib==2.0.6` installs from source and torch pulls large binaries.
-- Main blocker for MVP: remaining M5 endpoints + M6 frontend are not implemented yet.
+- Main blocker for MVP: M6 frontend integration + M6.5 graphics/audio are not implemented yet.
 
 ## Decision pointers
 
@@ -44,7 +44,9 @@ Current focus: M5 API server implementation
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-02-28 | pending (this commit) | feat | Start M5 with FastAPI run/replay catalog and replay frame endpoints |
+| 2026-02-28 | pending (this commit) | feat | Finish M5 metrics/play endpoints and CORS support |
+| 2026-02-28 | `18ae6b0` | chore | Configure shareable trainer base image tag |
+| 2026-02-28 | `e1fe165` | feat | Add M5 run and replay API endpoints |
 | 2026-02-28 | `452754c` | feat | Add policy-driven PPO replay checkpoint eval |
 | 2026-02-28 | `b8a1880` | feat | Begin M4 with eval runner, replay schema/index, and replay tests |
 | 2026-02-28 | `4b3e684` | feat | Add dockerized pufferlib ppo training backend |

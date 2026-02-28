@@ -139,3 +139,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add explicit `image` naming to `infra/docker-compose.yml` for the `trainer` service with env override support (`TRAINER_IMAGE`), and document build/push/consume workflow in `infra/trainer/README.md`.
 - Consequences: The trainer runtime can be shared via Docker Hub/registry and reused as `FROM ...` in other projects, avoiding repeated PufferLib source tarball downloads/builds across repos.
 - Related commits/docs: `infra/docker-compose.yml`, `infra/trainer/README.md`
+
+### ADR-0015 - Use in-memory process-local play sessions for initial M5 human-play endpoints
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: M5 requires immediate play-session APIs, but persistent session storage adds complexity and coupling before frontend interaction patterns are validated.
+- Decision: Implement `POST/DELETE` play-session lifecycle endpoints using a process-local in-memory store keyed by `session_id`, each holding a `ProspectorReferenceEnv` instance. Session state is ephemeral and non-persistent by design. Add CORS middleware defaults for localhost plus Vercel regex to make API/frontend integration workable by default.
+- Consequences: M5 play mode is operational with minimal infrastructure, but sessions do not survive process restarts and are not horizontally sharable; future scaling can swap storage while preserving endpoint contracts.
+- Related commits/docs: `server/app.py`, `server/main.py`, `server/README.md`, `tests/test_server_api.py`
