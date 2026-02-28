@@ -130,3 +130,12 @@ Use this file for non-trivial project decisions.
 - Decision: Implement initial FastAPI endpoints backed directly by `runs/{run_id}` artifacts: run catalog from `run_metadata.json`, replay catalog/detail from `replay_index.json`, and replay frame fetch by reading replay files (`jsonl.gz`). Include query-time filtering (`tag`, `tags_any`, `tags_all`, `window_id`, `limit`) and frame pagination (`offset`, `limit`).
 - Consequences: API bootstrap is fast and aligned with current trainer outputs; future storage backends can preserve endpoint contracts while swapping internal persistence.
 - Related commits/docs: `server/app.py`, `server/main.py`, `server/README.md`, `tests/test_server_api.py`, `replay/index.py`, `docs/PROJECT_STATUS.md`
+
+### ADR-0014 - Make trainer compose service publishable as a reusable RL base image
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: Reusing the same PufferLib/torch build across multiple RL repos requires a stable image tag and push path; compose services without an explicit `image` tag are local-only by default.
+- Decision: Add explicit `image` naming to `infra/docker-compose.yml` for the `trainer` service with env override support (`TRAINER_IMAGE`), and document build/push/consume workflow in `infra/trainer/README.md`.
+- Consequences: The trainer runtime can be shared via Docker Hub/registry and reused as `FROM ...` in other projects, avoiding repeated PufferLib source tarball downloads/builds across repos.
+- Related commits/docs: `infra/docker-compose.yml`, `infra/trainer/README.md`

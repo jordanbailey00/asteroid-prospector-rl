@@ -54,6 +54,8 @@ All notable changes to this project will be documented in this file.
 - Added replay query/filter support in API (`tag`, `tags_any`, `tags_all`, `window_id`, `limit`) and frame pagination (`offset`, `limit`).
 - Added API endpoint test coverage with temp run artifacts in `tests/test_server_api.py`.
 - Updated `server/README.md` with local startup instructions and endpoint list.
+- Configured `infra/docker-compose.yml` trainer service with an explicit publishable image tag and `TRAINER_IMAGE` override for cross-repo reuse.
+- Updated `infra/trainer/README.md` with share/push/consume workflow for using this trainer image as a reusable base in other RL projects.
 ### Environment
 - Installed missing development dependencies and toolchains:
   - `pre-commit` (Python package)
