@@ -14,6 +14,13 @@ import numpy as np
 
 if __package__ is None or __package__ == "":
     REPO_ROOT = Path(__file__).resolve().parents[1]
+    SCRIPT_DIR = Path(__file__).resolve().parent
+
+    # When executed as `python training/train_puffer.py`, `sys.path[0]` points to
+    # `training/`, which can shadow stdlib modules (for example `logging`).
+    script_dir_str = str(SCRIPT_DIR)
+    sys.path[:] = [entry for entry in sys.path if entry != script_dir_str]
+
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
     from training.eval_runner import EvalReplayConfig, run_eval_and_record_replay

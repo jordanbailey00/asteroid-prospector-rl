@@ -60,6 +60,37 @@ def _validate_config(cfg: PpoConfig) -> None:
         raise ValueError("ppo_num_envs must be divisible by ppo_num_workers")
 
 
+def _coerce_info_value(value: Any, index: int) -> Any:
+    if isinstance(value, np.ndarray):
+        if value.ndim == 0:
+            return value.item()
+        if index < value.shape[0]:
+            item = value[index]
+            return item.item() if isinstance(item, np.generic) else item
+        return None
+    if isinstance(value, (list, tuple)):
+        if index < len(value):
+            item = value[index]
+            return item.item() if isinstance(item, np.generic) else item
+        return None
+    return value.item() if isinstance(value, np.generic) else value
+
+
+def _info_for_env(infos: Any, index: int) -> dict[str, Any]:
+    if isinstance(infos, dict):
+        row: dict[str, Any] = {}
+        for key, value in infos.items():
+            row[key] = _coerce_info_value(value, index)
+        return row
+
+    if isinstance(infos, (list, tuple)) and index < len(infos):
+        value = infos[index]
+        if isinstance(value, dict):
+            return value
+
+    return {}
+
+
 class _ProspectorGymEnv:
     metadata = {"render_modes": []}
 
@@ -124,14 +155,11 @@ def run_puffer_ppo_training(
         "multiprocessing": pufferlib.vector.Multiprocessing,
     }[cfg.vector_backend]
 
-    seed_counter = {"value": 0}
-
-    def make_env(*, buf: Any | None = None) -> Any:
-        seed = cfg.seed + seed_counter["value"]
-        seed_counter["value"] += 1
+    def make_env(*, buf: Any | None = None, seed: int | None = None) -> Any:
+        env_seed = cfg.seed if seed is None else int(seed)
         return pufferlib.emulation.GymnasiumPufferEnv(
             env_creator=_ProspectorGymEnv,
-            env_kwargs={"time_max": cfg.env_time_max, "seed": seed},
+            env_kwargs={"time_max": cfg.env_time_max, "seed": env_seed},
             buf=buf,
         )
 
@@ -205,13 +233,8 @@ def run_puffer_ppo_training(
                 next_obs = torch.as_tensor(next_obs_np, dtype=torch.float32, device=device)
                 next_done = torch.as_tensor(done_np, dtype=torch.float32, device=device)
 
-                info_rows = list(infos) if isinstance(infos, list) else []
                 for i in range(cfg.num_envs):
-                    info = (
-                        info_rows[i]
-                        if i < len(info_rows) and isinstance(info_rows[i], dict)
-                        else {}
-                    )
+                    info = _info_for_env(infos, i)
                     stop_requested = on_step(
                         float(reward_np[i]),
                         info,

@@ -76,6 +76,11 @@ All notable changes to this project will be documented in this file.
 - Frontend shell styling now uses Kenney UI panel/button textures for cards, scene containers, and button variants.
 - Frontend presentation tests now enforce file existence and semantic asset-class mapping for graphics keys, VFX keys, background keys, and non-`none` audio cues.
 
+- Upgraded trainer runtime dependency pins to `pufferlib-core==3.0.17`, `gymnasium==1.2.3`, `torch==2.10.0`, `wandb==0.25.0`, and `numpy==2.4.2`.
+- Updated reusable trainer image tag defaults/docs to `py311-puffercore3.0.17` in compose and trainer handoff docs.
+- Updated PPO backend for newer Puffer vector semantics by accepting vector-provided env factory seeds and normalizing `infos` payload extraction across dict/list/array forms.
+- Fixed script-mode import path behavior in `training/train_puffer.py` to prevent stdlib `logging` shadowing by `training/logging.py` when running `python training/train_puffer.py`.
+
 ### Environment
 - Installed missing development dependencies and toolchains:
   - `pre-commit` (Python package)

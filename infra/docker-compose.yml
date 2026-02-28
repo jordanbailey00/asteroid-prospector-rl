@@ -1,6 +1,6 @@
 services:
   trainer:
-    image: ${TRAINER_IMAGE:-jordanbailey00/rl-puffer-base:py311-puffer2.0.6}
+    image: ${TRAINER_IMAGE:-jordanbailey00/rl-puffer-base:py311-puffercore3.0.17}
     build:
       context: ..
       dockerfile: infra/trainer/Dockerfile

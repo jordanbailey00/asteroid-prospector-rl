@@ -175,3 +175,12 @@ Use this file for non-trivial project decisions.
 - Decision: Redefine M6.5 completion as requiring real file-backed mappings in frontend manifests and runtime rendering/audio playback for core gameplay semantics. Procedural placeholders may remain only as explicit non-required fallback behavior, not as the primary path for required keys.
 - Consequences: M6.5 status is in-progress until all required semantic keys and cues are wired to real files in `frontend/public/assets/...` and validated by tests.
 - Related commits/docs: `docs/BUILD_CHECKLIST.md`, `docs/PROJECT_STATUS.md`, `frontend/public/assets/manifests/graphics_manifest.json`, `frontend/public/assets/manifests/audio_manifest.json`, `tests/test_frontend_presentation.py`
+
+### ADR-0019 - Upgrade trainer runtime to latest published Puffer core line and adapt PPO wiring for 3.x vector semantics
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: The trainer image was pinned to `pufferlib==2.0.6`, and upstream package metadata now publishes newer 3.x builds (`pufferlib==3.0.0`, `pufferlib-core==3.0.17`) with updated vector runtime behavior. There is currently no published `pufferlib 4.0` release on PyPI.
+- Decision: Move trainer dependency pins to `pufferlib-core==3.0.17`, `gymnasium==1.2.3`, `torch==2.10.0`, `wandb==0.25.0`, and `numpy==2.4.2`. Update compose default image tag to `py311-puffercore3.0.17`. Harden PPO backend compatibility by accepting vector-provided `seed` in env factories and normalizing per-env info extraction for dict/list/array payload forms. Fix script-mode path handling in `training/train_puffer.py` to avoid stdlib `logging` shadowing by `training/logging.py`.
+- Consequences: Dockerized PPO training remains operational on the updated dependency stack and no longer relies on legacy 2.x behavior. Docs and image tags now match current dependency reality.
+- Related commits/docs: `infra/trainer/requirements.txt`, `infra/docker-compose.yml`, `infra/trainer/README.md`, `training/README.md`, `training/puffer_backend.py`, `training/train_puffer.py`

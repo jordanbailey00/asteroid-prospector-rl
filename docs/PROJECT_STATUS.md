@@ -10,6 +10,7 @@ Current focus: M6.5 real-asset frontend wiring
 - Frontend build health: `npm --prefix frontend run build` passes for replay/play/analytics routes.
 - Completed milestones: M0, M1, M2, M2.5, M3, M4, M5, and M6 complete.
 - Active milestone: M6.5 graphics/audio real-asset integration.
+- Trainer runtime baseline updated to latest published Puffer core line (`pufferlib-core==3.0.17`) with verified Docker PPO smoke run on the new dependency stack.
 
 ## Milestone board
 
@@ -45,7 +46,8 @@ Current focus: M6.5 real-asset frontend wiring
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-02-28 | pending (this commit) | feat | Wire sector rendering to file-backed Kenney assets and enforce manifest asset validation in tests |
+| 2026-02-28 | pending (this commit) | chore | Upgrade trainer deps/image to latest published Puffer core stack and patch PPO runtime compatibility |
+| 2026-02-28 | `f606846` | feat | Wire sector rendering to file-backed Kenney assets and enforce manifest asset validation in tests |
 | 2026-02-28 | `b2b98cf` | docs | Tighten M6.5 completion criteria to require real Kenney asset wiring |
 | 2026-02-28 | `1a77f36` | feat | Implement M6.5 graphics/audio presentation scaffolding |
 | 2026-02-28 | `27ab411` | feat | Implement M6 frontend replay/play/analytics UI |
