@@ -58,3 +58,12 @@ Use this file for non-trivial project decisions.
 - Decision: Expand `AbpCoreStepResult` with a fixed metric set and map it 1:1 into the `NativeProspectorCore.step()` info payload.
 - Consequences: Parity harnesses can compare metrics without reconstructing internal state, and the C runner can emit traces with stable metric ordering.
 - Related commits/docs: `engine_core/include/abp_core.h`, `engine_core/src/abp_core.c`, `python/asteroid_prospector/native_core.py`, `engine_core/core_test_runner.c`
+
+### ADR-0006 - Parity harness emits first-mismatch bundles as the default debug artifact
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: Cross-runtime parity failures are expensive to debug without reproducible traces and field-level mismatch context.
+- Decision: Implement `tools/run_parity.py` to compare fixed seed/action suites and emit per-case mismatch bundles (`actions`, Python trace, native trace, mismatch metadata) on first failing field.
+- Consequences: Faster triage loops and deterministic repro for parity bugs; artifact directories are excluded from git tracking.
+- Related commits/docs: `tools/run_parity.py`, `.gitignore`, `docs/ACCEPTANCE_TESTS_PARITY_HARNESS.md`

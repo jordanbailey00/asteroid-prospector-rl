@@ -23,3 +23,6 @@ engine_core/build/
 # OS / editor noise
 .DS_Store
 Thumbs.db
+
+# Parity harness outputs
+artifacts/
