@@ -33,6 +33,7 @@ from .constants import (
     TIME_MAX,
     TOOL_MAX,
 )
+from .pcg32_rng import Pcg32Rng
 
 # Observation indices intentionally mirror the frozen specification.
 MKT_PRICE_BASE = 244
@@ -45,7 +46,7 @@ class DiscreteActionSpace:
     n: int
 
     def contains(self, action: int) -> bool:
-        return isinstance(action, (int, np.integer)) and 0 <= int(action) < self.n
+        return isinstance(action, int | np.integer) and 0 <= int(action) < self.n
 
 
 @dataclass(frozen=True)
@@ -280,7 +281,7 @@ class ProspectorReferenceEnv:
             dtype=np.float32,
         )
 
-        self._rng = np.random.default_rng(seed)
+        self._rng = Pcg32Rng(0 if seed is None else seed)
         self._obs = np.zeros((OBS_DIM,), dtype=np.float32)
         self._needs_reset = False
 
@@ -362,7 +363,7 @@ class ProspectorReferenceEnv:
     ) -> tuple[np.ndarray, dict[str, Any]]:
         del options
         if seed is not None:
-            self._rng = np.random.default_rng(seed)
+            self._rng = Pcg32Rng(0 if seed is None else seed)
 
         self._init_buffers()
         self._generate_world()
@@ -602,24 +603,22 @@ class ProspectorReferenceEnv:
         self.current_node = 0
 
         self.node_type.fill(NODE_CLUSTER)
-        self.node_type[0] = NODE_STATION
-
-        if self.node_count > 1:
-            hazard_mask = self._rng.random(self.node_count - 1) < 0.25
-            self.node_type[1 : self.node_count] = np.where(
-                hazard_mask,
-                NODE_HAZARD,
-                NODE_CLUSTER,
-            )
-
         self.node_hazard.fill(0.0)
         self.node_pirate.fill(0.0)
-        self.node_hazard[1 : self.node_count] = self._rng.uniform(0.05, 0.35, self.node_count - 1)
-        self.node_pirate[1 : self.node_count] = self._rng.uniform(0.05, 0.30, self.node_count - 1)
+        self.node_type[0] = NODE_STATION
 
-        hazard_nodes = self.node_type[: self.node_count] == NODE_HAZARD
-        self.node_hazard[: self.node_count][hazard_nodes] += 0.25
-        self.node_pirate[: self.node_count][hazard_nodes] += 0.12
+        for node in range(1, self.node_count):
+            is_hazard = float(self._rng.random()) < 0.25
+            self.node_type[node] = NODE_HAZARD if is_hazard else NODE_CLUSTER
+            self.node_hazard[node] = np.float32(self._rng.uniform(0.05, 0.35))
+            self.node_pirate[node] = np.float32(self._rng.uniform(0.05, 0.30))
+            if is_hazard:
+                self.node_hazard[node] = np.float32(
+                    _clamp(float(self.node_hazard[node]) + 0.25, 0.0, 1.0)
+                )
+                self.node_pirate[node] = np.float32(
+                    _clamp(float(self.node_pirate[node]) + 0.12, 0.0, 1.0)
+                )
 
         self.neighbors.fill(-1)
         self.edge_travel_time.fill(1)
@@ -727,20 +726,28 @@ class ProspectorReferenceEnv:
 
     def _generate_market(self) -> None:
         self.recent_sales.fill(0.0)
-        self.station_inventory = self._rng.uniform(20.0, 120.0, N_COMMODITIES).astype(np.float32)
 
         base = np.array(self.config.price_base, dtype=np.float64)
-        self.price_phase = self._rng.uniform(0.0, 2.0 * np.pi, N_COMMODITIES).astype(np.float32)
-        self.price_period = self._rng.uniform(180.0, 380.0, N_COMMODITIES).astype(np.float32)
-        self.price_amp = (base * self._rng.uniform(0.10, 0.30, N_COMMODITIES)).astype(np.float32)
 
-        cycle = self.price_amp.astype(np.float64) * np.sin(self.price_phase.astype(np.float64))
-        self.price = np.clip(
-            base + cycle,
-            np.array(self.config.price_min, dtype=np.float64),
-            np.array(self.config.price_max, dtype=np.float64),
-        ).astype(np.float32)
-        self.prev_price = self.price.copy()
+        for c_idx in range(N_COMMODITIES):
+            self.station_inventory[c_idx] = np.float32(self._rng.uniform(20.0, 120.0))
+
+            phase = float(self._rng.uniform(0.0, 2.0 * np.pi))
+            period = float(self._rng.uniform(180.0, 380.0))
+            amp_factor = float(self._rng.uniform(0.10, 0.30))
+            self.price_phase[c_idx] = np.float32(phase)
+            self.price_period[c_idx] = np.float32(period)
+            self.price_amp[c_idx] = np.float32(base[c_idx] * amp_factor)
+
+            cycle = float(self.price_amp[c_idx]) * float(np.sin(float(self.price_phase[c_idx])))
+            self.price[c_idx] = np.float32(
+                _clamp(
+                    float(base[c_idx] + cycle),
+                    float(self.config.price_min[c_idx]),
+                    float(self.config.price_max[c_idx]),
+                )
+            )
+            self.prev_price[c_idx] = self.price[c_idx]
 
     def _apply_hold(self) -> None:
         self.alert = max(0.0, self.alert - self.config.alert_decay_hold)

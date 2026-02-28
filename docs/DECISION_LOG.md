@@ -67,3 +67,12 @@ Use this file for non-trivial project decisions.
 - Decision: Implement `tools/run_parity.py` to compare fixed seed/action suites and emit per-case mismatch bundles (`actions`, Python trace, native trace, mismatch metadata) on first failing field.
 - Consequences: Faster triage loops and deterministic repro for parity bugs; artifact directories are excluded from git tracking.
 - Related commits/docs: `tools/run_parity.py`, `.gitignore`, `docs/ACCEPTANCE_TESTS_PARITY_HARNESS.md`
+
+### ADR-0007 - Align Python reference RNG with native PCG32 for deterministic parity
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: Parity harness mismatches were occurring at step 0 because Python used NumPy RNG while native used PCG32, causing hidden-state divergence even when interface logic matched.
+- Decision: Introduce `Pcg32Rng` in Python and route `ProspectorReferenceEnv` stochastic draws through this RNG with distribution helpers matching native core usage.
+- Consequences: Seeded Python/native rollouts now share stochastic streams and parity harness convergence is practical under strict tolerances.
+- Related commits/docs: `python/asteroid_prospector/pcg32_rng.py`, `python/asteroid_prospector/reference_env.py`, `tools/run_parity.py`
