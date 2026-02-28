@@ -94,3 +94,12 @@ Use this file for non-trivial project decisions.
 - Decision: Persist `runs/{run_id}/run_metadata.json` as a live-updated document with lifecycle status (`running`/`completed`/`failed`), progress counters, and latest pointers (`latest_window`, `latest_checkpoint`, replay placeholders, and observability URLs).
 - Consequences: M5 endpoints can serve current run state without tailing metrics files directly; trainer now performs metadata writes at run start, per emitted window, and on completion/failure.
 - Related commits/docs: `training/train_puffer.py`, `tests/test_training_loop.py`, `training/README.md`, `docs/PROJECT_STATUS.md`
+
+### ADR-0010 - Standardize Linux trainer runtime via Docker compose for PufferLib PPO
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: Native Windows runs are unsuitable for `pufferlib` in this project flow, and repeated ephemeral container probes caused redundant downloads/builds and unstable setup times.
+- Decision: Add `infra/trainer/Dockerfile` + `infra/docker-compose.yml` as the single installation path for trainer dependencies, with BuildKit pip cache mounts and a build-time `import pufferlib` smoke test. Wire `training/train_puffer.py` `puffer_ppo` backend to a real PPO loop implemented in `training/puffer_backend.py` and run it in the Linux container runtime.
+- Consequences: First build is still heavy due source build + torch dependency footprint, but subsequent builds are deterministic and cache-backed; M3 is unblocked for true PPO execution via Docker.
+- Related commits/docs: `infra/trainer/Dockerfile`, `infra/trainer/requirements.txt`, `infra/docker-compose.yml`, `training/puffer_backend.py`, `training/train_puffer.py`, `training/README.md`

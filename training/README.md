@@ -1,27 +1,46 @@
 # training
 
-M3 windowed training pipeline with checkpointing and optional W&B logging.
+M3 windowed training pipeline with checkpointing, optional W&B logging, and backend-selectable training loops.
 
 Current implementation:
-- `training/train_puffer.py` (windowed run loop; `random` backend plus explicit `puffer_ppo` blocker path)
+- `training/train_puffer.py` (windowed run loop + metadata persistence; `random` and `puffer_ppo` backends)
+- `training/puffer_backend.py` (PufferLib vectorized PPO training loop)
 - `training/windowing.py` (window aggregation keyed by `window_env_steps`)
 - `training/logging.py` (JSONL metrics sink + W&B adapter)
 
-Run locally:
+## Local Windows usage
+
+`puffer_ppo` requires Linux runtime (PufferLib is not supported natively on Windows in this project setup).
+Use Docker compose:
 
 ```powershell
-python training/train_puffer.py --total-env-steps 6000 --window-env-steps 2000 --wandb-mode disabled
+$env:DOCKER_BUILDKIT='1'
+docker compose -f infra/docker-compose.yml build --progress=plain trainer
 ```
 
-W&B offline mode:
+Smoke check:
+
+```powershell
+docker compose -f infra/docker-compose.yml run --rm trainer python -c "import pufferlib; print('ok')"
+```
+
+Run short PPO training in container:
+
+```powershell
+docker compose -f infra/docker-compose.yml run --rm -T trainer python training/train_puffer.py --trainer-backend puffer_ppo --total-env-steps 2000 --window-env-steps 500 --ppo-num-envs 8 --ppo-num-workers 4 --ppo-rollout-steps 128 --ppo-num-minibatches 4 --ppo-update-epochs 4 --wandb-mode disabled
+```
+
+## Random backend (host or container)
+
+```powershell
+python training/train_puffer.py --trainer-backend random --total-env-steps 6000 --window-env-steps 2000 --wandb-mode disabled
+```
+
+## W&B offline mode
 
 ```powershell
 python training/train_puffer.py --wandb-mode offline --wandb-project asteroid-prospector
 ```
-
-`puffer_ppo` backend note:
-- `--trainer-backend puffer_ppo` is accepted for contract clarity, but it currently fails fast with a clear error.
-- On Windows, the error explains that upstream PufferLib support is unavailable.
 
 Artifacts:
 - `runs/{run_id}/checkpoints/ckpt_{window_id}.pt`
@@ -29,7 +48,7 @@ Artifacts:
 - `runs/{run_id}/config.json`
 - `runs/{run_id}/run_metadata.json`
 
-`run_metadata.json` now includes live-updated fields used by upcoming API/frontend work:
+`run_metadata.json` includes live-updated fields used by API/frontend milestones:
 - `status` (`running`/`completed`/`failed`)
 - `latest_window`
 - `latest_checkpoint`

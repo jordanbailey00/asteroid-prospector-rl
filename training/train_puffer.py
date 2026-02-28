@@ -16,10 +16,10 @@ if __package__ is None or __package__ == "":
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
     from training.logging import JsonlWindowLogger, RunPaths, WandbWindowLogger
-    from training.windowing import INFO_METRIC_KEYS, WindowMetricsAggregator
+    from training.windowing import INFO_METRIC_KEYS, WindowMetricsAggregator, WindowRecord
 else:
     from .logging import JsonlWindowLogger, RunPaths, WandbWindowLogger
-    from .windowing import INFO_METRIC_KEYS, WindowMetricsAggregator
+    from .windowing import INFO_METRIC_KEYS, WindowMetricsAggregator, WindowRecord
 
 DEFAULT_N_ACTIONS = 69
 SUPPORTED_TRAINER_BACKENDS = ("random", "puffer_ppo")
@@ -47,6 +47,21 @@ class TrainConfig:
     wandb_project: str = "asteroid-prospector"
 
     flush_partial_window: bool = False
+
+    # PPO backend parameters (used when trainer_backend == "puffer_ppo")
+    ppo_num_envs: int = 8
+    ppo_num_workers: int = 4
+    ppo_rollout_steps: int = 128
+    ppo_num_minibatches: int = 4
+    ppo_update_epochs: int = 4
+    ppo_learning_rate: float = 3.0e-4
+    ppo_gamma: float = 0.99
+    ppo_gae_lambda: float = 0.95
+    ppo_clip_coef: float = 0.2
+    ppo_ent_coef: float = 0.01
+    ppo_vf_coef: float = 0.5
+    ppo_max_grad_norm: float = 0.5
+    ppo_vector_backend: str = "multiprocessing"  # serial|multiprocessing
 
 
 def default_run_id() -> str:
@@ -100,21 +115,23 @@ def validate_backend(backend: str) -> None:
         raise ValueError(f"Unsupported trainer_backend: {backend}")
     if sys.platform.startswith("win"):
         raise RuntimeError(
-            "trainer_backend='puffer_ppo' is currently blocked on Windows because PufferLib "
-            "does not support this platform. Run under WSL2/Linux or use "
-            "--trainer-backend random."
+            "trainer_backend='puffer_ppo' requires Linux runtime. Use Docker compose service "
+            "'trainer' or WSL2/Linux directly."
         )
+
     try:
         import pufferlib  # type: ignore  # noqa: F401
     except ImportError as exc:
         raise RuntimeError(
-            "trainer_backend='puffer_ppo' requested but pufferlib is not installed. "
-            "Install pufferlib on a supported platform or use --trainer-backend random."
+            "trainer_backend='puffer_ppo' requested but pufferlib is not installed."
         ) from exc
-    raise NotImplementedError(
-        "trainer_backend='puffer_ppo' dependency checks passed, but PPO loop wiring is not "
-        "implemented in this repository yet."
-    )
+
+    try:
+        import torch  # type: ignore  # noqa: F401
+    except ImportError as exc:
+        raise RuntimeError(
+            "trainer_backend='puffer_ppo' requested but torch is not installed."
+        ) from exc
 
 
 def choose_action(*, rng: np.random.Generator, obs: np.ndarray, backend: str) -> int:
@@ -167,17 +184,8 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
         tags=["m3", "windowed-training"],
     )
 
-    env = ProspectorReferenceEnv(
-        config=ReferenceEnvConfig(time_max=cfg.env_time_max),
-        seed=cfg.seed,
-    )
-    obs, _ = env.reset(seed=cfg.seed)
-
     aggregator = WindowMetricsAggregator(run_id=run_id, window_env_steps=cfg.window_env_steps)
     jsonl_logger = JsonlWindowLogger(path=run_paths.metrics_windows_path)
-
-    rng = np.random.default_rng(cfg.seed + 17)
-    episode_seed = cfg.seed
 
     windows_emitted = 0
     checkpoints_written = 0
@@ -211,94 +219,137 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
     }
     write_metadata(run_paths.metadata_path, metadata)
 
-    try:
-        while aggregator.env_steps_total < cfg.total_env_steps:
-            action = choose_action(rng=rng, obs=obs, backend=cfg.trainer_backend)
-            if action >= N_ACTIONS:
-                action = action % N_ACTIONS
+    def emit_window_record(record: WindowRecord) -> None:
+        nonlocal windows_emitted
+        nonlocal checkpoints_written
 
-            obs, reward, terminated, truncated, info = env.step(action)
+        payload = record.to_dict()
+        jsonl_logger.log_window(payload)
+        windows_emitted += 1
 
-            records = aggregator.record_step(
-                reward=float(reward),
-                info=info,
-                terminated=bool(terminated),
-                truncated=bool(truncated),
+        if wandb_logger is not None:
+            wandb_logger.log_window(payload, step=record.env_steps_total)
+
+        metadata["env_steps_total"] = aggregator.env_steps_total
+        metadata["episodes_total"] = aggregator.episodes_total
+        metadata["windows_emitted"] = windows_emitted
+        metadata["latest_window"] = {
+            "window_id": record.window_id,
+            "window_complete": record.window_complete,
+            "env_steps_start": record.env_steps_start,
+            "env_steps_end": record.env_steps_end,
+            "env_steps_in_window": record.env_steps_in_window,
+            "env_steps_total": record.env_steps_total,
+            "metrics_row_path": metadata["metrics_windows_path"],
+        }
+
+        if record.window_id % cfg.checkpoint_every_windows == 0:
+            ckpt_path = run_paths.checkpoints_dir / f"ckpt_{record.window_id:06d}.pt"
+            write_checkpoint(
+                path=ckpt_path,
+                run_id=run_id,
+                window_id=record.window_id,
+                env_steps_total=record.env_steps_total,
             )
+            checkpoints_written += 1
+            metadata["checkpoints_written"] = checkpoints_written
+            metadata["latest_checkpoint"] = {
+                "window_id": record.window_id,
+                "env_steps_total": record.env_steps_total,
+                "path": as_posix_relative(ckpt_path, start=run_paths.run_dir),
+                "created_at": now_iso(),
+            }
+            if wandb_logger is not None:
+                wandb_logger.log_checkpoint(
+                    checkpoint_path=ckpt_path,
+                    run_id=run_id,
+                    window_id=record.window_id,
+                )
 
-            for record in records:
-                payload = record.to_dict()
-                jsonl_logger.log_window(payload)
-                windows_emitted += 1
+        metadata["updated_at"] = now_iso()
+        write_metadata(run_paths.metadata_path, metadata)
 
-                if wandb_logger is not None:
-                    wandb_logger.log_window(payload, step=record.env_steps_total)
+    try:
+        if cfg.trainer_backend == "random":
+            env = ProspectorReferenceEnv(
+                config=ReferenceEnvConfig(time_max=cfg.env_time_max),
+                seed=cfg.seed,
+            )
+            obs, _ = env.reset(seed=cfg.seed)
 
-                metadata["env_steps_total"] = aggregator.env_steps_total
-                metadata["episodes_total"] = aggregator.episodes_total
-                metadata["windows_emitted"] = windows_emitted
-                metadata["latest_window"] = {
-                    "window_id": record.window_id,
-                    "window_complete": record.window_complete,
-                    "env_steps_start": record.env_steps_start,
-                    "env_steps_end": record.env_steps_end,
-                    "env_steps_in_window": record.env_steps_in_window,
-                    "env_steps_total": record.env_steps_total,
-                    "metrics_row_path": metadata["metrics_windows_path"],
-                }
+            rng = np.random.default_rng(cfg.seed + 17)
+            episode_seed = cfg.seed
 
-                if record.window_id % cfg.checkpoint_every_windows == 0:
-                    ckpt_path = run_paths.checkpoints_dir / f"ckpt_{record.window_id:06d}.pt"
-                    write_checkpoint(
-                        path=ckpt_path,
-                        run_id=run_id,
-                        window_id=record.window_id,
-                        env_steps_total=record.env_steps_total,
-                    )
-                    checkpoints_written += 1
-                    metadata["checkpoints_written"] = checkpoints_written
-                    metadata["latest_checkpoint"] = {
-                        "window_id": record.window_id,
-                        "env_steps_total": record.env_steps_total,
-                        "path": as_posix_relative(ckpt_path, start=run_paths.run_dir),
-                        "created_at": now_iso(),
-                    }
-                    if wandb_logger is not None:
-                        wandb_logger.log_checkpoint(
-                            checkpoint_path=ckpt_path,
-                            run_id=run_id,
-                            window_id=record.window_id,
-                        )
+            while aggregator.env_steps_total < cfg.total_env_steps:
+                action = choose_action(rng=rng, obs=obs, backend=cfg.trainer_backend)
+                if action >= N_ACTIONS:
+                    action = action % N_ACTIONS
 
-                metadata["updated_at"] = now_iso()
-                write_metadata(run_paths.metadata_path, metadata)
+                obs, reward, terminated, truncated, info = env.step(action)
 
-            if terminated or truncated:
-                episode_seed += 1
-                obs, _ = env.reset(seed=episode_seed)
+                records = aggregator.record_step(
+                    reward=float(reward),
+                    info=info,
+                    terminated=bool(terminated),
+                    truncated=bool(truncated),
+                )
+                for record in records:
+                    emit_window_record(record)
+
+                if terminated or truncated:
+                    episode_seed += 1
+                    obs, _ = env.reset(seed=episode_seed)
+        else:
+            if cfg.trainer_backend != "puffer_ppo":
+                raise ValueError(f"Unsupported trainer_backend: {cfg.trainer_backend}")
+
+            if __package__ is None or __package__ == "":
+                from training.puffer_backend import PpoConfig, run_puffer_ppo_training
+            else:
+                from .puffer_backend import PpoConfig, run_puffer_ppo_training
+
+            def on_step(
+                reward: float, info: dict[str, Any], terminated: bool, truncated: bool
+            ) -> bool:
+                records = aggregator.record_step(
+                    reward=reward,
+                    info=info,
+                    terminated=terminated,
+                    truncated=truncated,
+                )
+                for record in records:
+                    emit_window_record(record)
+                return aggregator.env_steps_total >= cfg.total_env_steps
+
+            ppo_summary = run_puffer_ppo_training(
+                cfg=PpoConfig(
+                    total_env_steps=cfg.total_env_steps,
+                    seed=cfg.seed,
+                    env_time_max=cfg.env_time_max,
+                    num_envs=cfg.ppo_num_envs,
+                    num_workers=cfg.ppo_num_workers,
+                    rollout_steps=cfg.ppo_rollout_steps,
+                    num_minibatches=cfg.ppo_num_minibatches,
+                    update_epochs=cfg.ppo_update_epochs,
+                    learning_rate=cfg.ppo_learning_rate,
+                    gamma=cfg.ppo_gamma,
+                    gae_lambda=cfg.ppo_gae_lambda,
+                    clip_coef=cfg.ppo_clip_coef,
+                    ent_coef=cfg.ppo_ent_coef,
+                    vf_coef=cfg.ppo_vf_coef,
+                    max_grad_norm=cfg.ppo_max_grad_norm,
+                    vector_backend=cfg.ppo_vector_backend,
+                ),
+                on_step=on_step,
+            )
+            metadata.update(ppo_summary)
+            metadata["updated_at"] = now_iso()
+            write_metadata(run_paths.metadata_path, metadata)
 
         if cfg.flush_partial_window:
             partial = aggregator.flush_partial()
             if partial is not None:
-                payload = partial.to_dict()
-                jsonl_logger.log_window(payload)
-                windows_emitted += 1
-                if wandb_logger is not None:
-                    wandb_logger.log_window(payload, step=partial.env_steps_total)
-                metadata["env_steps_total"] = aggregator.env_steps_total
-                metadata["episodes_total"] = aggregator.episodes_total
-                metadata["windows_emitted"] = windows_emitted
-                metadata["latest_window"] = {
-                    "window_id": partial.window_id,
-                    "window_complete": partial.window_complete,
-                    "env_steps_start": partial.env_steps_start,
-                    "env_steps_end": partial.env_steps_end,
-                    "env_steps_in_window": partial.env_steps_in_window,
-                    "env_steps_total": partial.env_steps_total,
-                    "metrics_row_path": metadata["metrics_windows_path"],
-                }
-                metadata["updated_at"] = now_iso()
-                write_metadata(run_paths.metadata_path, metadata)
+                emit_window_record(partial)
 
         summary = {
             "run_id": run_id,
@@ -318,6 +369,18 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
             "constellation_url": metadata["constellation_url"],
             "finished_at": now_iso(),
         }
+
+        if cfg.trainer_backend == "puffer_ppo":
+            for key in (
+                "ppo_device",
+                "ppo_num_envs",
+                "ppo_num_workers",
+                "ppo_rollout_steps",
+                "ppo_policy_updates",
+                "ppo_vector_backend",
+            ):
+                if key in metadata:
+                    summary[key] = metadata[key]
 
         if wandb_logger is not None:
             wandb_logger.finish(
@@ -382,6 +445,24 @@ def _parse_args() -> TrainConfig:
     parser.add_argument("--wandb-project", type=str, default="asteroid-prospector")
     parser.add_argument("--flush-partial-window", action="store_true")
 
+    parser.add_argument("--ppo-num-envs", type=int, default=8)
+    parser.add_argument("--ppo-num-workers", type=int, default=4)
+    parser.add_argument("--ppo-rollout-steps", type=int, default=128)
+    parser.add_argument("--ppo-num-minibatches", type=int, default=4)
+    parser.add_argument("--ppo-update-epochs", type=int, default=4)
+    parser.add_argument("--ppo-learning-rate", type=float, default=3.0e-4)
+    parser.add_argument("--ppo-gamma", type=float, default=0.99)
+    parser.add_argument("--ppo-gae-lambda", type=float, default=0.95)
+    parser.add_argument("--ppo-clip-coef", type=float, default=0.2)
+    parser.add_argument("--ppo-ent-coef", type=float, default=0.01)
+    parser.add_argument("--ppo-vf-coef", type=float, default=0.5)
+    parser.add_argument("--ppo-max-grad-norm", type=float, default=0.5)
+    parser.add_argument(
+        "--ppo-vector-backend",
+        choices=["serial", "multiprocessing"],
+        default="multiprocessing",
+    )
+
     args = parser.parse_args()
     return TrainConfig(
         run_root=args.run_root,
@@ -395,6 +476,19 @@ def _parse_args() -> TrainConfig:
         wandb_mode=args.wandb_mode,
         wandb_project=args.wandb_project,
         flush_partial_window=args.flush_partial_window,
+        ppo_num_envs=args.ppo_num_envs,
+        ppo_num_workers=args.ppo_num_workers,
+        ppo_rollout_steps=args.ppo_rollout_steps,
+        ppo_num_minibatches=args.ppo_num_minibatches,
+        ppo_update_epochs=args.ppo_update_epochs,
+        ppo_learning_rate=args.ppo_learning_rate,
+        ppo_gamma=args.ppo_gamma,
+        ppo_gae_lambda=args.ppo_gae_lambda,
+        ppo_clip_coef=args.ppo_clip_coef,
+        ppo_ent_coef=args.ppo_ent_coef,
+        ppo_vf_coef=args.ppo_vf_coef,
+        ppo_max_grad_norm=args.ppo_max_grad_norm,
+        ppo_vector_backend=args.ppo_vector_backend,
     )
 
 

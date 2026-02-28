@@ -1,0 +1,10 @@
+services:
+  trainer:
+    build:
+      context: ..
+      dockerfile: infra/trainer/Dockerfile
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace
+    environment:
+      PYTHONUNBUFFERED: "1"

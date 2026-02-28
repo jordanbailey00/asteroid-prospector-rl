@@ -33,6 +33,10 @@ All notable changes to this project will be documented in this file.
 - `training/train_puffer.py` now persists live `run_metadata.json` updates (`status`, `latest_window`, `latest_checkpoint`, replay placeholders, and observability URLs).
 - Trainer backend validation now surfaces explicit `puffer_ppo` blocker errors for unsupported environments (including Windows).
 - Expanded M3 training-loop coverage to assert metadata contract fields and backend-blocker behavior.
+- Added Dockerized Linux trainer runtime under `infra/` (`infra/trainer/Dockerfile`, `infra/trainer/requirements.txt`, `infra/docker-compose.yml`) with BuildKit pip cache mounts and build-time `import pufferlib` smoke check.
+- Added `training/puffer_backend.py` implementing vectorized PufferLib PPO training with a PyTorch actor-critic policy.
+- `training/train_puffer.py` now executes true `puffer_ppo` training on Linux/Docker, while preserving window metrics/checkpoint cadence and live metadata updates.
+- Added Docker usage documentation for PPO backend execution in `training/README.md` and `infra/trainer/README.md`.
 
 ### Environment
 - Installed missing development dependencies and toolchains:

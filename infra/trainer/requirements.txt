@@ -1,0 +1,5 @@
+numpy<2
+gymnasium==0.29.1
+torch
+wandb>=0.17,<0.20
+pufferlib==2.0.6
