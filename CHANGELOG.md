@@ -60,6 +60,11 @@ All notable changes to this project will be documented in this file.
 - Added default CORS middleware configuration for localhost and Vercel-compatible origins, with env overrides (`ABP_CORS_ORIGINS`, `ABP_CORS_ORIGIN_REGEX`).
 - Expanded server API tests to cover metrics endpoint behavior, play-session lifecycle, and CORS preflight handling.
 - Updated `server/main.py` and `server/README.md` for runtime env configuration and endpoint documentation.
+- Added M6 Next.js App Router frontend implementation under `frontend/app` with route pages for replay (`/`), human play (`/play`), and historical analytics (`/analytics`).
+- Added replay dashboard wiring to M5 APIs with run/window/replay selectors, client-side playback controls, frame inspection, and window trend sparklines.
+- Added human play console with play-session lifecycle controls, live HUD stats, auto-step mode, and full action palette for action indices `0..68`.
+- Added analytics dashboard with run selection, optional run comparison, checkpoint/replay timeline tags, and historical metric trend panels.
+- Added frontend local run/build documentation in `frontend/README.md`.
 ### Environment
 - Installed missing development dependencies and toolchains:
   - `pre-commit` (Python package)

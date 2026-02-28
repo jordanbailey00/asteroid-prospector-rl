@@ -148,3 +148,12 @@ Use this file for non-trivial project decisions.
 - Decision: Implement `POST/DELETE` play-session lifecycle endpoints using a process-local in-memory store keyed by `session_id`, each holding a `ProspectorReferenceEnv` instance. Session state is ephemeral and non-persistent by design. Add CORS middleware defaults for localhost plus Vercel regex to make API/frontend integration workable by default.
 - Consequences: M5 play mode is operational with minimal infrastructure, but sessions do not survive process restarts and are not horizontally sharable; future scaling can swap storage while preserving endpoint contracts.
 - Related commits/docs: `server/app.py`, `server/main.py`, `server/README.md`, `tests/test_server_api.py`
+
+### ADR-0016 - Implement M6 frontend as API-driven App Router UI with HTTP replay frame playback
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: M6 required a production-lean frontend for replay inspection, human play sessions, and historical analytics without adding backend websocket complexity in the same milestone.
+- Decision: Build `frontend/` as a Next.js App Router TypeScript app with three pages (`/`, `/play`, `/analytics`) that consume existing M5 HTTP endpoints. Use HTTP replay frame fetch (`/frames`) plus client-side playback timing controls for replay mode, and keep websocket replay streaming as a follow-up item.
+- Consequences: M6 is unblocked and fully wired to current API contracts with minimal moving parts; replay UX on very large artifacts may require WS/chunked transport optimization in a later milestone.
+- Related commits/docs: `frontend/app/page.tsx`, `frontend/app/play/page.tsx`, `frontend/app/analytics/page.tsx`, `frontend/components/replay-dashboard.tsx`, `frontend/components/play-console.tsx`, `frontend/components/analytics-dashboard.tsx`, `frontend/README.md`, `docs/PROJECT_STATUS.md`
