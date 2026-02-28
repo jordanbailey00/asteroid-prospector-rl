@@ -70,6 +70,12 @@ All notable changes to this project will be documented in this file.
 - Added frontend audio cue player (`frontend/lib/audio.ts`) with WebAudio synth fallback and UI toggles for cue playback.
 - Added presentation manifests and baseline background asset (`frontend/public/assets/manifests/graphics_manifest.json`, `frontend/public/assets/manifests/audio_manifest.json`, `frontend/public/assets/backgrounds/starfield.svg`).
 - Added M6.5 validation coverage (`tests/test_frontend_presentation.py`) for action/event mapping completeness and manifest key/path resolution.
+- M6.5 root Kenney asset bundles are now staged into `frontend/public/assets` (world sprites, UI sprites, VFX, backgrounds, planets, fonts, and audio).
+- `frontend/public/assets/manifests/graphics_manifest.json` and `audio_manifest.json` now resolve core semantics to file-backed asset paths.
+- Replay/play sector rendering now uses mapped sprite/background/planet/VFX paths from graphics manifest (ship/station/asteroid/hazard/pirate + action/event effects).
+- Frontend shell styling now uses Kenney UI panel/button textures for cards, scene containers, and button variants.
+- Frontend presentation tests now enforce file existence and semantic asset-class mapping for graphics keys, VFX keys, background keys, and non-`none` audio cues.
+
 ### Environment
 - Installed missing development dependencies and toolchains:
   - `pre-commit` (Python package)

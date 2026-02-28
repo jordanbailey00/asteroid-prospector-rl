@@ -109,7 +109,10 @@ body {
 }
 
 .card {
-  background: var(--bg-card);
+  background: linear-gradient(rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.82)),
+    url("/assets/sprites/ui/panel_blue.png");
+  background-size: cover;
+  background-position: center;
   border: 1px solid var(--edge);
   border-radius: 16px;
   box-shadow: var(--shadow);
@@ -196,7 +199,10 @@ input:not([type]) {
 
 button {
   border: 1px solid transparent;
-  background: var(--accent);
+  background: linear-gradient(rgba(255, 107, 53, 0.82), rgba(219, 62, 0, 0.82)),
+    url("/assets/sprites/ui/button_primary.png");
+  background-size: cover;
+  background-position: center;
   color: white;
   border-radius: 11px;
   padding: 0.5rem 0.8rem;
@@ -205,13 +211,19 @@ button {
 }
 
 button.alt {
-  background: transparent;
+  background: linear-gradient(rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.88)),
+    url("/assets/sprites/ui/button_secondary.png");
+  background-size: cover;
+  background-position: center;
   color: var(--ink-main);
   border-color: var(--edge);
 }
 
 button.warn {
-  background: var(--danger);
+  background: linear-gradient(rgba(176, 0, 32, 0.82), rgba(176, 0, 32, 0.82)),
+    url("/assets/sprites/ui/button_danger.png");
+  background-size: cover;
+  background-position: center;
 }
 
 button:disabled {
@@ -381,8 +393,21 @@ a.external {
 .scene-minimap {
   border: 1px solid var(--edge);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.72);
   padding: 0.55rem;
+}
+
+.scene-viewport {
+  background: linear-gradient(rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.74)),
+    url("/assets/sprites/ui/panel_blue.png");
+  background-size: cover;
+  background-position: center;
+}
+
+.scene-minimap {
+  background: linear-gradient(rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.74)),
+    url("/assets/sprites/ui/panel_grey.png");
+  background-size: cover;
+  background-position: center;
 }
 
 .scene-canvas {
@@ -432,6 +457,11 @@ a.external {
   animation: pulse-ring 0.9s infinite;
 }
 
+.scene-selection-ring-image {
+  opacity: 0.9;
+  animation: pulse-ring 0.9s infinite;
+}
+
 .scene-scan-ring {
   fill: none;
   stroke: #38bdf8;
@@ -468,6 +498,16 @@ a.external {
   stroke: rgba(239, 68, 68, 0.95);
   stroke-width: 2;
   animation: alert-flash 0.6s infinite;
+}
+
+.scene-vfx-action {
+  opacity: 0.88;
+  animation: pulse-ring 0.6s infinite;
+}
+
+.scene-vfx-event {
+  opacity: 0.95;
+  animation: warp-flicker 0.45s infinite;
 }
 
 @keyframes pulse-ring {

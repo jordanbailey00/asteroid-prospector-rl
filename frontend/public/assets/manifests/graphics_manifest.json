@@ -1,393 +1,304 @@
 {
-    "version":  "m6.5.v1",
+    "version":  "m6.5.v2_real_assets",
     "atlases":  {
                     "world":  {
                                   "image":  "/assets/atlases/world/atlas.png",
-                                  "data":  "/assets/atlases/world/atlas.json"
+                                  "data":  "/assets/atlases/world/atlas.json",
+                                  "enabled":  false
                               },
                     "ui":  {
                                "image":  "/assets/atlases/ui/atlas.png",
-                               "data":  "/assets/atlases/ui/atlas.json"
+                               "data":  "/assets/atlases/ui/atlas.json",
+                               "enabled":  false
                            },
                     "vfx":  {
                                 "image":  "/assets/atlases/vfx/atlas.png",
-                                "data":  "/assets/atlases/vfx/atlas.json"
+                                "data":  "/assets/atlases/vfx/atlas.json",
+                                "enabled":  false
                             }
                 },
     "frames":  {
-                   "entity.asteroid.large":  {
-                                                 "atlas":  "procedural",
-                                                 "frame":  "entity.asteroid.large",
-                                                 "color":  "#57534e",
-                                                 "shape":  "rock",
-                                                 "glyph":  "l"
-                                             },
-                   "entity.asteroid.medium":  {
-                                                  "atlas":  "procedural",
-                                                  "frame":  "entity.asteroid.medium",
-                                                  "color":  "#78716c",
-                                                  "shape":  "rock",
-                                                  "glyph":  "m"
-                                              },
-                   "entity.asteroid.small":  {
-                                                 "atlas":  "procedural",
-                                                 "frame":  "entity.asteroid.small",
-                                                 "color":  "#a8a29e",
-                                                 "shape":  "rock",
-                                                 "glyph":  "s"
-                                             },
-                   "entity.hazard.radiation":  {
-                                                   "atlas":  "procedural",
-                                                   "frame":  "entity.hazard.radiation",
-                                                   "color":  "#f97316",
-                                                   "shape":  "hazard",
-                                                   "glyph":  "!"
-                                               },
-                   "entity.pirate.marker":  {
-                                                "atlas":  "procedural",
-                                                "frame":  "entity.pirate.marker",
-                                                "color":  "#ef4444",
-                                                "shape":  "diamond",
-                                                "glyph":  "P"
-                                            },
                    "entity.ship.agent":  {
-                                             "atlas":  "procedural",
-                                             "frame":  "entity.ship.agent",
-                                             "color":  "#22d3ee",
-                                             "shape":  "triangle",
-                                             "glyph":  "A"
+                                             "path":  "/assets/sprites/world/ship_agent.png",
+                                             "atlas":  "file",
+                                             "frame":  "entity.ship.agent"
                                          },
                    "entity.ship.human":  {
-                                             "atlas":  "procedural",
-                                             "frame":  "entity.ship.human",
-                                             "color":  "#34d399",
-                                             "shape":  "triangle",
-                                             "glyph":  "H"
+                                             "path":  "/assets/sprites/world/ship_human.png",
+                                             "atlas":  "file",
+                                             "frame":  "entity.ship.human"
                                          },
                    "entity.station":  {
-                                          "atlas":  "procedural",
-                                          "frame":  "entity.station",
-                                          "color":  "#f59e0b",
-                                          "shape":  "hex",
-                                          "glyph":  "S"
+                                          "path":  "/assets/sprites/world/station_main.png",
+                                          "atlas":  "file",
+                                          "frame":  "entity.station"
                                       },
-                   "icon.event.destroyed":  {
-                                                "atlas":  "procedural",
-                                                "frame":  "icon.event.destroyed",
-                                                "color":  "#dc2626",
-                                                "shape":  "icon",
-                                                "glyph":  "✖"
+                   "entity.asteroid.small":  {
+                                                 "path":  "/assets/sprites/world/asteroid_small.png",
+                                                 "atlas":  "file",
+                                                 "frame":  "entity.asteroid.small"
+                                             },
+                   "entity.asteroid.medium":  {
+                                                  "path":  "/assets/sprites/world/asteroid_medium.png",
+                                                  "atlas":  "file",
+                                                  "frame":  "entity.asteroid.medium"
+                                              },
+                   "entity.asteroid.large":  {
+                                                 "path":  "/assets/sprites/world/asteroid_large.png",
+                                                 "atlas":  "file",
+                                                 "frame":  "entity.asteroid.large"
+                                             },
+                   "entity.hazard.radiation":  {
+                                                   "path":  "/assets/sprites/world/hazard_marker.png",
+                                                   "atlas":  "file",
+                                                   "frame":  "entity.hazard.radiation"
+                                               },
+                   "entity.pirate.marker":  {
+                                                "path":  "/assets/sprites/world/pirate_marker.png",
+                                                "atlas":  "file",
+                                                "frame":  "entity.pirate.marker"
                                             },
-                   "icon.event.fracture":  {
-                                               "atlas":  "procedural",
-                                               "frame":  "icon.event.fracture",
-                                               "color":  "#f97316",
-                                               "shape":  "icon",
-                                               "glyph":  "✹"
-                                           },
-                   "icon.event.invalid":  {
-                                              "atlas":  "procedural",
-                                              "frame":  "icon.event.invalid",
-                                              "color":  "#f97316",
-                                              "shape":  "icon",
-                                              "glyph":  "!"
-                                          },
-                   "icon.event.overheat":  {
-                                               "atlas":  "procedural",
-                                               "frame":  "icon.event.overheat",
-                                               "color":  "#fb7185",
-                                               "shape":  "icon",
-                                               "glyph":  "♨"
-                                           },
-                   "icon.event.pirate":  {
-                                             "atlas":  "procedural",
-                                             "frame":  "icon.event.pirate",
-                                             "color":  "#ef4444",
-                                             "shape":  "icon",
-                                             "glyph":  "☠"
-                                         },
-                   "icon.event.stranded":  {
-                                               "atlas":  "procedural",
-                                               "frame":  "icon.event.stranded",
-                                               "color":  "#f59e0b",
-                                               "shape":  "icon",
-                                               "glyph":  "⚠"
-                                           },
-                   "icon.market.down":  {
-                                            "atlas":  "procedural",
-                                            "frame":  "icon.market.down",
-                                            "color":  "#ef4444",
-                                            "shape":  "icon",
-                                            "glyph":  "↓"
-                                        },
-                   "icon.market.flat":  {
-                                            "atlas":  "procedural",
-                                            "frame":  "icon.market.flat",
-                                            "color":  "#94a3b8",
-                                            "shape":  "icon",
-                                            "glyph":  "→"
-                                        },
-                   "icon.market.up":  {
-                                          "atlas":  "procedural",
-                                          "frame":  "icon.market.up",
-                                          "color":  "#10b981",
-                                          "shape":  "icon",
-                                          "glyph":  "↑"
+                   "ui.panel.stats":  {
+                                          "path":  "/assets/sprites/ui/panel_blue.png",
+                                          "atlas":  "file",
+                                          "frame":  "ui.panel.stats"
                                       },
-                   "ui.button.danger":  {
-                                            "atlas":  "procedural",
-                                            "frame":  "ui.button.danger",
-                                            "color":  "#dc2626",
-                                            "shape":  "button",
-                                            "glyph":  ""
-                                        },
-                   "ui.button.primary":  {
-                                             "atlas":  "procedural",
-                                             "frame":  "ui.button.primary",
-                                             "color":  "#3b82f6",
-                                             "shape":  "button",
-                                             "glyph":  ""
-                                         },
-                   "ui.button.secondary":  {
-                                               "atlas":  "procedural",
-                                               "frame":  "ui.button.secondary",
-                                               "color":  "#64748b",
-                                               "shape":  "button",
-                                               "glyph":  ""
-                                           },
                    "ui.panel.cargo":  {
-                                          "atlas":  "procedural",
-                                          "frame":  "ui.panel.cargo",
-                                          "color":  "#e2e8f0",
-                                          "shape":  "panel",
-                                          "glyph":  ""
+                                          "path":  "/assets/sprites/ui/panel_blue.png",
+                                          "atlas":  "file",
+                                          "frame":  "ui.panel.cargo"
                                       },
-                   "ui.panel.events":  {
-                                           "atlas":  "procedural",
-                                           "frame":  "ui.panel.events",
-                                           "color":  "#e2e8f0",
-                                           "shape":  "panel",
-                                           "glyph":  ""
-                                       },
                    "ui.panel.market":  {
-                                           "atlas":  "procedural",
-                                           "frame":  "ui.panel.market",
-                                           "color":  "#e2e8f0",
-                                           "shape":  "panel",
-                                           "glyph":  ""
+                                           "path":  "/assets/sprites/ui/panel_blue.png",
+                                           "atlas":  "file",
+                                           "frame":  "ui.panel.market"
+                                       },
+                   "ui.panel.events":  {
+                                           "path":  "/assets/sprites/ui/panel_blue.png",
+                                           "atlas":  "file",
+                                           "frame":  "ui.panel.events"
                                        },
                    "ui.panel.minimap":  {
-                                            "atlas":  "procedural",
-                                            "frame":  "ui.panel.minimap",
-                                            "color":  "#e2e8f0",
-                                            "shape":  "panel",
-                                            "glyph":  ""
+                                            "path":  "/assets/sprites/ui/panel_grey.png",
+                                            "atlas":  "file",
+                                            "frame":  "ui.panel.minimap"
                                         },
-                   "ui.panel.stats":  {
-                                          "atlas":  "procedural",
-                                          "frame":  "ui.panel.stats",
-                                          "color":  "#e2e8f0",
-                                          "shape":  "panel",
-                                          "glyph":  ""
+                   "ui.button.primary":  {
+                                             "path":  "/assets/sprites/ui/button_primary.png",
+                                             "atlas":  "file",
+                                             "frame":  "ui.button.primary"
+                                         },
+                   "ui.button.secondary":  {
+                                               "path":  "/assets/sprites/ui/button_secondary.png",
+                                               "atlas":  "file",
+                                               "frame":  "ui.button.secondary"
+                                           },
+                   "ui.button.danger":  {
+                                            "path":  "/assets/sprites/ui/button_danger.png",
+                                            "atlas":  "file",
+                                            "frame":  "ui.button.danger"
+                                        },
+                   "icon.market.up":  {
+                                          "path":  "/assets/sprites/ui/icon_market_up.png",
+                                          "atlas":  "file",
+                                          "frame":  "icon.market.up"
                                       },
+                   "icon.market.down":  {
+                                            "path":  "/assets/sprites/ui/icon_market_down.png",
+                                            "atlas":  "file",
+                                            "frame":  "icon.market.down"
+                                        },
+                   "icon.market.flat":  {
+                                            "path":  "/assets/sprites/ui/icon_market_flat.png",
+                                            "atlas":  "file",
+                                            "frame":  "icon.market.flat"
+                                        },
+                   "icon.event.pirate":  {
+                                             "path":  "/assets/sprites/ui/icon_event_pirate.png",
+                                             "atlas":  "file",
+                                             "frame":  "icon.event.pirate"
+                                         },
+                   "icon.event.fracture":  {
+                                               "path":  "/assets/sprites/ui/icon_event_fracture.png",
+                                               "atlas":  "file",
+                                               "frame":  "icon.event.fracture"
+                                           },
+                   "icon.event.overheat":  {
+                                               "path":  "/assets/sprites/ui/icon_event_overheat.png",
+                                               "atlas":  "file",
+                                               "frame":  "icon.event.overheat"
+                                           },
+                   "icon.event.stranded":  {
+                                               "path":  "/assets/sprites/ui/icon_event_stranded.png",
+                                               "atlas":  "file",
+                                               "frame":  "icon.event.stranded"
+                                           },
+                   "icon.event.destroyed":  {
+                                                "path":  "/assets/sprites/ui/icon_event_destroyed.png",
+                                                "atlas":  "file",
+                                                "frame":  "icon.event.destroyed"
+                                            },
+                   "icon.event.invalid":  {
+                                              "path":  "/assets/sprites/ui/icon_event_invalid.png",
+                                              "atlas":  "file",
+                                              "frame":  "icon.event.invalid"
+                                          },
                    "vfx.cooldown.burst":  {
-                                              "atlas":  "procedural",
-                                              "frame":  "vfx.cooldown.burst",
-                                              "color":  "#22d3ee",
-                                              "shape":  "effect",
-                                              "glyph":  ""
+                                              "path":  "/assets/sprites/vfx/cooldown_burst.png",
+                                              "atlas":  "file",
+                                              "frame":  "vfx.cooldown.burst"
                                           },
                    "vfx.dock":  {
-                                    "atlas":  "procedural",
-                                    "frame":  "vfx.dock",
-                                    "color":  "#22d3ee",
-                                    "shape":  "effect",
-                                    "glyph":  ""
+                                    "path":  "/assets/sprites/vfx/dock_glow.png",
+                                    "atlas":  "file",
+                                    "frame":  "vfx.dock"
                                 },
                    "vfx.emergencyBurn":  {
-                                             "atlas":  "procedural",
-                                             "frame":  "vfx.emergencyBurn",
-                                             "color":  "#f59e0b",
-                                             "shape":  "streak",
-                                             "glyph":  ""
+                                             "path":  "/assets/sprites/vfx/emergency_burn.png",
+                                             "atlas":  "file",
+                                             "frame":  "vfx.emergencyBurn"
                                          },
                    "vfx.event.engine_fail":  {
-                                                 "atlas":  "procedural",
-                                                 "frame":  "vfx.event.engine_fail",
-                                                 "color":  "#22d3ee",
-                                                 "shape":  "effect",
-                                                 "glyph":  ""
+                                                 "path":  "/assets/sprites/vfx/engine_fail.png",
+                                                 "atlas":  "file",
+                                                 "frame":  "vfx.event.engine_fail"
                                              },
                    "vfx.event.overheat":  {
-                                              "atlas":  "procedural",
-                                              "frame":  "vfx.event.overheat",
-                                              "color":  "#ef4444",
-                                              "shape":  "flash",
-                                              "glyph":  ""
+                                              "path":  "/assets/sprites/vfx/event_overheat.png",
+                                              "atlas":  "file",
+                                              "frame":  "vfx.event.overheat"
                                           },
                    "vfx.explosion.large":  {
-                                               "atlas":  "procedural",
-                                               "frame":  "vfx.explosion.large",
-                                               "color":  "#f97316",
-                                               "shape":  "burst",
-                                               "glyph":  ""
+                                               "path":  "/assets/sprites/vfx/explosion_large.png",
+                                               "atlas":  "file",
+                                               "frame":  "vfx.explosion.large"
                                            },
                    "vfx.explosion.medium":  {
-                                                "atlas":  "procedural",
-                                                "frame":  "vfx.explosion.medium",
-                                                "color":  "#f97316",
-                                                "shape":  "burst",
-                                                "glyph":  ""
+                                                "path":  "/assets/sprites/vfx/explosion_medium.png",
+                                                "atlas":  "file",
+                                                "frame":  "vfx.explosion.medium"
                                             },
                    "vfx.jettison":  {
-                                        "atlas":  "procedural",
-                                        "frame":  "vfx.jettison",
-                                        "color":  "#22d3ee",
-                                        "shape":  "effect",
-                                        "glyph":  ""
+                                        "path":  "/assets/sprites/vfx/jettison.png",
+                                        "atlas":  "file",
+                                        "frame":  "vfx.jettison"
                                     },
                    "vfx.mine.aggressive":  {
-                                               "atlas":  "procedural",
-                                               "frame":  "vfx.mine.aggressive",
-                                               "color":  "#c084fc",
-                                               "shape":  "beam",
-                                               "glyph":  ""
+                                               "path":  "/assets/sprites/vfx/mine_aggressive.png",
+                                               "atlas":  "file",
+                                               "frame":  "vfx.mine.aggressive"
                                            },
                    "vfx.mine.conservative":  {
-                                                 "atlas":  "procedural",
-                                                 "frame":  "vfx.mine.conservative",
-                                                 "color":  "#c084fc",
-                                                 "shape":  "beam",
-                                                 "glyph":  ""
+                                                 "path":  "/assets/sprites/vfx/mine_conservative.png",
+                                                 "atlas":  "file",
+                                                 "frame":  "vfx.mine.conservative"
                                              },
                    "vfx.mine.standard":  {
-                                             "atlas":  "procedural",
-                                             "frame":  "vfx.mine.standard",
-                                             "color":  "#c084fc",
-                                             "shape":  "beam",
-                                             "glyph":  ""
+                                             "path":  "/assets/sprites/vfx/mine_standard.png",
+                                             "atlas":  "file",
+                                             "frame":  "vfx.mine.standard"
                                          },
                    "vfx.none":  {
-                                    "atlas":  "procedural",
-                                    "frame":  "vfx.none",
-                                    "color":  "#22d3ee",
-                                    "shape":  "effect",
-                                    "glyph":  ""
+                                    "path":  "/assets/sprites/vfx/none.svg",
+                                    "atlas":  "file",
+                                    "frame":  "vfx.none"
                                 },
                    "vfx.refine.sparkle":  {
-                                              "atlas":  "procedural",
-                                              "frame":  "vfx.refine.sparkle",
-                                              "color":  "#22d3ee",
-                                              "shape":  "effect",
-                                              "glyph":  ""
+                                              "path":  "/assets/sprites/vfx/refine_sparkle.png",
+                                              "atlas":  "file",
+                                              "frame":  "vfx.refine.sparkle"
                                           },
                    "vfx.repair.hull":  {
-                                           "atlas":  "procedural",
-                                           "frame":  "vfx.repair.hull",
-                                           "color":  "#22d3ee",
-                                           "shape":  "effect",
-                                           "glyph":  ""
+                                           "path":  "/assets/sprites/vfx/repair_hull.png",
+                                           "atlas":  "file",
+                                           "frame":  "vfx.repair.hull"
                                        },
                    "vfx.repair.tool":  {
-                                           "atlas":  "procedural",
-                                           "frame":  "vfx.repair.tool",
-                                           "color":  "#22d3ee",
-                                           "shape":  "effect",
-                                           "glyph":  ""
+                                           "path":  "/assets/sprites/vfx/repair_tool.png",
+                                           "atlas":  "file",
+                                           "frame":  "vfx.repair.tool"
                                        },
                    "vfx.scan.deepSpectral":  {
-                                                 "atlas":  "procedural",
-                                                 "frame":  "vfx.scan.deepSpectral",
-                                                 "color":  "#38bdf8",
-                                                 "shape":  "pulse",
-                                                 "glyph":  ""
+                                                 "path":  "/assets/sprites/vfx/scan_deep.png",
+                                                 "atlas":  "file",
+                                                 "frame":  "vfx.scan.deepSpectral"
                                              },
                    "vfx.scan.focusBeam":  {
-                                              "atlas":  "procedural",
-                                              "frame":  "vfx.scan.focusBeam",
-                                              "color":  "#38bdf8",
-                                              "shape":  "pulse",
-                                              "glyph":  ""
+                                              "path":  "/assets/sprites/vfx/scan_focus.png",
+                                              "atlas":  "file",
+                                              "frame":  "vfx.scan.focusBeam"
                                           },
                    "vfx.scan.listenPing":  {
-                                               "atlas":  "procedural",
-                                               "frame":  "vfx.scan.listenPing",
-                                               "color":  "#38bdf8",
-                                               "shape":  "pulse",
-                                               "glyph":  ""
+                                               "path":  "/assets/sprites/vfx/scan_listen.png",
+                                               "atlas":  "file",
+                                               "frame":  "vfx.scan.listenPing"
                                            },
                    "vfx.scan.widePulse":  {
-                                              "atlas":  "procedural",
-                                              "frame":  "vfx.scan.widePulse",
-                                              "color":  "#38bdf8",
-                                              "shape":  "pulse",
-                                              "glyph":  ""
+                                              "path":  "/assets/sprites/vfx/scan_wide.png",
+                                              "atlas":  "file",
+                                              "frame":  "vfx.scan.widePulse"
                                           },
                    "vfx.selection.ring":  {
-                                              "atlas":  "procedural",
-                                              "frame":  "vfx.selection.ring",
-                                              "color":  "#22d3ee",
-                                              "shape":  "effect",
-                                              "glyph":  ""
+                                              "path":  "/assets/sprites/vfx/selection_ring.png",
+                                              "atlas":  "file",
+                                              "frame":  "vfx.selection.ring"
                                           },
                    "vfx.sell":  {
-                                    "atlas":  "procedural",
-                                    "frame":  "vfx.sell",
-                                    "color":  "#22d3ee",
-                                    "shape":  "effect",
-                                    "glyph":  ""
+                                    "path":  "/assets/sprites/vfx/sell.png",
+                                    "atlas":  "file",
+                                    "frame":  "vfx.sell"
                                 },
                    "vfx.stabilize.field":  {
-                                               "atlas":  "procedural",
-                                               "frame":  "vfx.stabilize.field",
-                                               "color":  "#22d3ee",
-                                               "shape":  "effect",
-                                               "glyph":  ""
+                                               "path":  "/assets/sprites/vfx/stabilize_field.png",
+                                               "atlas":  "file",
+                                               "frame":  "vfx.stabilize.field"
                                            },
                    "vfx.station.confirm":  {
-                                               "atlas":  "procedural",
-                                               "frame":  "vfx.station.confirm",
-                                               "color":  "#22d3ee",
-                                               "shape":  "effect",
-                                               "glyph":  ""
+                                               "path":  "/assets/sprites/vfx/station_confirm.png",
+                                               "atlas":  "file",
+                                               "frame":  "vfx.station.confirm"
                                            },
                    "vfx.station.overhaul":  {
-                                                "atlas":  "procedural",
-                                                "frame":  "vfx.station.overhaul",
-                                                "color":  "#22d3ee",
-                                                "shape":  "effect",
-                                                "glyph":  ""
+                                                "path":  "/assets/sprites/vfx/station_overhaul.png",
+                                                "atlas":  "file",
+                                                "frame":  "vfx.station.overhaul"
                                             },
                    "vfx.travel.warp":  {
-                                           "atlas":  "procedural",
-                                           "frame":  "vfx.travel.warp",
-                                           "color":  "#f59e0b",
-                                           "shape":  "streak",
-                                           "glyph":  ""
+                                           "path":  "/assets/sprites/vfx/travel_warp.png",
+                                           "atlas":  "file",
+                                           "frame":  "vfx.travel.warp"
                                        },
                    "vfx.ui.run_end":  {
-                                          "atlas":  "procedural",
-                                          "frame":  "vfx.ui.run_end",
-                                          "color":  "#22d3ee",
-                                          "shape":  "effect",
-                                          "glyph":  ""
+                                          "path":  "/assets/sprites/vfx/ui_run_end.png",
+                                          "atlas":  "file",
+                                          "frame":  "vfx.ui.run_end"
                                       },
                    "vfx.warning.alert":  {
-                                             "atlas":  "procedural",
-                                             "frame":  "vfx.warning.alert",
-                                             "color":  "#ef4444",
-                                             "shape":  "flash",
-                                             "glyph":  ""
+                                             "path":  "/assets/sprites/vfx/warning_alert.png",
+                                             "atlas":  "file",
+                                             "frame":  "vfx.warning.alert"
                                          }
                },
     "backgrounds":  {
                         "bg.starfield.0":  {
-                                               "path":  "/assets/backgrounds/starfield.svg",
-                                               "type":  "svg"
-                                           }
+                                               "path":  "/assets/backgrounds/starfield_main.png",
+                                               "type":  "image"
+                                           },
+                        "bg.starfield.1":  {
+                                               "path":  "/assets/backgrounds/starfield_alt.png",
+                                               "type":  "image"
+                                           },
+                        "bg.planet.0":  {
+                                            "path":  "/assets/planets/planet_primary.png",
+                                            "type":  "image"
+                                        },
+                        "bg.planet.1":  {
+                                            "path":  "/assets/planets/planet_secondary.png",
+                                            "type":  "image"
+                                        }
                     },
     "fonts":  {
-                  "font.hud":  "/assets/fonts/orbitron-regular.ttf"
+                  "font.hud":  "/assets/fonts/KenneyFuture.ttf"
               },
     "colors":  {
                    "commodity.iron":  "#9ca3af",

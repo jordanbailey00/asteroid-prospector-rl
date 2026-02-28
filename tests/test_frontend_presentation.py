@@ -36,11 +36,52 @@ CORE_GRAPHICS_KEYS = {
     "icon.event.invalid",
 }
 
+CORE_BACKGROUND_KEYS = {
+    "bg.starfield.0",
+    "bg.starfield.1",
+    "bg.planet.0",
+    "bg.planet.1",
+}
+
+SEMANTIC_PATH_HINTS = {
+    "entity.ship.agent": "/sprites/world/ship",
+    "entity.ship.human": "/sprites/world/ship",
+    "entity.station": "/sprites/world/station",
+    "entity.asteroid.small": "/sprites/world/asteroid",
+    "entity.asteroid.medium": "/sprites/world/asteroid",
+    "entity.asteroid.large": "/sprites/world/asteroid",
+    "entity.hazard.radiation": "/sprites/world/hazard",
+    "entity.pirate.marker": "/sprites/world/pirate",
+    "ui.panel.stats": "/sprites/ui/panel",
+    "ui.panel.cargo": "/sprites/ui/panel",
+    "ui.panel.market": "/sprites/ui/panel",
+    "ui.panel.events": "/sprites/ui/panel",
+    "ui.panel.minimap": "/sprites/ui/panel",
+    "ui.button.primary": "/sprites/ui/button",
+    "ui.button.secondary": "/sprites/ui/button",
+    "ui.button.danger": "/sprites/ui/button",
+    "icon.market.up": "/sprites/ui/icon_market",
+    "icon.market.down": "/sprites/ui/icon_market",
+    "icon.market.flat": "/sprites/ui/icon_market",
+    "icon.event.pirate": "/sprites/ui/icon_event",
+    "icon.event.fracture": "/sprites/ui/icon_event",
+    "icon.event.overheat": "/sprites/ui/icon_event",
+    "icon.event.stranded": "/sprites/ui/icon_event",
+    "icon.event.destroyed": "/sprites/ui/icon_event",
+    "icon.event.invalid": "/sprites/ui/icon_event",
+}
+
 
 def _load_json(path: Path) -> dict:
     if not path.exists():
         raise AssertionError(f"Missing manifest file: {path}")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _resolve_public_asset(path_str: str) -> Path:
+    assert path_str.startswith("/assets/"), f"Asset path must be /assets/...: {path_str}"
+    relative = path_str.lstrip("/")
+    return REPO_ROOT / "frontend" / "public" / relative
 
 
 @pytest.fixture(scope="module")
@@ -75,6 +116,23 @@ def test_graphics_manifest_has_core_semantic_keys(graphics_manifest: dict) -> No
     missing = sorted(key for key in CORE_GRAPHICS_KEYS if key not in frames)
     assert not missing, f"Missing core graphics keys: {missing}"
 
+    for key in sorted(CORE_GRAPHICS_KEYS):
+        frame_def = frames[key]
+        assert isinstance(frame_def, dict), f"Frame value must be an object for {key}"
+        path_str = frame_def.get("path")
+        assert isinstance(path_str, str) and path_str.startswith(
+            "/assets/"
+        ), f"Frame must have a file-backed /assets path: {key}"
+        asset_path = _resolve_public_asset(path_str)
+        assert asset_path.exists(), f"Frame asset file missing for {key}: {asset_path}"
+
+        expected_hint = SEMANTIC_PATH_HINTS.get(key)
+        if expected_hint is not None:
+            assert expected_hint in path_str, (
+                f"Frame path for {key} does not match semantic class hint "
+                f"'{expected_hint}': {path_str}"
+            )
+
 
 def test_action_effect_mappings_cover_all_actions(effects_manifest: dict) -> None:
     actions = effects_manifest.get("actions")
@@ -97,6 +155,21 @@ def test_action_and_event_vfx_resolve_to_graphics_manifest(
 
     missing = [key for key in required_vfx if key not in frames]
     assert not missing, f"VFX keys missing from graphics manifest: {missing}"
+
+    for key in required_vfx:
+        frame_def = frames[key]
+        assert isinstance(frame_def, dict), f"VFX frame definition must be an object: {key}"
+        path_str = frame_def.get("path")
+        assert isinstance(path_str, str) and path_str.startswith(
+            "/assets/"
+        ), f"VFX key must map to /assets path: {key}"
+        asset_path = _resolve_public_asset(path_str)
+        assert asset_path.exists(), f"VFX asset path missing for {key}: {asset_path}"
+
+        if key.startswith("vfx."):
+            assert (
+                "/sprites/vfx/" in path_str
+            ), f"VFX key must resolve to vfx sprite path for {key}: {path_str}"
 
 
 def test_action_and_event_cues_resolve_to_audio_manifest(
@@ -123,13 +196,45 @@ def test_action_and_event_cues_resolve_to_audio_manifest(
         files = cue_def.get("files")
         assert isinstance(files, list), f"Cue files must be a list: {cue_key}"
 
+        base_path = groups[group_key].get("basePath")
+        assert isinstance(base_path, str) and base_path.startswith(
+            "/assets/"
+        ), f"Cue group basePath must be /assets/... for {cue_key}"
+
+        if cue_key.endswith(".none"):
+            continue
+
+        assert files, f"Non-none cue must have at least one file: {cue_key}"
+        for filename in files:
+            assert (
+                isinstance(filename, str) and filename.strip()
+            ), f"Cue file names must be non-empty strings: {cue_key}"
+            full_path = f"{base_path.rstrip('/')}/{filename}"
+            asset_path = _resolve_public_asset(full_path)
+            assert asset_path.exists(), f"Cue audio file missing for {cue_key}: {asset_path}"
+
 
 def test_background_manifest_paths_exist(graphics_manifest: dict) -> None:
     backgrounds = graphics_manifest.get("backgrounds", {})
     assert isinstance(backgrounds, dict)
-    for key, value in backgrounds.items():
+
+    missing = sorted(key for key in CORE_BACKGROUND_KEYS if key not in backgrounds)
+    assert not missing, f"Missing background keys: {missing}"
+
+    for key in sorted(CORE_BACKGROUND_KEYS):
+        value = backgrounds[key]
+        assert isinstance(value, dict), f"Background value must be an object: {key}"
         path_str = value.get("path")
         assert isinstance(path_str, str) and path_str.startswith("/assets/")
-        relative = path_str.lstrip("/")
-        path = REPO_ROOT / "frontend" / "public" / relative
+
+        if key.startswith("bg.planet"):
+            assert (
+                "/planets/" in path_str
+            ), f"Planet key must map to planet asset path: {key} -> {path_str}"
+        if key.startswith("bg.starfield"):
+            assert (
+                "/backgrounds/" in path_str
+            ), f"Starfield key must map to background asset path: {key} -> {path_str}"
+
+        path = _resolve_public_asset(path_str)
         assert path.exists(), f"Background path missing for {key}: {path}"

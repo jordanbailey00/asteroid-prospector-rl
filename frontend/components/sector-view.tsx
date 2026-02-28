@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -13,12 +13,67 @@ type SectorViewProps = {
   events: string[];
 };
 
-function frameColor(manifest: GraphicsManifest | null, key: string, fallback: string): string {
-  return manifest?.frames[key]?.color ?? fallback;
-}
+const DEFAULT_FRAME_PATHS = {
+  shipAgent: "/assets/sprites/world/ship_agent.png",
+  shipHuman: "/assets/sprites/world/ship_human.png",
+  station: "/assets/sprites/world/station_main.png",
+  asteroidSmall: "/assets/sprites/world/asteroid_small.png",
+  asteroidMedium: "/assets/sprites/world/asteroid_medium.png",
+  asteroidLarge: "/assets/sprites/world/asteroid_large.png",
+  hazard: "/assets/sprites/world/hazard_marker.png",
+  pirate: "/assets/sprites/world/pirate_marker.png",
+  selectionRing: "/assets/sprites/vfx/selection_ring.png",
+  noneVfx: "/assets/sprites/vfx/none.svg",
+};
+
+const DEFAULT_BACKGROUND_PATHS = {
+  starfieldMain: "/assets/backgrounds/starfield_main.png",
+  starfieldAlt: "/assets/backgrounds/starfield_alt.png",
+  planetPrimary: "/assets/planets/planet_primary.png",
+  planetSecondary: "/assets/planets/planet_secondary.png",
+};
 
 function unique<T>(values: T[]): T[] {
   return Array.from(new Set(values));
+}
+
+function framePath(manifest: GraphicsManifest | null, key: string, fallback: string): string {
+  const path = manifest?.frames[key]?.path;
+  if (typeof path === "string" && path.trim() !== "") {
+    return path;
+  }
+  return fallback;
+}
+
+function backgroundPath(manifest: GraphicsManifest | null, key: string, fallback: string): string {
+  const path = manifest?.backgrounds[key]?.path;
+  if (typeof path === "string" && path.trim() !== "") {
+    return path;
+  }
+  return fallback;
+}
+
+function asteroidFrameKey(
+  depletion: number,
+): "entity.asteroid.small" | "entity.asteroid.medium" | "entity.asteroid.large" {
+  if (depletion <= 0.33) {
+    return "entity.asteroid.large";
+  }
+  if (depletion <= 0.66) {
+    return "entity.asteroid.medium";
+  }
+  return "entity.asteroid.small";
+}
+
+function nodeSpriteFallback(frameKey: string): string {
+  switch (frameKey) {
+    case "entity.station":
+      return DEFAULT_FRAME_PATHS.station;
+    case "entity.hazard.radiation":
+      return DEFAULT_FRAME_PATHS.hazard;
+    default:
+      return DEFAULT_FRAME_PATHS.asteroidMedium;
+  }
 }
 
 export function SectorView({ mode, observation, action, events }: SectorViewProps) {
@@ -36,40 +91,73 @@ export function SectorView({ mode, observation, action, events }: SectorViewProp
     return <p className="muted">No observation available for sector rendering.</p>;
   }
 
-  const asteroidColorSmall = frameColor(manifest, "entity.asteroid.small", "#9ca3af");
-  const asteroidColorMedium = frameColor(manifest, "entity.asteroid.medium", "#78716c");
-  const asteroidColorLarge = frameColor(manifest, "entity.asteroid.large", "#57534e");
   const shipKey = mode === "human" ? "entity.ship.human" : "entity.ship.agent";
+  const shipPath = framePath(
+    manifest,
+    shipKey,
+    mode === "human" ? DEFAULT_FRAME_PATHS.shipHuman : DEFAULT_FRAME_PATHS.shipAgent,
+  );
+  const stationPath = framePath(manifest, "entity.station", DEFAULT_FRAME_PATHS.station);
+  const hazardPath = framePath(manifest, "entity.hazard.radiation", DEFAULT_FRAME_PATHS.hazard);
+  const piratePath = framePath(manifest, "entity.pirate.marker", DEFAULT_FRAME_PATHS.pirate);
+  const selectionRingPath = framePath(manifest, "vfx.selection.ring", DEFAULT_FRAME_PATHS.selectionRing);
+
+  const backgroundMain = backgroundPath(manifest, "bg.starfield.0", DEFAULT_BACKGROUND_PATHS.starfieldMain);
+  const backgroundAlt = backgroundPath(manifest, "bg.starfield.1", DEFAULT_BACKGROUND_PATHS.starfieldAlt);
+  const planetPrimary = backgroundPath(manifest, "bg.planet.0", DEFAULT_BACKGROUND_PATHS.planetPrimary);
+  const planetSecondary = backgroundPath(manifest, "bg.planet.1", DEFAULT_BACKGROUND_PATHS.planetSecondary);
 
   const validAsteroids = parsed.asteroids.filter((asteroid) => asteroid.valid);
   const selectedAsteroid = validAsteroids.find((asteroid) => asteroid.selected) ?? null;
+
   const selectedAngle = selectedAsteroid ? (Math.PI * 2 * selectedAsteroid.index) / 16 : null;
   const selectedX = selectedAngle === null ? 248 : 180 + Math.cos(selectedAngle) * 76;
   const selectedY = selectedAngle === null ? 126 : 130 + Math.sin(selectedAngle) * 76;
+
+  const actionVfxPath = framePath(manifest, actionVfx, DEFAULT_FRAME_PATHS.noneVfx);
+  const actionableVfx = actionVfx !== "vfx.none";
+  const mineVfx = actionVfx.startsWith("vfx.mine");
+
+  const eventVfxVisible = eventVfx.filter((key) => key !== "vfx.none" && key !== "vfx.warning.alert");
+  const warningActive = eventVfx.includes("vfx.warning.alert") || parsed.nodeType === "hazard";
+  const pirateActive = events.includes("pirate_encounter") || parsed.ship.alertPct >= 70;
 
   return (
     <div className="scene-shell">
       <div className="scene-grid">
         <div className="scene-viewport">
           <svg viewBox="0 0 360 260" className="scene-canvas" role="img" aria-label="sector view">
-            <defs>
-              <radialGradient id="sectorGlow" cx="50%" cy="50%" r="65%">
-                <stop offset="0%" stopColor="#1e293b" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#020617" stopOpacity="0.95" />
-              </radialGradient>
-            </defs>
+            <image href={backgroundMain} x="0" y="0" width="360" height="260" preserveAspectRatio="xMidYMid slice" />
+            <image
+              href={backgroundAlt}
+              x="0"
+              y="0"
+              width="360"
+              height="260"
+              preserveAspectRatio="xMidYMid slice"
+              opacity="0.34"
+            />
+            <image
+              href={planetPrimary}
+              x="18"
+              y="138"
+              width="118"
+              height="118"
+              preserveAspectRatio="xMidYMid meet"
+              opacity="0.9"
+            />
+            <image
+              href={planetSecondary}
+              x="268"
+              y="4"
+              width="84"
+              height="84"
+              preserveAspectRatio="xMidYMid meet"
+              opacity="0.85"
+            />
 
-            <rect x="0" y="0" width="360" height="260" rx="14" fill="url(#sectorGlow)" />
-
-            {parsed.nodeType === "hazard" ? (
-              <rect
-                x="4"
-                y="4"
-                width="352"
-                height="252"
-                rx="10"
-                className="scene-alert-border"
-              />
+            {warningActive ? (
+              <rect x="4" y="4" width="352" height="252" rx="10" className="scene-alert-border" />
             ) : null}
 
             {validAsteroids.map((asteroid) => {
@@ -77,76 +165,88 @@ export function SectorView({ mode, observation, action, events }: SectorViewProp
               const radius = 72 + (1 - asteroid.scanConf) * 20;
               const x = 180 + Math.cos(angle) * radius;
               const y = 130 + Math.sin(angle) * radius;
-              const size = 5 + (1 - asteroid.depletion) * 8;
-              const fill =
-                size > 10
-                  ? asteroidColorLarge
-                  : size > 7
-                    ? asteroidColorMedium
-                    : asteroidColorSmall;
+
+              const frameKey = asteroidFrameKey(asteroid.depletion);
+              const spritePath =
+                frameKey === "entity.asteroid.large"
+                  ? framePath(manifest, frameKey, DEFAULT_FRAME_PATHS.asteroidLarge)
+                  : frameKey === "entity.asteroid.medium"
+                    ? framePath(manifest, frameKey, DEFAULT_FRAME_PATHS.asteroidMedium)
+                    : framePath(manifest, frameKey, DEFAULT_FRAME_PATHS.asteroidSmall);
+
+              const diameter =
+                frameKey === "entity.asteroid.large" ? 34 : frameKey === "entity.asteroid.medium" ? 28 : 22;
 
               return (
                 <g key={`ast-${asteroid.index}`}>
-                  <circle cx={x} cy={y} r={size} fill={fill} opacity={0.94} />
+                  <image
+                    href={spritePath}
+                    x={x - diameter / 2}
+                    y={y - diameter / 2}
+                    width={diameter}
+                    height={diameter}
+                    preserveAspectRatio="xMidYMid meet"
+                    opacity="0.95"
+                  />
                   {asteroid.selected ? (
-                    <circle cx={x} cy={y} r={size + 4} className="scene-selection-ring" />
+                    <image
+                      href={selectionRingPath}
+                      x={x - diameter * 0.78}
+                      y={y - diameter * 0.78}
+                      width={diameter * 1.56}
+                      height={diameter * 1.56}
+                      preserveAspectRatio="xMidYMid meet"
+                      className="scene-selection-ring-image"
+                    />
                   ) : null}
                 </g>
               );
             })}
 
             {parsed.atStation ? (
-              <g>
-                <circle
-                  cx="180"
-                  cy="130"
-                  r="36"
-                  fill={frameColor(manifest, "entity.station", "#f59e0b")}
-                  opacity="0.22"
-                />
-                <circle
-                  cx="180"
-                  cy="130"
-                  r="22"
-                  fill="none"
-                  stroke={frameColor(manifest, "entity.station", "#f59e0b")}
-                  strokeWidth="2"
-                />
-              </g>
+              <image
+                href={stationPath}
+                x="146"
+                y="94"
+                width="68"
+                height="68"
+                preserveAspectRatio="xMidYMid meet"
+              />
             ) : null}
 
-            <polygon
-              points="180,112 168,146 192,146"
-              fill={frameColor(manifest, shipKey, mode === "human" ? "#34d399" : "#22d3ee")}
-              stroke="#e2e8f0"
-              strokeWidth="1"
-            />
+            <image href={shipPath} x="158" y="108" width="44" height="44" preserveAspectRatio="xMidYMid meet" />
 
-            {actionVfx === "vfx.travel.warp" || actionVfx === "vfx.emergencyBurn" ? (
-              <g className="scene-warp-lines">
-                <line x1="180" y1="130" x2="110" y2="130" />
-                <line x1="180" y1="120" x2="118" y2="108" />
-                <line x1="180" y1="140" x2="118" y2="152" />
-              </g>
+            {parsed.nodeType === "hazard" ? (
+              <image href={hazardPath} x="12" y="10" width="30" height="30" preserveAspectRatio="xMidYMid meet" />
+            ) : null}
+            {pirateActive ? (
+              <image href={piratePath} x="318" y="10" width="30" height="30" preserveAspectRatio="xMidYMid meet" />
             ) : null}
 
-            {actionVfx.startsWith("vfx.scan") ? (
-              <circle cx="180" cy="130" r="48" className="scene-scan-ring" />
+            {actionableVfx ? (
+              <image
+                href={actionVfxPath}
+                x={mineVfx ? selectedX - 24 : 180 - 34}
+                y={mineVfx ? selectedY - 24 : 130 - 34}
+                width={mineVfx ? 48 : 68}
+                height={mineVfx ? 48 : 68}
+                preserveAspectRatio="xMidYMid meet"
+                className="scene-vfx-action"
+              />
             ) : null}
 
-            {actionVfx.startsWith("vfx.mine") ? (
-              <g className="scene-mining-beam">
-                <line x1="180" y1="130" x2={selectedX} y2={selectedY} />
-              </g>
-            ) : null}
-
-            {actionVfx === "vfx.cooldown.burst" ? (
-              <circle cx="180" cy="130" r="30" className="scene-cooldown-ring" />
-            ) : null}
-
-            {eventVfx.includes("vfx.warning.alert") ? (
-              <rect x="6" y="6" width="348" height="248" rx="10" className="scene-alert-border" />
-            ) : null}
+            {eventVfxVisible.map((key, index) => (
+              <image
+                key={key}
+                href={framePath(manifest, key, DEFAULT_FRAME_PATHS.noneVfx)}
+                x={14 + index * 42}
+                y="206"
+                width="36"
+                height="36"
+                preserveAspectRatio="xMidYMid meet"
+                className="scene-vfx-event"
+              />
+            ))}
           </svg>
 
           <div className="scene-legend">
@@ -158,7 +258,8 @@ export function SectorView({ mode, observation, action, events }: SectorViewProp
 
         <div className="scene-minimap">
           <svg viewBox="0 0 180 180" role="img" aria-label="node mini-map">
-            <circle cx="90" cy="90" r="80" fill="#0f172a" />
+            <image href={backgroundMain} x="0" y="0" width="180" height="180" preserveAspectRatio="xMidYMid slice" />
+            <circle cx="90" cy="90" r="81" fill="none" stroke="rgba(226, 232, 240, 0.5)" strokeWidth="2" />
 
             {parsed.neighbors.map((neighbor) => {
               const angle = (Math.PI * 2 * neighbor.slot) / 6;
@@ -171,35 +272,49 @@ export function SectorView({ mode, observation, action, events }: SectorViewProp
                     ? "#f59e0b"
                     : "#22c55e";
 
-              const fill =
+              const nodeFrameKey =
                 neighbor.nodeType === "station"
-                  ? "#fbbf24"
+                  ? "entity.station"
                   : neighbor.nodeType === "hazard"
-                    ? "#fb7185"
-                    : "#38bdf8";
+                    ? "entity.hazard.radiation"
+                    : "entity.asteroid.medium";
 
               return (
                 <g key={`neigh-${neighbor.slot}`}>
                   <line x1="90" y1="90" x2={x} y2={y} stroke={stroke} strokeWidth="2" opacity="0.9" />
-                  <circle cx={x} cy={y} r="9" fill={fill} stroke="#e2e8f0" strokeWidth="1" />
-                  <text x={x} y={y + 3} textAnchor="middle" className="scene-map-label">
+                  <image
+                    href={framePath(manifest, nodeFrameKey, nodeSpriteFallback(nodeFrameKey))}
+                    x={x - 12}
+                    y={y - 12}
+                    width="24"
+                    height="24"
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                  {neighbor.threat >= 0.75 ? (
+                    <image
+                      href={piratePath}
+                      x={x + 6}
+                      y={y - 18}
+                      width="13"
+                      height="13"
+                      preserveAspectRatio="xMidYMid meet"
+                    />
+                  ) : null}
+                  <text x={x} y={y + 16} textAnchor="middle" className="scene-map-label">
                     {neighbor.slot}
                   </text>
                 </g>
               );
             })}
 
-            <circle
-              cx="90"
-              cy="90"
-              r="12"
-              fill={parsed.atStation ? "#fbbf24" : "#22d3ee"}
-              stroke="#f8fafc"
-              strokeWidth="1.5"
+            <image
+              href={parsed.atStation ? stationPath : shipPath}
+              x="76"
+              y="76"
+              width="28"
+              height="28"
+              preserveAspectRatio="xMidYMid meet"
             />
-            <text x="90" y="95" textAnchor="middle" className="scene-map-label">
-              C
-            </text>
           </svg>
 
           <dl className="kv">

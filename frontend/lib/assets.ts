@@ -1,6 +1,7 @@
-﻿export interface GraphicsFrameDef {
+export interface GraphicsFrameDef {
   atlas: string;
   frame: string;
+  path?: string;
   color?: string;
   shape?: string;
   glyph?: string;

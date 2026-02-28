@@ -1,4 +1,4 @@
-﻿# Project Status
+# Project Status
 
 Last updated: 2026-02-28
 Current focus: M6.5 real-asset frontend wiring
@@ -23,15 +23,14 @@ Current focus: M6.5 real-asset frontend wiring
 | M4 - Eval + replay generation | Complete | Policy-driven PPO eval replays from serialized checkpoints, replay schema/index validation, `every_window` + `best_so_far` + `milestone:*` tagging, replay index filtering helpers, and checkpoint format tests | `b8a1880`, `452754c` |
 | M5 - API server | Complete | FastAPI run/replay/metrics endpoints, replay frame pagination endpoint, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, `98149f2` |
 | M6 - Frontend integration | Complete | Next.js replay page (`/`), human play mode (`/play`), analytics page (`/analytics`) wired to M5 APIs with playback controls, run/window/replay selection, and historical trend visualizations | `27ab411` |
-| M6.5 - Graphics + audio integration | In progress | Runtime scene/audio scaffolding is present; remaining work is full Kenney asset ingestion + semantic wiring + file-backed manifests/cues | `1a77f36` (partial) |
+| M6.5 - Graphics + audio integration | In progress | Real Kenney assets are now staged in `frontend/public/assets`, manifests are file-backed, sector/minimap rendering consumes mapped world/background/VFX assets, and tests enforce semantic path + file existence coverage. Remaining work is final manual replay/play verification checklist and any residual HUD/icon polish. | `1a77f36`, pending (this commit) |
 | M7+ - Perf and stability | Not started | Throughput targets, soak checks, benchmark automation | pending |
 
 ## Next work (ordered)
 
-1. Complete M6.5 by wiring root `assets/` Kenney files into `frontend/public/assets` and updating manifests to real file-backed mappings.
-2. Validate action/event cue coverage and visual mapping accuracy for replay + play mode.
-3. Add websocket replay streaming endpoint and optional frontend transport switch (HTTP vs WS).
-4. Implement M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks.
+1. Execute final M6.5 manual replay/play verification checklist and patch any residual visual/audio mismatches.
+2. Add websocket replay streaming endpoint and optional frontend transport switch (HTTP vs WS).
+3. Implement M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks.
 
 ## Active risks and blockers
 
@@ -46,7 +45,8 @@ Current focus: M6.5 real-asset frontend wiring
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-02-28 | pending (this commit) | docs | Tighten M6.5 completion criteria to require real Kenney asset wiring |
+| 2026-02-28 | pending (this commit) | feat | Wire sector rendering to file-backed Kenney assets and enforce manifest asset validation in tests |
+| 2026-02-28 | `b2b98cf` | docs | Tighten M6.5 completion criteria to require real Kenney asset wiring |
 | 2026-02-28 | `1a77f36` | feat | Implement M6.5 graphics/audio presentation scaffolding |
 | 2026-02-28 | `27ab411` | feat | Implement M6 frontend replay/play/analytics UI |
 | 2026-02-28 | `98149f2` | feat | Complete M5 metrics and play API endpoints |
