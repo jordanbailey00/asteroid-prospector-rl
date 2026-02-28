@@ -80,6 +80,8 @@ All notable changes to this project will be documented in this file.
 - Configured user PATH to include CMake, LLVM, and WinLibs binaries.
 
 ### Docs
+- Clarified Phase 8 (M6.5) completion criteria in docs/BUILD_CHECKLIST.md to require full file-backed Kenney asset wiring for core gameplay semantics.
+- Corrected project status to mark M6.5 as in-progress until real assets are fully wired and validated.
 - Added authoritative root `AGENTS.md` instructions requiring commit/push after each completed change.
 - Updated README files to reflect M2 scaffold status and native build commands.
 - Rewrote root `README.md` as a public GitHub-facing project overview (purpose, goals, stack, quick start, and roadmap context).

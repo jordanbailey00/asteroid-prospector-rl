@@ -1,4 +1,4 @@
-# Asteroid Belt Prospector — Ordered Build Checklist (Agent Work Plan)
+# Asteroid Belt Prospector â€” Ordered Build Checklist (Agent Work Plan)
 
 This document is a **chunked, ordered checklist** of all work needed to implement the project end-to-end, without attempting everything at once.
 
@@ -10,7 +10,7 @@ This document is a **chunked, ordered checklist** of all work needed to implemen
 
 ---
 
-## Phase 0 — Pre-flight / Repo Bootstrap (M0)
+## Phase 0 â€” Pre-flight / Repo Bootstrap (M0)
 
 ### 0.1 Repo structure (create skeleton only)
 - Create top-level structure:
@@ -32,7 +32,7 @@ This document is a **chunked, ordered checklist** of all work needed to implemen
   - lint/format checks
   - `pytest -q` (even if only a stub test exists)
 
-### 0.3 “Hello env” stub (contract-only)
+### 0.3 â€œHello envâ€ stub (contract-only)
 - Implement a minimal env that:
   - returns obs shape `(260,)` float32
   - accepts actions in `0..68` via `Discrete(69)`
@@ -48,9 +48,9 @@ This document is a **chunked, ordered checklist** of all work needed to implemen
 
 ---
 
-## Phase 1 — Python Reference Environment (Correctness Baseline) (M1)
+## Phase 1 â€” Python Reference Environment (Correctness Baseline) (M1)
 
-Purpose: Build a readable “golden” Python env matching the RL spec exactly. This is used for debugging and parity comparisons.
+Purpose: Build a readable â€œgoldenâ€ Python env matching the RL spec exactly. This is used for debugging and parity comparisons.
 
 ### 1.1 Implement Python reference engine
 - Implement full environment per RL spec modules:
@@ -81,7 +81,7 @@ Add tests for:
 
 ---
 
-## Phase 2 — Native C Core (Performance) + Python Bindings (M2)
+## Phase 2 â€” Native C Core (Performance) + Python Bindings (M2)
 
 Purpose: Move the simulation hot loop to C while preserving semantics.
 
@@ -126,7 +126,7 @@ Choose one binding approach and stick to it:
 
 ---
 
-## Phase 3 — Parity Harness + Acceptance Test Completion (M2.5)
+## Phase 3 â€” Parity Harness + Acceptance Test Completion (M2.5)
 
 Purpose: Prove C core matches Python reference under fixed seeds and action sequences.
 
@@ -147,12 +147,12 @@ Purpose: Prove C core matches Python reference under fixed seeds and action sequ
 - Confirm: same seed + same actions => same done flags + near-identical float outputs.
 
 **Exit criteria (Phase 3)**
-- Parity suite passes required matrix (10 seeds × suites × steps).
-- “Stop-the-line” failures are all absent (NaN/Inf, nondeterminism, bounds violations).
+- Parity suite passes required matrix (10 seeds Ã— suites Ã— steps).
+- â€œStop-the-lineâ€ failures are all absent (NaN/Inf, nondeterminism, bounds violations).
 
 ---
 
-## Phase 4 — Training Loop (PufferLib) + W&B Observability (M3)
+## Phase 4 â€” Training Loop (PufferLib) + W&B Observability (M3)
 
 Purpose: Train locally at high throughput; log windowed metrics and artifacts.
 
@@ -182,12 +182,12 @@ Purpose: Train locally at high throughput; log windowed metrics and artifacts.
 - If Constellation is configured, ensure the run metadata captures its URL
 
 **Exit criteria (Phase 4)**
-- Training runs for ≥ 3 windows without crash.
+- Training runs for â‰¥ 3 windows without crash.
 - Each window produces: checkpoint + window metrics row + W&B log event.
 
 ---
 
-## Phase 5 — Eval Runner + Replay Generation (Option A) (M4)
+## Phase 5 â€” Eval Runner + Replay Generation (Option A) (M4)
 
 Purpose: Generate watchable replays without slowing training.
 
@@ -222,7 +222,7 @@ Purpose: Generate watchable replays without slowing training.
 
 ---
 
-## Phase 6 — Backend API Server (M5)
+## Phase 6 â€” Backend API Server (M5)
 
 Purpose: Provide stable endpoints for frontend replay playback, play sessions, and analytics.
 
@@ -263,7 +263,7 @@ Sessions are ephemeral (TTL) and do not persist state.
 
 ---
 
-## Phase 7 — Frontend (Vercel) (M6)
+## Phase 7 â€” Frontend (Vercel) (M6)
 
 Purpose: Provide replay viewing, play mode, and historical analytics.
 
@@ -286,8 +286,8 @@ Purpose: Provide replay viewing, play mode, and historical analytics.
 - Display:
   - current action + decoded name
   - ship stats + cargo + market + event log
-  - window summary panel for the replay’s window_id
-- Add “Open in W&B” and “Open Constellation” links (if URLs provided by backend)
+  - window summary panel for the replayâ€™s window_id
+- Add â€œOpen in W&Bâ€ and â€œOpen Constellationâ€ links (if URLs provided by backend)
 
 ### 7.3 Human pilot mode
 - Create/reset session
@@ -307,34 +307,71 @@ Purpose: Provide replay viewing, play mode, and historical analytics.
 
 ---
 
-## Phase 8 — Graphics + Audio Integration (M6.5)
+## Phase 8 - Graphics + Audio Integration (M6.5)
 
-Purpose: Add “good-enough” 2D visuals + sound without custom art.
+Purpose: Deliver a fully wired game presentation layer using the provided Kenney assets (no placeholder/procedural stand-ins for required game entities).
 
-### 8.1 Asset ingestion and atlases
-- Download Kenney packs and place under `assets_raw/`
-- Use Free Texture Packer to build:
-  - world/ui/vfx atlases
-- Copy outputs to `/public/assets/atlases/...`
+### 8.1 Source asset ingestion (authoritative)
+- Use the existing root `assets/` packs as the source of truth:
+  - `assets/kenney_space-shooter-redux`
+  - `assets/kenney_space-shooter-extension`
+  - `assets/kenney_simpleSpace`
+  - `assets/kenney_planets`
+  - `assets/kenney_ui-pack`
+- Build a semantic mapping table for all required game items before wiring:
+  - ships (agent + human)
+  - station(s)
+  - asteroids/meteors (small/medium/large)
+  - planets/background layers
+  - hazard/pirate markers
+  - HUD panels/buttons/icons
+  - action/event VFX assets
+  - UI + gameplay audio cues
+- Rule: if an item is represented visually in gameplay, it must map to a real Kenney file path.
 
-### 8.2 Manifests
-- Populate:
-  - `graphics_manifest.json`
-  - `audio_manifest.json`
-- Add manifest completeness validation tests (ensure every semantic key resolves)
+### 8.2 Runtime asset packaging for frontend
+- Copy selected source assets into `frontend/public/assets/...` with stable web paths:
+  - `frontend/public/assets/sprites/world/...`
+  - `frontend/public/assets/sprites/ui/...`
+  - `frontend/public/assets/sprites/vfx/...`
+  - `frontend/public/assets/backgrounds/...`
+  - `frontend/public/assets/audio/ui/...`
+  - `frontend/public/assets/audio/sfx/...`
+- Atlases are allowed but optional; direct file paths are acceptable if runtime performance remains stable.
+- Do not mark M6.5 complete while required semantic keys still point to procedural placeholders.
 
-### 8.3 Rendering
-- Implement Sector View + mini-map + HUD integration
-- Implement action VFX mapping and event VFX mapping
-- Implement audio cues for actions/events and UI clicks
+### 8.3 Manifest completion (hard requirement)
+- Populate `graphics_manifest.json` with real file-backed entries for required semantic keys.
+- Populate `audio_manifest.json` with real `.ogg` file mappings for UI/action/event cues.
+- Every action id `0..68` must map to VFX + SFX cue keys; every mapped key must resolve to an existing file path (except explicit `none` keys).
+- Keep `action_effects_manifest.json` as the semantic action/event mapping contract.
+
+### 8.4 Frontend wiring (replay + play)
+- Replay page and play page must render the same core game objects using mapped assets:
+  - ship sprite(s), station sprite(s), asteroid sprites, background/planet layer, hazard and pirate markers.
+- HUD and minimap elements must use mapped UI assets (panels/icons/buttons).
+- Action/event VFX must display the correct asset family for the triggered action/event.
+- Audio cues must play from mapped Kenney `.ogg` files for controls + gameplay events.
+
+### 8.5 Validation and regression checks
+- Add/maintain tests for:
+  - manifest key completeness (required semantic keys present)
+  - file existence for referenced graphics/audio paths
+  - full action mapping coverage (`0..68`) and event mapping coverage
+  - replay/play rendering smoke checks (no missing asset references)
+- Add a manual replay verification checklist with at least one sampled replay demonstrating:
+  - travel, scan, mining, docking/sell, warning events, terminal state cues.
 
 **Exit criteria (Phase 8)**
-- Replay view and play mode show correct sprites/VFX/SFX for core actions.
-- No texture/audio leaks on repeated playback.
+- Replay and play mode are fully asset-backed from Kenney packs for all core game components.
+- Correct asset type is used for correct item class (planet->planet, asteroid/meteor->asteroid, ship->ship, station->station, etc.).
+- No required semantic key depends on procedural placeholder rendering.
+- Audio cues for UI + core gameplay are file-backed and trigger correctly.
+- Repeated playback sessions show no texture/audio leak behavior.
 
 ---
 
-## Phase 9 — Baselines + Benchmarking (M7)
+## Phase 9 - Baselines + Benchmarking (M7)
 
 Purpose: Establish non-learning benchmarks and track improvements.
 
@@ -359,7 +396,7 @@ Purpose: Establish non-learning benchmarks and track improvements.
 
 ---
 
-## Phase 10 — Performance + Stability Hardening (M8)
+## Phase 10 â€” Performance + Stability Hardening (M8)
 
 Purpose: Ensure the system can run long training jobs reliably and fast.
 
@@ -383,7 +420,7 @@ Purpose: Ensure the system can run long training jobs reliably and fast.
 
 ---
 
-## “Do not proceed” blockers (stop-the-line)
+## â€œDo not proceedâ€ blockers (stop-the-line)
 - Parity harness mismatch beyond tolerance
 - Nondeterminism under fixed seed/action sequence
 - NaN/Inf in obs/reward

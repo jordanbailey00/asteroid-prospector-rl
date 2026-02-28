@@ -161,8 +161,17 @@ Use this file for non-trivial project decisions.
 ### ADR-0017 - Deliver M6.5 with semantic manifests plus procedural rendering/audio fallback
 
 - Date: 2026-02-28
-- Status: Accepted
+- Status: Superseded
 - Context: M6.5 required graphics/audio integration, but the repo does not yet carry final external art/audio packs. We still need deterministic, testable presentation wiring that can be upgraded without changing gameplay/UI logic.
 - Decision: Implement a manifest-driven presentation layer now (`graphics_manifest.json`, `audio_manifest.json`, `action_effects_manifest.json`) and render sector/minimap visuals procedurally from observation state while playing cue sounds through a WebAudio synth fallback when audio files are absent. Add tests to enforce action/event mapping completeness and manifest key resolution.
 - Consequences: M6.5 is unblocked with stable runtime contracts and validation gates; swapping in real atlases/OGG assets becomes a manifest update task rather than a code rewrite.
 - Related commits/docs: `frontend/public/assets/manifests/graphics_manifest.json`, `frontend/public/assets/manifests/audio_manifest.json`, `frontend/lib/action_effects_manifest.json`, `frontend/lib/assets.ts`, `frontend/lib/presentation.ts`, `frontend/lib/audio.ts`, `frontend/components/sector-view.tsx`, `tests/test_frontend_presentation.py`, `docs/PROJECT_STATUS.md`
+
+### ADR-0018 - M6.5 completion requires file-backed Kenney asset wiring for all core gameplay semantics
+
+- Date: 2026-02-28
+- Status: Accepted
+- Context: M6.5 was initially interpreted as runtime presentation scaffolding, but project acceptance criteria require full semantic asset correctness using provided Kenney packs (planet assets for planets, asteroid assets for asteroids, ship assets for ships, etc.).
+- Decision: Redefine M6.5 completion as requiring real file-backed mappings in frontend manifests and runtime rendering/audio playback for core gameplay semantics. Procedural placeholders may remain only as explicit non-required fallback behavior, not as the primary path for required keys.
+- Consequences: M6.5 status is in-progress until all required semantic keys and cues are wired to real files in `frontend/public/assets/...` and validated by tests.
+- Related commits/docs: `docs/BUILD_CHECKLIST.md`, `docs/PROJECT_STATUS.md`, `frontend/public/assets/manifests/graphics_manifest.json`, `frontend/public/assets/manifests/audio_manifest.json`, `tests/test_frontend_presentation.py`
