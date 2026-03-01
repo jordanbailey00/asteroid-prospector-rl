@@ -445,12 +445,15 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
             else:
                 from .puffer_backend import PpoConfig, run_puffer_ppo_training
 
-            def on_step(
-                reward: float, info: dict[str, Any], terminated: bool, truncated: bool
+            def on_step_batch(
+                rewards: np.ndarray,
+                infos: Any,
+                terminated: np.ndarray,
+                truncated: np.ndarray,
             ) -> bool:
-                records = aggregator.record_step(
-                    reward=reward,
-                    info=info,
+                records = aggregator.record_step_batch(
+                    rewards=rewards,
+                    infos=infos,
                     terminated=terminated,
                     truncated=truncated,
                 )
@@ -482,7 +485,7 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
                     vector_backend=cfg.ppo_vector_backend,
                     env_impl=cfg.ppo_env_impl,
                 ),
-                on_step=on_step,
+                on_step_batch=on_step_batch,
                 register_checkpoint_state_getter=register_checkpoint_state_getter,
             )
             metadata.update(ppo_summary)

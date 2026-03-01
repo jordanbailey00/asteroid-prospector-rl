@@ -7,6 +7,7 @@ import pytest
 
 from training.puffer_backend import (
     PpoConfig,
+    _dispatch_step_callbacks,
     _ProspectorNativeGymEnv,
     _resolve_env_impl,
     _validate_config,
@@ -150,3 +151,58 @@ def test_native_wrapper_contract_with_fake_core(monkeypatch: pytest.MonkeyPatch)
 
     env.close()
     assert instance.closed is True
+
+
+def test_dispatch_step_callbacks_prefers_batch_callback() -> None:
+    calls = {"step": 0, "batch": 0}
+
+    def on_step(_reward: float, _info: dict[str, object], _term: bool, _trunc: bool) -> bool:
+        calls["step"] += 1
+        return False
+
+    def on_step_batch(
+        rewards: np.ndarray,
+        infos: object,
+        terminated: np.ndarray,
+        truncated: np.ndarray,
+    ) -> bool:
+        calls["batch"] += 1
+        assert rewards.shape == (3,)
+        assert terminated.shape == (3,)
+        assert truncated.shape == (3,)
+        assert isinstance(infos, dict)
+        return False
+
+    stop = _dispatch_step_callbacks(
+        on_step=on_step,
+        on_step_batch=on_step_batch,
+        rewards=np.array([0.1, 0.2, 0.3], dtype=np.float32),
+        infos={"dt": np.array([1, 1, 1], dtype=np.int32)},
+        terminated=np.array([False, False, False], dtype=bool),
+        truncated=np.array([False, False, False], dtype=bool),
+    )
+
+    assert stop is False
+    assert calls["batch"] == 1
+    assert calls["step"] == 0
+
+
+def test_dispatch_step_callbacks_falls_back_to_per_env_step_callback() -> None:
+    calls = {"step": 0}
+
+    def on_step(_reward: float, info: dict[str, object], _term: bool, _trunc: bool) -> bool:
+        calls["step"] += 1
+        assert "dt" in info
+        return calls["step"] == 2
+
+    stop = _dispatch_step_callbacks(
+        on_step=on_step,
+        on_step_batch=None,
+        rewards=np.array([1.0, 2.0, 3.0], dtype=np.float32),
+        infos={"dt": np.array([1, 2, 3], dtype=np.int32)},
+        terminated=np.array([False, False, False], dtype=bool),
+        truncated=np.array([False, False, False], dtype=bool),
+    )
+
+    assert stop is True
+    assert calls["step"] == 2

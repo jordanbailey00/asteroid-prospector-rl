@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
+from typing import Any
+
+import numpy as np
 
 INFO_METRIC_KEYS = (
     "credits",
@@ -62,6 +66,45 @@ class WindowRecord:
         return payload
 
 
+def _coerce_info_value(value: Any, index: int) -> Any:
+    if isinstance(value, np.ndarray):
+        if value.ndim == 0:
+            return value.item()
+        if index < value.shape[0]:
+            item = value[index]
+            return item.item() if isinstance(item, np.generic) else item
+        return None
+    if isinstance(value, (list, tuple)):
+        if index < len(value):
+            item = value[index]
+            return item.item() if isinstance(item, np.generic) else item
+        return None
+    return value.item() if isinstance(value, np.generic) else value
+
+
+def _info_value_for_env(infos: Any, index: int, key: str, default: Any) -> Any:
+    if isinstance(infos, dict):
+        return _coerce_info_value(infos.get(key, default), index)
+
+    if isinstance(infos, (list, tuple)) and index < len(infos):
+        value = infos[index]
+        if isinstance(value, dict):
+            raw = value.get(key, default)
+            return raw.item() if isinstance(raw, np.generic) else raw
+
+    return default
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        candidate = float(value)
+    except (TypeError, ValueError):
+        return float(default)
+    if not math.isfinite(candidate):
+        return float(default)
+    return candidate
+
+
 class WindowMetricsAggregator:
     """Aggregates step metrics into fixed-size window records."""
 
@@ -104,17 +147,86 @@ class WindowMetricsAggregator:
         terminated: bool,
         truncated: bool,
     ) -> list[WindowRecord]:
-        emitted: list[WindowRecord] = []
-
         dt = int(info.get("dt", 1))
         if dt <= 0:
             dt = 1
 
         invalid_action = bool(info.get("invalid_action", False))
+        metric_values = {
+            key: _safe_float(info.get(key, 0.0)) for key in self.info_metric_keys
+        }
+        return self._record_step_values(
+            reward=float(reward),
+            dt=dt,
+            invalid_action=invalid_action,
+            metric_values=metric_values,
+            terminated=bool(terminated),
+            truncated=bool(truncated),
+        )
+
+    def record_step_batch(
+        self,
+        *,
+        rewards: np.ndarray | list[float],
+        infos: Any,
+        terminated: np.ndarray | list[bool],
+        truncated: np.ndarray | list[bool],
+    ) -> list[WindowRecord]:
+        reward_arr = np.asarray(rewards, dtype=np.float64).reshape(-1)
+        terminated_arr = np.asarray(terminated, dtype=bool).reshape(-1)
+        truncated_arr = np.asarray(truncated, dtype=bool).reshape(-1)
+
+        n = reward_arr.shape[0]
+        if terminated_arr.shape[0] != n or truncated_arr.shape[0] != n:
+            raise ValueError("rewards/terminated/truncated arrays must have matching lengths")
+
+        emitted: list[WindowRecord] = []
+        for index in range(n):
+            dt_raw = _info_value_for_env(infos, index, "dt", 1)
+            dt = int(dt_raw) if dt_raw is not None else 1
+            if dt <= 0:
+                dt = 1
+
+            invalid_action = bool(_info_value_for_env(infos, index, "invalid_action", False))
+            metric_values = {
+                key: _safe_float(_info_value_for_env(infos, index, key, 0.0))
+                for key in self.info_metric_keys
+            }
+
+            emitted.extend(
+                self._record_step_values(
+                    reward=float(reward_arr[index]),
+                    dt=dt,
+                    invalid_action=invalid_action,
+                    metric_values=metric_values,
+                    terminated=bool(terminated_arr[index]),
+                    truncated=bool(truncated_arr[index]),
+                )
+            )
+
+        return emitted
+
+    def flush_partial(self) -> WindowRecord | None:
+        if self._window_steps == 0:
+            return None
+        return self._emit_window(window_complete=False)
+
+    def _record_step_values(
+        self,
+        *,
+        reward: float,
+        dt: int,
+        invalid_action: bool,
+        metric_values: dict[str, float],
+        terminated: bool,
+        truncated: bool,
+    ) -> list[WindowRecord]:
+        emitted: list[WindowRecord] = []
+
         reward_f = float(reward)
         self._current_episode_return += reward_f
 
-        remaining = dt
+        remaining = int(dt)
         while remaining > 0:
             room = self.window_env_steps - self._window_steps
             take = min(room, remaining)
@@ -129,7 +241,7 @@ class WindowMetricsAggregator:
                 self._window_invalid_steps += take
 
             for key in self.info_metric_keys:
-                self._window_metric_weighted_sums[key] += float(info.get(key, 0.0)) * float(take)
+                self._window_metric_weighted_sums[key] += metric_values[key] * float(take)
 
             if is_final_segment and (terminated or truncated):
                 self.episodes_total += 1
@@ -145,11 +257,6 @@ class WindowMetricsAggregator:
                 emitted.append(self._emit_window(window_complete=True))
 
         return emitted
-
-    def flush_partial(self) -> WindowRecord | None:
-        if self._window_steps == 0:
-            return None
-        return self._emit_window(window_complete=False)
 
     def _emit_window(self, *, window_complete: bool) -> WindowRecord:
         steps = max(1, self._window_steps)

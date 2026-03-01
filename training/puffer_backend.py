@@ -34,6 +34,7 @@ class PpoConfig:
 
 
 StepCallback = Callable[[float, dict[str, Any], bool, bool], bool]
+StepBatchCallback = Callable[[np.ndarray, Any, np.ndarray, np.ndarray], bool]
 StateGetter = Callable[[], dict[str, Any]]
 RegisterStateGetter = Callable[[StateGetter], None]
 SUPPORTED_PPO_ENV_IMPLS = ("reference", "native", "auto")
@@ -129,6 +130,41 @@ def _info_for_env(infos: Any, index: int) -> dict[str, Any]:
             return value
 
     return {}
+
+
+def _dispatch_step_callbacks(
+    *,
+    on_step: StepCallback | None,
+    on_step_batch: StepBatchCallback | None,
+    rewards: Any,
+    infos: Any,
+    terminated: Any,
+    truncated: Any,
+) -> bool:
+    reward_arr = np.asarray(rewards, dtype=np.float32).reshape(-1)
+    term_arr = np.asarray(terminated, dtype=bool).reshape(-1)
+    trunc_arr = np.asarray(truncated, dtype=bool).reshape(-1)
+
+    if reward_arr.shape[0] != term_arr.shape[0] or reward_arr.shape[0] != trunc_arr.shape[0]:
+        raise ValueError("reward/terminated/truncated arrays must have matching lengths")
+
+    if on_step_batch is not None:
+        return bool(on_step_batch(reward_arr, infos, term_arr, trunc_arr))
+
+    if on_step is None:
+        raise ValueError("on_step callback is required when on_step_batch is not provided")
+
+    for i in range(reward_arr.shape[0]):
+        info = _info_for_env(infos, i)
+        should_stop = on_step(
+            float(reward_arr[i]),
+            info,
+            bool(term_arr[i]),
+            bool(trunc_arr[i]),
+        )
+        if should_stop:
+            return True
+    return False
 
 
 class _ProspectorGymEnv:
@@ -241,9 +277,12 @@ class _ProspectorNativeGymEnv:
 def run_puffer_ppo_training(
     *,
     cfg: PpoConfig,
-    on_step: StepCallback,
+    on_step: StepCallback | None = None,
+    on_step_batch: StepBatchCallback | None = None,
     register_checkpoint_state_getter: RegisterStateGetter | None = None,
 ) -> dict[str, Any]:
+    if on_step is None and on_step_batch is None:
+        raise ValueError("run_puffer_ppo_training requires on_step or on_step_batch callback")
     _validate_config(cfg)
     selected_env_impl, native_available, native_probe = _resolve_env_impl(cfg.env_impl)
     auto_fallback = cfg.env_impl == "auto" and selected_env_impl != "native"
@@ -340,16 +379,14 @@ def run_puffer_ppo_training(
                 next_obs = torch.as_tensor(next_obs_np, dtype=torch.float32, device=device)
                 next_done = torch.as_tensor(done_np, dtype=torch.float32, device=device)
 
-                for i in range(cfg.num_envs):
-                    info = _info_for_env(infos, i)
-                    stop_requested = on_step(
-                        float(reward_np[i]),
-                        info,
-                        bool(term_np[i]),
-                        bool(trunc_np[i]),
-                    )
-                    if stop_requested:
-                        break
+                stop_requested = _dispatch_step_callbacks(
+                    on_step=on_step,
+                    on_step_batch=on_step_batch,
+                    rewards=reward_np,
+                    infos=infos,
+                    terminated=term_np,
+                    truncated=trunc_np,
+                )
                 if stop_requested:
                     break
 

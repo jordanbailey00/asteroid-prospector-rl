@@ -255,3 +255,12 @@ Use this file for non-trivial project decisions.
 - Decision: Extend PPO runtime config with `ppo_env_impl` (`reference|native|auto`), default to `auto`, add native-availability probing, and route PPO env creation to either reference or native Gym wrapper accordingly. For `auto`, prefer native and fallback to reference; for `native`, fail fast with a clear runtime error when native core is unavailable.
 - Consequences: PPO training can opt into native stepping without changing external trainer APIs, and environments without native binaries remain functional via deterministic fallback behavior. Run metadata now records requested/selected env implementation for observability.
 - Related commits/docs: `training/puffer_backend.py`, `training/train_puffer.py`, `training/README.md`, `tests/test_puffer_backend_env_impl.py`, `tests/test_train_puffer_args.py`, `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
+
+### ADR-0028 - Use batch PPO step callback boundary between runtime and window aggregation
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: PPO runtime still invoked training callbacks once per env per step, adding Python call overhead in the hot path even after native env selection work landed.
+- Decision: Introduce `on_step_batch` in `run_puffer_ppo_training` and dispatch one callback per vector step with reward/done arrays plus raw `infos`. Update trainer aggregation to consume this boundary via `WindowMetricsAggregator.record_step_batch(...)`, while preserving existing scalar `record_step(...)` behavior for non-batch paths.
+- Consequences: Cross-module callback overhead is reduced in the PPO hot loop without changing window metric semantics. Further throughput gains remain tied to reducing per-env processing inside aggregation and moving stepping to C batch APIs.
+- Related commits/docs: `training/puffer_backend.py`, `training/train_puffer.py`, `training/windowing.py`, `tests/test_puffer_backend_env_impl.py`, `tests/test_windowing.py`, `docs/PERFORMANCE_BOTTLENECK_PLAN.md`

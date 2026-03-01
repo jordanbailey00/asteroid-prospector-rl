@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 - Added PPO runtime env implementation selection (`--ppo-env-impl`: `reference|native|auto`) with native auto-fallback probing and surfaced selection metadata in PPO run summaries.
 - Added native Gym-compatible PPO env wrapper in `training/puffer_backend.py` backed by `NativeProspectorCore`, including deterministic episode-seed stream handling for reset calls without explicit seeds.
 - Added regression tests for PPO env-impl resolution, native-wrapper contract behavior (DLL-free via fake core), and CLI parsing of `--ppo-env-impl` (`tests/test_puffer_backend_env_impl.py`, `tests/test_train_puffer_args.py`).
+- Added PPO hot-loop batch callback dispatch path (`on_step_batch`) and switched trainer window aggregation to batch ingestion (`WindowMetricsAggregator.record_step_batch`) to remove per-env callback invocations in `training/puffer_backend.py`.
 - Added game-bottleneck performance roadmap (`docs/PERFORMANCE_BOTTLENECK_PLAN.md`) prioritizing native PPO env integration, callback batching, and C batch stepping APIs.
 - Added training throughput profiler `tools/profile_training_throughput.py` with `env_only`, `trainer`, and `trainer_eval` modes, JSON artifact output, and optional 100k target gate enforcement.
 - Added regression tests for throughput profiler reporting and threshold failure behavior in `tests/test_profile_training_throughput.py`.
