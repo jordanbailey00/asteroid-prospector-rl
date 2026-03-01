@@ -75,6 +75,8 @@ All notable changes to this project will be documented in this file.
 - Replay/play sector rendering now uses mapped sprite/background/planet/VFX paths from graphics manifest (ship/station/asteroid/hazard/pirate + action/event effects).
 - Frontend shell styling now uses Kenney UI panel/button textures for cards, scene containers, and button variants.
 - Frontend presentation tests now enforce file existence and semantic asset-class mapping for graphics keys, VFX keys, background keys, and non-`none` audio cues.
+- Added `tools/run_m65_manual_checklist.py` to generate deterministic M6.5 replay/play checklist evidence and validate action/event asset mappings against file-backed manifests.
+- Added M6.5 verification artifacts: `docs/M65_MANUAL_VERIFICATION.md` and `docs/verification/m65_sample_replay.jsonl`.
 
 - Upgraded trainer runtime dependency pins to `pufferlib-core==3.0.17`, `gymnasium==1.2.3`, `torch==2.10.0`, `wandb==0.25.0`, and `numpy==2.4.2`.
 - Updated reusable trainer image tag defaults/docs to `py311-puffercore3.0.17` in compose and trainer handoff docs.
@@ -100,3 +102,4 @@ All notable changes to this project will be documented in this file.
 - Updated README files to reflect M2 scaffold status and native build commands.
 - Rewrote root `README.md` as a public GitHub-facing project overview (purpose, goals, stack, quick start, and roadmap context).
 - Updated `docs/DOCS_INDEX.md` to include hygiene/parity/checklist/status/decision tracking docs in the authoritative read order.
+- Updated `frontend/README.md` notes to reflect file-backed audio cue usage with synth as fallback-only behavior.

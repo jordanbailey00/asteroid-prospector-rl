@@ -59,6 +59,8 @@ Read top to bottom.
     - Current project state, milestone board, and ordered next work.
 18. `DECISION_LOG.md`
     - Architecture/process decisions with consequences.
+19. `M65_MANUAL_VERIFICATION.md`
+    - Final M6.5 replay/play checklist evidence and sampled replay trace.
 
 ## Notes
 

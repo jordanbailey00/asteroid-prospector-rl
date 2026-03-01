@@ -1,4 +1,4 @@
-﻿# frontend
+# frontend
 
 M6 + M6.5 frontend implementation for the Asteroid Prospector MVP.
 
@@ -67,5 +67,5 @@ These checks ensure:
 ## Notes
 
 - Replay playback still uses HTTP frame download (`/frames`) and client-side timer controls.
-- Audio cues currently default to procedural synth fallback; real OGG assets can be added later without changing UI code, as long as manifests are updated.
+- Audio cues are file-backed from `/assets/audio/...`; synth fallback is only used when browser playback is blocked or a cue intentionally has no files.
 - Vercel deployment should point `NEXT_PUBLIC_BACKEND_HTTP_BASE` to your hosted FastAPI origin.

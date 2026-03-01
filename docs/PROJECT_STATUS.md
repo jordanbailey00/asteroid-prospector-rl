@@ -1,20 +1,27 @@
 # Project Status
 
-Last updated: 2026-02-28
-Current focus: M6.5 real-asset frontend wiring and verification
+Last updated: 2026-03-01
+Current focus: M7 readiness (replay transport and benchmark automation)
 
 ## Current state
 
 - Frozen interface status: unchanged (`OBS_DIM=260`, `N_ACTIONS=69`, action indexing `0..68`, reward definition unchanged).
 - Build health: local checks passing via `tools/run_checks.ps1` (`pytest -q` currently 52 passed, 2 skipped).
-- Frontend build health: `npm --prefix frontend run build` passes for replay/play/analytics routes.
-- Trainer runtime baseline upgraded and validated on Docker:
+- Frontend verification health (2026-03-01):
+  - `pytest -q tests/test_frontend_presentation.py` -> 6 passed.
+  - `npm --prefix frontend run lint` -> no ESLint warnings/errors.
+  - `npm --prefix frontend run build` -> success for `/`, `/play`, `/analytics`.
+- M6.5 manual replay/play checklist is now executed with deterministic evidence:
+  - checklist report: `docs/M65_MANUAL_VERIFICATION.md`
+  - sampled replay trace: `docs/verification/m65_sample_replay.jsonl`
+  - reproducible generator: `tools/run_m65_manual_checklist.py`
+- Trainer runtime baseline remains:
   - dependency pin: `pufferlib-core==3.0.17`
   - module runtime: `pufferlib 3.0.3`
   - image tag: `jordanbailey00/rl-puffer-base:py311-puffercore3.0.17`
   - published digest: `sha256:723c58843d9ed563fa66c0927da975bdbab5355c913ec965dbea25a2af67bb71`
-- Completed milestones: M0, M1, M2, M2.5, M3, M4, M5, and M6.
-- Active milestone: M6.5 graphics/audio real-asset integration.
+- Completed milestones: M0, M1, M2, M2.5, M3, M4, M5, M6, and M6.5.
+- Active milestone: M7+ performance and stability hardening.
 
 ## Milestone board
 
@@ -28,20 +35,20 @@ Current focus: M6.5 real-asset frontend wiring and verification
 | M4 - Eval + replay generation | Complete | Policy-driven PPO eval replays from serialized checkpoints, replay schema/index validation, `every_window` + `best_so_far` + `milestone:*` tagging, replay index filtering helpers, and checkpoint format tests | `b8a1880`, `452754c` |
 | M5 - API server | Complete | FastAPI run/replay/metrics endpoints, replay frame pagination endpoint, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, `98149f2` |
 | M6 - Frontend integration | Complete | Next.js replay page (`/`), human play mode (`/play`), analytics page (`/analytics`) wired to M5 APIs with playback controls, run/window/replay selection, and historical trend visualizations | `27ab411` |
-| M6.5 - Graphics + audio integration | In progress | Real Kenney assets staged in `frontend/public/assets`, manifests file-backed, sector/minimap rendering consuming mapped world/background/VFX assets, and tests enforcing semantic path + file existence coverage | `1a77f36`, `f606846` |
+| M6.5 - Graphics + audio integration | Complete | Real Kenney assets wired to replay/play rendering, manifests file-backed, semantic asset tests passing, and final manual replay/play checklist evidence captured | `1a77f36`, `f606846`, pending (this commit) |
 | M7+ - Perf and stability | Not started | Throughput targets, soak checks, benchmark automation | pending |
 
 ## Next work (ordered)
 
-1. Execute final M6.5 manual replay/play verification checklist and patch any residual visual/audio mismatches.
-2. Add websocket replay streaming endpoint and optional frontend transport switch (HTTP vs WS).
-3. Implement M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks.
+1. Add websocket replay streaming endpoint and optional frontend transport switch (HTTP vs WS).
+2. Implement M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks.
+3. Add long-run stability job for replay index consistency and leak/regression detection.
 
 ## Active risks and blockers
 
-- M6.5 is not complete until manual replay/play verification confirms visual+audio correctness across core gameplay loops.
-- Frontend replay playback currently uses full-frame HTTP fetch; very large replays may need WS streaming or chunked loading.
-- There is no published `pufferlib 4.0` package on PyPI as of 2026-02-28; latest published line used here is `pufferlib-core 3.0.17`.
+- Frontend replay playback still uses full-frame HTTP fetch; very large replays may require WS streaming/chunking.
+- M7 benchmark automation is not yet landed, so throughput regressions are not currently gated in CI/nightly.
+- There is no published `pufferlib 4.0` package on PyPI as of 2026-03-01; latest published line used here is `pufferlib-core 3.0.17`.
 
 ## Decision pointers
 
@@ -51,7 +58,8 @@ Current focus: M6.5 real-asset frontend wiring and verification
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-02-28 | pending (this commit) | docs | Refresh public README/status/changelog and day-end handoff state |
+| 2026-03-01 | pending (this commit) | feat | Add reproducible M6.5 manual replay/play checklist runner and evidence artifacts |
+| 2026-02-28 | `55852e2` | docs | Refresh day-end status and handoff documentation |
 | 2026-02-28 | `dda8545` | chore | Upgrade trainer deps/image to latest published Puffer core stack and patch PPO runtime compatibility |
 | 2026-02-28 | `f606846` | feat | Wire sector rendering to file-backed Kenney assets and enforce manifest asset validation in tests |
 | 2026-02-28 | `b2b98cf` | docs | Tighten M6.5 completion criteria to require real Kenney asset wiring |
