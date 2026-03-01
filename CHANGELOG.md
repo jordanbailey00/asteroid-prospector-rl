@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added throughput floor gate runner `tools/gate_throughput_floors.py` to enforce per-mode thresholds from a matrix artifact's recommended floors and best-candidate configs.
+- Added regression tests for throughput floor gate behavior in `tests/test_gate_throughput_floors.py`.
+- Added calibrated floor-gate artifact `artifacts/throughput/throughput-floor-gate-20260301-p1.json` with passing checks for `env_only` and `trainer` (random) modes.
 - Added throughput matrix orchestrator `tools/run_throughput_matrix.py` for controlled env/trainer candidate sweeps, per-candidate artifact emission, and per-mode calibrated floor recommendations (`best_min_steps_per_sec * floor_safety_factor`).
 - Added regression tests for throughput matrix selection/error handling in `tests/test_run_throughput_matrix.py`.
 - Extended `tools/profile_training_throughput.py` with configurable PPO tuning knobs (`ppo_num_envs`, `ppo_num_workers`, `ppo_rollout_steps`, `ppo_num_minibatches`, `ppo_update_epochs`, `ppo_vector_backend`, `ppo_env_impl`) and surfaced those fields in trainer mode reports.

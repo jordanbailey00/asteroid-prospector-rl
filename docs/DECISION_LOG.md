@@ -300,3 +300,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add `tools/run_throughput_matrix.py` to orchestrate env/trainer candidate sweeps and publish per-mode summaries. For each mode, select the best candidate by highest mean steps/sec and compute the recommended floor as `best_min_steps_per_sec * floor_safety_factor` (default `0.90`). Keep `100000` as the aspirational target and track delta-to-target in status artifacts.
 - Consequences: Throughput threshold calibration is now evidence-based and reproducible across commits, with candidate-level artifacts and an explicit safety margin to reduce flakiness.
 - Related commits/docs: `tools/run_throughput_matrix.py`, `tools/profile_training_throughput.py`, `tests/test_run_throughput_matrix.py`, `tests/test_profile_training_throughput.py`, `artifacts/throughput/throughput-matrix-20260301-p6.json`, `docs/PROJECT_STATUS.md`
+
+### ADR-0033 - Enforce local throughput floors by replaying matrix-selected best candidates
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: After calibrating per-mode floors from matrix artifacts, the project needed a deterministic local gate to verify current performance remains above those calibrated floors while keeping 100k as an aspirational reference target.
+- Decision: Add `tools/gate_throughput_floors.py` to read `mode_summaries` + best candidates from a matrix artifact and run per-mode throughput profile checks with `enforce_target=True` against each mode's `recommended_floor_steps_per_sec`.
+- Consequences: Local throughput enforcement is now reproducible and source-of-truth-driven by matrix artifacts; floor thresholds can be recalibrated by publishing a new matrix and rerunning the floor gate without hardcoding mode-specific constants.
+- Related commits/docs: `tools/gate_throughput_floors.py`, `tests/test_gate_throughput_floors.py`, `artifacts/throughput/throughput-floor-gate-20260301-p1.json`, `docs/PROJECT_STATUS.md`
