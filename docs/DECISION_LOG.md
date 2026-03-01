@@ -282,3 +282,12 @@ Use this file for non-trivial project decisions.
 - Decision: For PPO runs where `ppo_env_impl` resolves to `native`, instantiate an in-process `_NativeBatchVectorEnv` that owns one `NativeProspectorCore` per env and performs vector-step/reset with `NativeProspectorCore.step_many(...)` and `reset_many(...)`. Preserve vector-env autoreset behavior for done envs and retain existing Puffer vector path for reference env runs.
 - Consequences: Native PPO hot path now amortizes stepping/reset overhead into batched bridge calls and records selected runtime backend via `ppo_vector_backend_selected` (`native_batch` for native path). Native path no longer depends on per-env Gym wrapper stepping in the PPO inner loop.
 - Related commits/docs: `training/puffer_backend.py`, `training/train_puffer.py`, `tests/test_puffer_backend_env_impl.py`, `training/README.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0031 - Cache station graph distance and streamline observation packing in native core hot path
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: After routing PPO to native batch stepping, native env-only throughput still spent avoidable CPU in per-step observation packing, including repeated BFS distance-to-station computation on a static episode graph.
+- Decision: Add per-node station-distance cache recomputed during world generation and switch `abp_steps_to_station(...)` to O(1) lookup. Tighten `abp_pack_obs(...)` by reducing transient normalization/indexing overhead and replacing repeated divide operations with precomputed inverse multipliers where behavior remains equivalent.
+- Consequences: Native hot-loop CPU overhead is reduced without changing frozen interface semantics. Parity remains required as the correctness gate after these micro-optimizations.
+- Related commits/docs: `engine_core/include/abp_core.h`, `engine_core/src/abp_core.c`, `tools/profile_training_throughput.py`, `tests/test_profile_training_throughput.py`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`

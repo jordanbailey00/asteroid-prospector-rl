@@ -90,6 +90,7 @@ typedef struct AbpCoreState {
     uint8_t node_type[ABP_MAX_NODES];
     float node_hazard[ABP_MAX_NODES];
     float node_pirate[ABP_MAX_NODES];
+    uint8_t steps_to_station[ABP_MAX_NODES];
     int8_t neighbors[ABP_MAX_NODES][ABP_MAX_NEIGHBORS];
     uint8_t edge_travel_time[ABP_MAX_NODES][ABP_MAX_NEIGHBORS];
     float edge_fuel_cost[ABP_MAX_NODES][ABP_MAX_NEIGHBORS];

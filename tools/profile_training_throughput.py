@@ -243,7 +243,11 @@ def _profile_env_only(cfg: ThroughputProfileConfig) -> dict[str, Any]:
 
         def _run_sample(*, _sample_seed: int = sample_seed, _rng: Any = rng) -> dict[str, Any]:
             env = env_ctor(_sample_seed)
-            obs, _info = env.reset(seed=_sample_seed)
+            reset_result = env.reset(seed=_sample_seed)
+            if isinstance(reset_result, tuple):
+                obs = reset_result[0]
+            else:
+                obs = reset_result
             del obs
 
             steps = 0

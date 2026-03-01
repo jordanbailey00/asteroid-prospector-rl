@@ -21,9 +21,14 @@
 
 #define ABP_TRAVEL_TIME_MAX 8.0f
 #define ABP_TRAVEL_FUEL_COST_MAX 160.0f
+#define ABP_INV_TRAVEL_TIME_MAX (1.0f / ABP_TRAVEL_TIME_MAX)
+#define ABP_INV_TRAVEL_FUEL_COST_MAX (1.0f / ABP_TRAVEL_FUEL_COST_MAX)
 
 #define ABP_PRICE_SCALE 100.0f
 #define ABP_STATION_INVENTORY_NORM_CAP 500.0f
+#define ABP_INV_STATION_INVENTORY_NORM_CAP (1.0f / ABP_STATION_INVENTORY_NORM_CAP)
+#define ABP_INV_PRICE_SCALE (1.0f / ABP_PRICE_SCALE)
+#define ABP_INV_MAX_NODE_INDEX (1.0f / (float)(ABP_MAX_NODES - 1u))
 
 #define ABP_WIDE_SCAN_TIME 3u
 #define ABP_FOCUSED_SCAN_TIME 2u
@@ -113,6 +118,8 @@
 #define ABP_REWARD_TERMINAL_BONUS_B 0.002f
 
 static const float k_price_base[ABP_N_COMMODITIES] = {45.0f, 55.0f, 85.0f, 145.0f, 210.0f, 120.0f};
+static const float k_inv_price_base[ABP_N_COMMODITIES] = {
+    1.0f / 45.0f, 1.0f / 55.0f, 1.0f / 85.0f, 1.0f / 145.0f, 1.0f / 210.0f, 1.0f / 120.0f};
 static const float k_price_min[ABP_N_COMMODITIES] = {12.0f, 15.0f, 20.0f, 50.0f, 80.0f, 30.0f};
 static const float k_price_max[ABP_N_COMMODITIES] = {180.0f, 200.0f, 240.0f,
                                                      320.0f, 420.0f, 300.0f};
@@ -251,6 +258,82 @@ static void abp_normalize_probs(const float *in, float *out, uint32_t n) {
     }
 }
 
+static void abp_normalize_comp_est_6_to_obs(const float *in, float *out) {
+    float sum = 0.0f;
+    uint32_t i = 0;
+
+    for (i = 0; i < ABP_N_COMMODITIES; ++i) {
+        float value = in[i];
+        if (value < 1.0e-8f) {
+            value = 1.0e-8f;
+        }
+        out[i] = value;
+        sum += value;
+    }
+
+    if (sum <= 0.0f) {
+        float fill = 1.0f / (float)ABP_N_COMMODITIES;
+        for (i = 0; i < ABP_N_COMMODITIES; ++i) {
+            out[i] = fill;
+        }
+        return;
+    }
+
+    {
+        float inv_sum = 1.0f / sum;
+        for (i = 0; i < ABP_N_COMMODITIES; ++i) {
+            out[i] *= inv_sum;
+        }
+    }
+}
+
+static void abp_recompute_steps_to_station(AbpCoreState *state) {
+    uint8_t visited[ABP_MAX_NODES];
+    uint8_t queue[ABP_MAX_NODES];
+    uint8_t head = 0u;
+    uint8_t tail = 0u;
+    uint8_t node = 0u;
+
+    memset(visited, 0, sizeof(visited));
+    for (node = 0; node < ABP_MAX_NODES; ++node) {
+        state->steps_to_station[node] = (uint8_t)(ABP_MAX_NODES - 1u);
+    }
+
+    if (state->node_count == 0u) {
+        return;
+    }
+
+    visited[0] = 1u;
+    state->steps_to_station[0] = 0u;
+    queue[tail++] = 0u;
+
+    while (head < tail) {
+        uint8_t cur = queue[head++];
+        uint8_t cur_dist = state->steps_to_station[cur];
+        uint8_t slot = 0u;
+
+        for (slot = 0u; slot < ABP_MAX_NEIGHBORS; ++slot) {
+            int neighbor = state->neighbors[cur][slot];
+            if (neighbor < 0 || neighbor >= (int)state->node_count) {
+                continue;
+            }
+            if (visited[neighbor] > 0u) {
+                continue;
+            }
+
+            visited[neighbor] = 1u;
+            if (cur_dist < (uint8_t)(ABP_MAX_NODES - 1u)) {
+                state->steps_to_station[neighbor] = (uint8_t)(cur_dist + 1u);
+            } else {
+                state->steps_to_station[neighbor] = (uint8_t)(ABP_MAX_NODES - 1u);
+            }
+            if (tail < (uint8_t)ABP_MAX_NODES) {
+                queue[tail++] = (uint8_t)neighbor;
+            }
+        }
+    }
+}
+
 static float abp_cargo_sum(const AbpCoreState *state) {
     float total = 0.0f;
     uint32_t i = 0;
@@ -288,47 +371,10 @@ static float abp_est_cargo_value(const AbpCoreState *state) {
 }
 
 static int abp_steps_to_station(const AbpCoreState *state) {
-    int visited[ABP_MAX_NODES];
-    int queue_nodes[ABP_MAX_NODES];
-    int queue_dist[ABP_MAX_NODES];
-    int head = 0;
-    int tail = 0;
-    int slot = 0;
-
-    if (state->current_node == 0u) {
-        return 0;
+    if (state->current_node >= state->node_count) {
+        return ABP_MAX_NODES - 1;
     }
-
-    memset(visited, 0, sizeof(visited));
-
-    visited[state->current_node] = 1;
-    queue_nodes[tail] = state->current_node;
-    queue_dist[tail] = 0;
-    ++tail;
-
-    while (head < tail) {
-        int node = queue_nodes[head];
-        int dist = queue_dist[head];
-        ++head;
-
-        for (slot = 0; slot < ABP_MAX_NEIGHBORS; ++slot) {
-            int nxt = state->neighbors[node][slot];
-            if (nxt < 0 || nxt >= (int)state->node_count || visited[nxt] != 0) {
-                continue;
-            }
-            if (nxt == 0) {
-                return dist + 1;
-            }
-            visited[nxt] = 1;
-            if (tail < ABP_MAX_NODES) {
-                queue_nodes[tail] = nxt;
-                queue_dist[tail] = dist + 1;
-                ++tail;
-            }
-        }
-    }
-
-    return ABP_MAX_NODES - 1;
+    return (int)state->steps_to_station[state->current_node];
 }
 
 static int abp_edge_exists(const AbpCoreState *state, int u, int v) {
@@ -485,6 +531,7 @@ static void abp_generate_world(AbpCoreState *state) {
         state->node_type[node] = ABP_NODE_CLUSTER;
         state->node_hazard[node] = 0.0f;
         state->node_pirate[node] = 0.0f;
+        state->steps_to_station[node] = (uint8_t)(ABP_MAX_NODES - 1u);
         for (slot = 0; slot < ABP_MAX_NEIGHBORS; ++slot) {
             state->neighbors[node][slot] = -1;
             state->edge_travel_time[node][slot] = 1u;
@@ -520,6 +567,8 @@ static void abp_generate_world(AbpCoreState *state) {
         }
         abp_add_edge(state, (int)u, (int)v);
     }
+
+    abp_recompute_steps_to_station(state);
 
     abp_generate_asteroids(state);
     abp_generate_market(state);
@@ -1182,50 +1231,47 @@ static void abp_fill_step_metrics(const AbpCoreState *state, AbpCoreStepResult *
 static void abp_pack_obs(AbpCoreState *state, float *obs_out) {
     float cargo_total = 0.0f;
     float credits_norm = 0.0f;
+    float *obs = state->obs_buffer;
     uint32_t c_idx = 0;
 
-    memset(state->obs_buffer, 0, sizeof(state->obs_buffer));
+    memset(obs, 0, sizeof(state->obs_buffer));
 
     cargo_total = abp_cargo_sum(state);
 
-    state->obs_buffer[0] = abp_clampf(state->fuel / ABP_FUEL_MAX, 0.0f, 1.0f);
-    state->obs_buffer[1] = abp_clampf(state->hull / ABP_HULL_MAX, 0.0f, 1.0f);
-    state->obs_buffer[2] = abp_clampf(state->heat / ABP_HEAT_MAX, 0.0f, 1.0f);
-    state->obs_buffer[3] = abp_clampf(state->tool_condition / ABP_TOOL_MAX, 0.0f, 1.0f);
-    state->obs_buffer[4] = abp_clampf(cargo_total / ABP_CARGO_MAX, 0.0f, 1.0f);
-    state->obs_buffer[5] = abp_clampf(state->alert / ABP_ALERT_MAX, 0.0f, 1.0f);
-    state->obs_buffer[6] = abp_clampf(state->time_remaining / state->config.time_max, 0.0f, 1.0f);
+    obs[0] = abp_clampf(state->fuel / ABP_FUEL_MAX, 0.0f, 1.0f);
+    obs[1] = abp_clampf(state->hull / ABP_HULL_MAX, 0.0f, 1.0f);
+    obs[2] = abp_clampf(state->heat / ABP_HEAT_MAX, 0.0f, 1.0f);
+    obs[3] = abp_clampf(state->tool_condition / ABP_TOOL_MAX, 0.0f, 1.0f);
+    obs[4] = abp_clampf(cargo_total / ABP_CARGO_MAX, 0.0f, 1.0f);
+    obs[5] = abp_clampf(state->alert / ABP_ALERT_MAX, 0.0f, 1.0f);
+    obs[6] = abp_clampf(state->time_remaining / state->config.time_max, 0.0f, 1.0f);
 
     credits_norm = log1pf(fmaxf(0.0f, state->credits)) / log1pf(ABP_CREDITS_CAP);
-    state->obs_buffer[7] = abp_clampf(credits_norm, 0.0f, 1.0f);
+    obs[7] = abp_clampf(credits_norm, 0.0f, 1.0f);
 
     for (c_idx = 0; c_idx < ABP_N_COMMODITIES; ++c_idx) {
-        state->obs_buffer[8u + c_idx] = abp_clampf(state->cargo[c_idx] / ABP_CARGO_MAX, 0.0f, 1.0f);
+        obs[8u + c_idx] = abp_clampf(state->cargo[c_idx] / ABP_CARGO_MAX, 0.0f, 1.0f);
     }
 
-    state->obs_buffer[14] =
-        abp_clampf((float)state->repair_kits / (float)ABP_REPAIR_KITS_CAP, 0.0f, 1.0f);
-    state->obs_buffer[15] =
-        abp_clampf((float)state->stabilizers / (float)ABP_STABILIZERS_CAP, 0.0f, 1.0f);
-    state->obs_buffer[16] = abp_clampf((float)state->decoys / (float)ABP_DECOYS_CAP, 0.0f, 1.0f);
+    obs[14] = abp_clampf((float)state->repair_kits / (float)ABP_REPAIR_KITS_CAP, 0.0f, 1.0f);
+    obs[15] = abp_clampf((float)state->stabilizers / (float)ABP_STABILIZERS_CAP, 0.0f, 1.0f);
+    obs[16] = abp_clampf((float)state->decoys / (float)ABP_DECOYS_CAP, 0.0f, 1.0f);
 
-    state->obs_buffer[17] = abp_is_at_station(state) ? 1.0f : 0.0f;
-    state->obs_buffer[18] = abp_selected_asteroid_valid(state) ? 1.0f : 0.0f;
+    obs[17] = abp_is_at_station(state) ? 1.0f : 0.0f;
+    obs[18] = abp_selected_asteroid_valid(state) ? 1.0f : 0.0f;
 
     {
         uint8_t node_type = state->node_type[state->current_node];
-        state->obs_buffer[19] = 0.0f;
-        state->obs_buffer[20] = 0.0f;
-        state->obs_buffer[21] = 0.0f;
+        obs[19] = 0.0f;
+        obs[20] = 0.0f;
+        obs[21] = 0.0f;
         if (node_type < ABP_NODE_TYPES) {
-            state->obs_buffer[19u + node_type] = 1.0f;
+            obs[19u + node_type] = 1.0f;
         }
     }
 
-    state->obs_buffer[22] =
-        abp_clampf((float)state->current_node / (float)(ABP_MAX_NODES - 1), 0.0f, 1.0f);
-    state->obs_buffer[23] =
-        abp_clampf((float)abp_steps_to_station(state) / (float)(ABP_MAX_NODES - 1), 0.0f, 1.0f);
+    obs[22] = abp_clampf((float)state->current_node * ABP_INV_MAX_NODE_INDEX, 0.0f, 1.0f);
+    obs[23] = abp_clampf((float)abp_steps_to_station(state) * ABP_INV_MAX_NODE_INDEX, 0.0f, 1.0f);
 
     {
         uint8_t slot = 0;
@@ -1236,21 +1282,21 @@ static void abp_pack_obs(AbpCoreState *state, float *obs_out) {
                 continue;
             }
 
-            state->obs_buffer[base] = 1.0f;
+            obs[base] = 1.0f;
             {
                 uint8_t neigh_type = state->node_type[neighbor];
                 if (neigh_type < ABP_NODE_TYPES) {
-                    state->obs_buffer[base + 1u + neigh_type] = 1.0f;
+                    obs[base + 1u + neigh_type] = 1.0f;
                 }
             }
 
-            state->obs_buffer[base + 4u] = abp_clampf(
-                (float)state->edge_travel_time[state->current_node][slot] / ABP_TRAVEL_TIME_MAX,
-                0.0f, 1.0f);
-            state->obs_buffer[base + 5u] = abp_clampf(
-                state->edge_fuel_cost[state->current_node][slot] / ABP_TRAVEL_FUEL_COST_MAX, 0.0f,
-                1.0f);
-            state->obs_buffer[base + 6u] =
+            obs[base + 4u] = abp_clampf((float)state->edge_travel_time[state->current_node][slot] *
+                                            ABP_INV_TRAVEL_TIME_MAX,
+                                        0.0f, 1.0f);
+            obs[base + 5u] = abp_clampf(state->edge_fuel_cost[state->current_node][slot] *
+                                            ABP_INV_TRAVEL_FUEL_COST_MAX,
+                                        0.0f, 1.0f);
+            obs[base + 6u] =
                 abp_clampf(state->edge_threat_est[state->current_node][slot], 0.0f, 1.0f);
         }
     }
@@ -1259,31 +1305,20 @@ static void abp_pack_obs(AbpCoreState *state, float *obs_out) {
         uint8_t a_idx = 0;
         for (a_idx = 0; a_idx < ABP_MAX_ASTEROIDS; ++a_idx) {
             uint32_t base = 68u + 11u * a_idx;
-            float comp_raw[ABP_N_COMMODITIES];
-            float comp[ABP_N_COMMODITIES];
-            uint32_t k = 0;
 
             if (state->ast_valid[state->current_node][a_idx] == 0u) {
                 continue;
             }
 
-            state->obs_buffer[base] = 1.0f;
-            for (k = 0; k < ABP_N_COMMODITIES; ++k) {
-                comp_raw[k] = state->comp_est[state->current_node][a_idx][k];
-            }
-            abp_normalize_probs(comp_raw, comp, ABP_N_COMMODITIES);
-            for (k = 0; k < ABP_N_COMMODITIES; ++k) {
-                state->obs_buffer[base + 1u + k] = comp[k];
-            }
+            obs[base] = 1.0f;
+            abp_normalize_comp_est_6_to_obs(state->comp_est[state->current_node][a_idx],
+                                            &obs[base + 1u]);
 
-            state->obs_buffer[base + 7u] =
+            obs[base + 7u] =
                 abp_clampf(state->stability_est[state->current_node][a_idx], 0.0f, 1.0f);
-            state->obs_buffer[base + 8u] =
-                abp_clampf(state->depletion[state->current_node][a_idx], 0.0f, 1.0f);
-            state->obs_buffer[base + 9u] =
-                abp_clampf(state->scan_conf[state->current_node][a_idx], 0.0f, 1.0f);
-            state->obs_buffer[base + 10u] =
-                ((int8_t)a_idx == state->selected_asteroid) ? 1.0f : 0.0f;
+            obs[base + 8u] = abp_clampf(state->depletion[state->current_node][a_idx], 0.0f, 1.0f);
+            obs[base + 9u] = abp_clampf(state->scan_conf[state->current_node][a_idx], 0.0f, 1.0f);
+            obs[base + 10u] = ((int8_t)a_idx == state->selected_asteroid) ? 1.0f : 0.0f;
         }
     }
 
@@ -1292,25 +1327,26 @@ static void abp_pack_obs(AbpCoreState *state, float *obs_out) {
         float d_price = 0.0f;
 
         if (k_price_base[c_idx] > 0.0f) {
-            price_norm = state->market_price[c_idx] / k_price_base[c_idx];
+            price_norm = state->market_price[c_idx] * k_inv_price_base[c_idx];
         }
-        state->obs_buffer[ABP_MKT_PRICE_BASE + c_idx] = abp_clampf(price_norm, 0.0f, 1.0f);
+        obs[ABP_MKT_PRICE_BASE + c_idx] = abp_clampf(price_norm, 0.0f, 1.0f);
 
-        d_price = (state->market_price[c_idx] - state->market_prev_price[c_idx]) / ABP_PRICE_SCALE;
-        state->obs_buffer[ABP_MKT_DPRICE_BASE + c_idx] = abp_clampf(d_price, -1.0f, 1.0f);
+        d_price =
+            (state->market_price[c_idx] - state->market_prev_price[c_idx]) * ABP_INV_PRICE_SCALE;
+        obs[ABP_MKT_DPRICE_BASE + c_idx] = abp_clampf(d_price, -1.0f, 1.0f);
     }
 
-    state->obs_buffer[ABP_MKT_INV_BASE + 0u] =
-        abp_clampf(state->station_inventory[0] / ABP_STATION_INVENTORY_NORM_CAP, 0.0f, 1.0f);
-    state->obs_buffer[ABP_MKT_INV_BASE + 1u] =
-        abp_clampf(state->station_inventory[2] / ABP_STATION_INVENTORY_NORM_CAP, 0.0f, 1.0f);
-    state->obs_buffer[ABP_MKT_INV_BASE + 2u] =
-        abp_clampf(state->station_inventory[3] / ABP_STATION_INVENTORY_NORM_CAP, 0.0f, 1.0f);
-    state->obs_buffer[ABP_MKT_INV_BASE + 3u] =
-        abp_clampf(state->station_inventory[4] / ABP_STATION_INVENTORY_NORM_CAP, 0.0f, 1.0f);
+    obs[ABP_MKT_INV_BASE + 0u] =
+        abp_clampf(state->station_inventory[0] * ABP_INV_STATION_INVENTORY_NORM_CAP, 0.0f, 1.0f);
+    obs[ABP_MKT_INV_BASE + 1u] =
+        abp_clampf(state->station_inventory[2] * ABP_INV_STATION_INVENTORY_NORM_CAP, 0.0f, 1.0f);
+    obs[ABP_MKT_INV_BASE + 2u] =
+        abp_clampf(state->station_inventory[3] * ABP_INV_STATION_INVENTORY_NORM_CAP, 0.0f, 1.0f);
+    obs[ABP_MKT_INV_BASE + 3u] =
+        abp_clampf(state->station_inventory[4] * ABP_INV_STATION_INVENTORY_NORM_CAP, 0.0f, 1.0f);
 
     if (obs_out != NULL) {
-        memcpy(obs_out, state->obs_buffer, sizeof(state->obs_buffer));
+        memcpy(obs_out, obs, sizeof(state->obs_buffer));
     }
 }
 

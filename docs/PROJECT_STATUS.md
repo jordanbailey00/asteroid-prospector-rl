@@ -32,12 +32,19 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
   - Native PPO runs use in-process batched vector stepping (`_NativeBatchVectorEnv`) over `NativeProspectorCore.step_many(...)`/`reset_many(...)`.
   - Done environments are auto-reset on the vector boundary so rollout semantics remain compatible with existing trainer logic.
   - PPO metadata now includes `ppo_vector_backend_selected` (`native_batch` when this fast path is active).
+- Native-core hot-loop micro-optimization pass is now implemented:
+  - Replaced per-step station-distance BFS with cached graph distances recomputed at world generation.
+  - Tightened observation packing hot path (`abp_pack_obs`) to reduce repeated normalization/indexing overhead.
+  - Throughput profiler now supports native env-only reset signatures (`NativeProspectorCore.reset(...)` returns obs-only).
 - Validation health (2026-03-01):
   - `python -m pytest -q tests/test_server_api.py` -> 9 passed.
   - `python -m pytest -q tests/test_bench_m7.py` -> 2 passed.
   - `python -m pytest -q tests/test_stability_replay_long_run.py` -> 1 passed.
   - `python -m pytest -q tests/test_profile_ws_replay_transport.py` -> 1 passed.
-  - `python -m pytest -q` -> 79 passed, 2 skipped.
+  - `python -m pytest -q` -> 80 passed, 2 skipped.
+  - `python tools/run_parity.py --seeds 2 --steps 512 --native-library engine_core/build/abp_core.dll` -> 12/12 parity cases passed.
+  - `python tools/profile_training_throughput.py --modes env_only --env-impl native --env-duration-seconds 2.0 --env-repeats 3` -> ~21.9k mean native env-only steps/sec.
+  - `python tools/profile_training_throughput.py --modes env_only --env-impl reference --env-duration-seconds 2.0 --env-repeats 3` -> ~156.7 mean reference env-only steps/sec.
   - `npm --prefix frontend run lint` -> no ESLint warnings/errors.
   - `npm --prefix frontend run build` -> success for `/`, `/play`, `/analytics`.
 - M6.5 manual replay/play checklist remains captured with deterministic evidence:
@@ -67,33 +74,32 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 | M5 - API server | Complete | FastAPI run/replay/metrics endpoints, HTTP replay frame pagination, websocket replay frame streaming, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, `98149f2`, `81a8bad` |
 | M6 - Frontend integration | Complete | Next.js replay page (`/`), human play mode (`/play`), analytics page (`/analytics`) wired to M5 APIs with playback controls, run/window/replay selection, and historical trend visualizations | `27ab411` |
 | M6.5 - Graphics + audio integration | Complete | Real Kenney assets wired to replay/play rendering, manifests file-backed, semantic asset tests passing, and final manual replay/play checklist evidence captured | `1a77f36`, `f606846`, `b7efc22` |
-| M7+ - Perf and stability hardening | Complete | HTTP+WS replay transport, websocket chunk tuning, benchmark harness, replay stability soak, websocket profiling sweep, nightly regression workflow gates, and PPO/native-bridge throughput plumbing (P1-P4) | `81a8bad`, `d537be3`, `6404834`, `a433997`, `1023729`, `bf492c3`, `d3328eb`, `84cb3db` |
+| M7+ - Perf and stability hardening | Complete | HTTP+WS replay transport, websocket chunk tuning, benchmark harness, replay stability soak, websocket profiling sweep, nightly regression workflow gates, and PPO/native-bridge throughput plumbing (P1-P4 + native-core hot-loop micro-optimizations) | `81a8bad`, `d537be3`, `6404834`, `a433997`, `1023729`, `bf492c3`, `d3328eb`, `84cb3db`, pending (this commit) |
 
 ## Next work (ordered)
 
-1. Run native-core hot-path optimization pass (obs packing + critical update loops) with deterministic parity checks.
-2. Execute throughput tuning matrix after native-path changes and publish updated baseline/floor artifacts.
-3. Reassess enforcement threshold: keep 100,000 as aspirational target, calibrate stable floor if still unattainable.
-4. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
-5. Extend frontend analytics UI to show:
+1. Execute throughput tuning matrix after native-path changes and publish updated baseline/floor artifacts.
+2. Reassess enforcement threshold: keep 100,000 as aspirational target, calibrate stable floor if still unattainable.
+3. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
+4. Extend frontend analytics UI to show:
    - current selected iteration metrics
    - full historical trends across all prior iterations
    - last-10 iteration dropdown drilldown
    - quick KPI snapshot cards
-6. Complete production deployment path:
+5. Complete production deployment path:
    - frontend on Vercel
    - backend on websocket-capable host
    - production CORS/env/secret wiring
-7. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
-8. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
-9. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
+6. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
+7. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
+8. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
 
 ## Active risks and blockers
 
 - Replay UI still buffers the full selected replay in client memory after load; very large artifacts may still need incremental playback virtualization.
 - Nightly threshold values may need calibration over time as CI runner performance characteristics drift.
 - There is no published `pufferlib 4.0` package on PyPI as of 2026-03-01; latest published line used here is `pufferlib-core 3.0.17`.
-- 100,000 steps/sec may be above current hardware/runtime ceiling; native-core hot-path integration and profiling evidence are needed before locking hard gates.
+- 100,000 steps/sec may be above current hardware/runtime ceiling; current native env-only samples are ~21.9k steps/sec on this host, so tuning/floor recalibration is still required before enforcing hard gates.
 - W&B API rate limits/latency can degrade dashboard responsiveness without backend caching and bounded history queries.
 - Split frontend/backend hosting (Vercel + external API) can fail due to CORS/WS misconfiguration if not validated with deployment smoke checks.
 - Native batch path currently runs in-process (`native_batch`); if future scaling requires multi-process native stepping, worker-sharded batch runners will be needed.
@@ -106,6 +112,7 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
+| 2026-03-01 | pending (this commit) | feat | Optimize native core hot loops (station-distance cache + obs packing path) and fix native throughput profiler reset handling |
 | 2026-03-01 | `84cb3db` | feat | Route PPO native runtime through batch `step_many/reset_many` vector hot path |
 | 2026-03-01 | `d3328eb` | feat | Add native `step_many/reset_many` C APIs and Python bridge methods with fallback support |
 | 2026-03-01 | `a433997` | feat | Complete M7+ with websocket tuning, transport profiling, and nightly regression gates |
