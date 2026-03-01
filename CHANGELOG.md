@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added M7 long-run stability job `tools/stability_replay_long_run.py` for replay index consistency checks and replay API drift/leak regression detection across repeated cycles.
+- Added stability runner regression test coverage in `tests/test_stability_replay_long_run.py`.
 - Added M7 benchmark harness `tools/bench_m7.py` for trainer throughput, replay API latency percentiles, and replay endpoint memory soak checks, with report artifact output (`artifacts/benchmarks/*.json`).
 - Added benchmark harness regression test coverage in `tests/test_bench_m7.py`.
 - M0 repository scaffold (`engine_core`, `python`, `server`, `frontend`, `training`, `replay`, `tests`, `tools`).

@@ -14,10 +14,15 @@ Current focus: M7 performance and stability hardening
   - trainer throughput (`steps/sec`) from real training runs
   - replay API latency distribution (`min/mean/p50/p95/p99/max`)
   - replay API memory soak check using `tracemalloc` growth thresholds
+- M7 long-run stability job is now implemented in `tools/stability_replay_long_run.py` with validation in `tests/test_stability_replay_long_run.py`:
+  - replay index consistency checks (count/ordering/uniqueness/file integrity)
+  - repeated replay catalog + frame endpoint drift detection
+  - cycle-level memory growth thresholds for leak/regression detection
 - Validation health (2026-03-01):
   - `python -m pytest -q tests/test_server_api.py` -> 7 passed (includes websocket replay stream coverage).
   - `python -m pytest -q tests/test_frontend_presentation.py` -> 6 passed.
   - `python -m pytest -q tests/test_bench_m7.py` -> 1 passed.
+  - `python -m pytest -q tests/test_stability_replay_long_run.py` -> 1 passed.
   - `npm --prefix frontend run lint` -> no ESLint warnings/errors.
   - `npm --prefix frontend run build` -> success for `/`, `/play`, `/analytics`.
 - M6.5 manual replay/play checklist remains captured with deterministic evidence:
@@ -45,18 +50,18 @@ Current focus: M7 performance and stability hardening
 | M5 - API server | Complete | FastAPI run/replay/metrics endpoints, HTTP replay frame pagination, websocket replay frame streaming, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, `98149f2`, `81a8bad` |
 | M6 - Frontend integration | Complete | Next.js replay page (`/`), human play mode (`/play`), analytics page (`/analytics`) wired to M5 APIs with playback controls, run/window/replay selection, and historical trend visualizations | `27ab411` |
 | M6.5 - Graphics + audio integration | Complete | Real Kenney assets wired to replay/play rendering, manifests file-backed, semantic asset tests passing, and final manual replay/play checklist evidence captured | `1a77f36`, `f606846`, `b7efc22` |
-| M7+ - Perf and stability | In progress | Replay transport optimization and benchmark harness automation landed; long-run stability job and WS tuning still pending | pending |
+| M7+ - Perf and stability | In progress | Replay transport optimization, benchmark harness automation, and long-run replay stability job landed; websocket profiling/tuning and CI gating remain | pending |
 
 ## Next work (ordered)
 
-1. Add long-run stability job for replay index consistency and leak/regression detection.
-2. Profile websocket replay transport under large artifacts and add backpressure/chunk tuning if needed.
-3. Add CI/nightly threshold checks that fail on benchmark regressions.
+1. Profile websocket replay transport under large artifacts and add backpressure/chunk tuning if needed.
+2. Add CI/nightly threshold checks that fail on benchmark and stability regressions.
+3. Add automated schedule wiring for `tools/stability_replay_long_run.py` in nightly workflows.
 
 ## Active risks and blockers
 
 - Replay UI still buffers the full selected replay in client memory after load; very large artifacts may still need incremental playback virtualization.
-- M7 benchmark harness is currently manual-run and not yet enforced by CI/nightly threshold gates.
+- M7 benchmark/stability harnesses are currently manual-run and not yet enforced by CI/nightly threshold gates.
 - There is no published `pufferlib 4.0` package on PyPI as of 2026-03-01; latest published line used here is `pufferlib-core 3.0.17`.
 
 ## Decision pointers
@@ -67,7 +72,8 @@ Current focus: M7 performance and stability hardening
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-03-01 | pending (this commit) | feat | Add M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks |
+| 2026-03-01 | pending (this commit) | feat | Add long-run replay stability job for index consistency and leak/regression detection |
+| 2026-03-01 | `d537be3` | feat | Add M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks |
 | 2026-03-01 | `81a8bad` | feat | Add websocket replay frame streaming endpoint and frontend HTTP/WS transport switch |
 | 2026-03-01 | `b7efc22` | feat | Add reproducible M6.5 manual replay/play checklist runner and evidence artifacts |
 | 2026-02-28 | `55852e2` | docs | Refresh day-end status and handoff documentation |

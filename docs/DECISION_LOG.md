@@ -201,3 +201,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add `tools/bench_m7.py` as a single benchmark harness that runs a deterministic short training job, measures trainer throughput (`steps/sec`), benchmarks replay API latency through in-process FastAPI `TestClient` calls, and executes a replay endpoint memory soak check using `tracemalloc` growth thresholds. Store benchmark reports as JSON artifacts for reproducible comparisons.
 - Consequences: The project now has a reproducible local benchmark path with low setup overhead; reported memory metrics cover Python heap growth specifically and CI/nightly threshold enforcement remains a follow-up.
 - Related commits/docs: `tools/bench_m7.py`, `tests/test_bench_m7.py`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0022 - Add cycle-based replay stability runner with index invariants and API drift/leak checks
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: After landing initial M7 benchmarks, the remaining gap was long-run stability validation for replay index integrity and replay API behavior under repeated access.
+- Decision: Add `tools/stability_replay_long_run.py` to execute repeated training/eval cycles, validate replay index invariants (count, ordering, uniqueness, replay-file schema integrity), and run repeated replay catalog/frame/index reload loops with memory growth thresholds for leak/regression detection. Capture structured JSON reports for auditability.
+- Consequences: The repo now has a reproducible local long-run stability workflow for replay artifacts and API access paths; enforcement in scheduled CI/nightly remains a follow-up integration step.
+- Related commits/docs: `tools/stability_replay_long_run.py`, `tests/test_stability_replay_long_run.py`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
