@@ -237,3 +237,12 @@ Use this file for non-trivial project decisions.
 - Decision: Implement backend W&B proxy endpoints as the analytics source for the frontend dashboard, including run list, summary, history, and iteration-scoped views. Keep the frontend deployed on Vercel, and host the API separately on websocket-capable infrastructure with production CORS and secret-managed `WANDB_API_KEY`.
 - Consequences: Analytics data access is centralized and secure, frontend can remain static/edge-friendly on Vercel, and backend deployment owns websocket transport plus W&B integration concerns.
 - Related commits/docs: `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`, `docs/PROJECT_STATUS.md`, `server/app.py`, `frontend/components/analytics-dashboard.tsx`
+
+### ADR-0026 - Prioritize game-loop bottleneck removal via native PPO env path, callback batching, and C step-many APIs
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: Throughput profiling shows training far below target, with the simulation path (Python reference env + per-env callback loop) as the dominant bottleneck. Reaching materially higher throughput requires reducing Python overhead before PPO hyperparameter tuning.
+- Decision: Execute performance work in this strict order: (1) native-backed PPO env path (`ppo_env_impl`), (2) batch/aggregated callback processing in trainer hot loop, (3) native C batch stepping/reset interfaces with Python bridge support, then (4) micro-optimizations in C hot functions. Keep 100,000 steps/sec as aspirational target while using evidence-based floor calibration if hardware/runtime ceilings persist.
+- Consequences: Performance workstream now prioritizes architecture-level bottleneck removal over incremental tuning; implementation risk shifts toward native-path parity, requiring explicit batch-vs-single parity and determinism validation gates.
+- Related commits/docs: `tools/profile_training_throughput.py`, `docs/PERFORMANCE_BOTTLENECK_PLAN.md`, `docs/BUILD_CHECKLIST.md`, `docs/PROJECT_STATUS.md`

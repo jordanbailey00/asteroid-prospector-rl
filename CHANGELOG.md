@@ -1,10 +1,11 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
 ### Added
+- Added game-bottleneck performance roadmap (`docs/PERFORMANCE_BOTTLENECK_PLAN.md`) prioritizing native PPO env integration, callback batching, and C batch stepping APIs.
 - Added training throughput profiler `tools/profile_training_throughput.py` with `env_only`, `trainer`, and `trainer_eval` modes, JSON artifact output, and optional 100k target gate enforcement.
 - Added regression tests for throughput profiler reporting and threshold failure behavior in `tests/test_profile_training_throughput.py`.
 - Added websocket replay stream chunk-tuning controls (`max_chunk_bytes`, `yield_every_batches`) and expanded websocket API test coverage.

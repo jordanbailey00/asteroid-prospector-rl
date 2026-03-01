@@ -1,7 +1,7 @@
-# Project Status
+﻿# Project Status
 
 Last updated: 2026-03-01
-Current focus: Priority execution planning for 100k throughput, W&B analytics integration, and Vercel deployment
+Current focus: Performance-first runtime optimization (game bottleneck) for maximum training throughput
 
 ## Current state
 
@@ -34,8 +34,9 @@ Current focus: Priority execution planning for 100k throughput, W&B analytics in
   - image tag: `jordanbailey00/rl-puffer-base:py311-puffercore3.0.17`
   - published digest: `sha256:723c58843d9ed563fa66c0927da975bdbab5355c913ec965dbea25a2af67bb71`
 - Completed milestones: M0, M1, M2, M2.5, M3, M4, M5, M6, M6.5, and M7+ performance/stability hardening.
-- Priority execution plan document is now tracked at:
+- Priority execution plan documents:
   - `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`
+  - `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
 
 ## Milestone board
 
@@ -54,22 +55,25 @@ Current focus: Priority execution planning for 100k throughput, W&B analytics in
 
 ## Next work (ordered)
 
-1. Add throughput profiler tooling and publish baseline reports against a 100,000 steps/sec target.
-2. Integrate native-core stepping path into PPO training hot loop and remove high-cost per-step Python overhead.
-3. Add calibrated throughput gates (local/nightly) with fallback floor tracking if 100,000 remains unattained.
-4. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
-5. Extend frontend analytics UI to show:
+1. Implement PPO native env path (`ppo_env_impl`: `reference|native|auto`) and validate trainer parity/contracts.
+2. Reduce per-env per-step Python callback overhead in PPO hot loop via batch/aggregated metric processing.
+3. Design and implement C batch stepping/reset APIs (`step_many`/`reset_many`) plus Python bridge support.
+4. Run native-core hot-path optimization pass (obs packing + critical update loops) with deterministic parity checks.
+5. Execute throughput tuning matrix after native-path changes and publish updated baseline/floor artifacts.
+6. Reassess enforcement threshold: keep 100,000 as aspirational target, calibrate stable floor if still unattainable.
+7. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
+8. Extend frontend analytics UI to show:
    - current selected iteration metrics
    - full historical trends across all prior iterations
    - last-10 iteration dropdown drilldown
    - quick KPI snapshot cards
-6. Complete production deployment path:
+9. Complete production deployment path:
    - frontend on Vercel
    - backend on websocket-capable host
    - production CORS/env/secret wiring
-7. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
-8. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
-9. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
+10. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
+11. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
+12. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
 
 ## Active risks and blockers
 
@@ -79,6 +83,7 @@ Current focus: Priority execution planning for 100k throughput, W&B analytics in
 - 100,000 steps/sec may be above current hardware/runtime ceiling; native-core hot-path integration and profiling evidence are needed before locking hard gates.
 - W&B API rate limits/latency can degrade dashboard responsiveness without backend caching and bounded history queries.
 - Split frontend/backend hosting (Vercel + external API) can fail due to CORS/WS misconfiguration if not validated with deployment smoke checks.
+- PPO runtime currently pays per-env per-step Python callback overhead until batch callback workstream lands.
 
 ## Decision pointers
 
@@ -88,7 +93,7 @@ Current focus: Priority execution planning for 100k throughput, W&B analytics in
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-03-01 | pending (this commit) | docs | Reprioritize next execution cycle around 100k throughput, W&B analytics integration, and Vercel deployment planning |
+| 2026-03-01 | pending (this commit) | docs | Add game-bottleneck performance roadmap prioritizing native runtime, batch stepping, and callback overhead reduction |
 | 2026-03-01 | pending (prior commit) | feat | Complete M7+ with websocket tuning, transport profiling, and nightly regression gates |
 | 2026-03-01 | `6404834` | feat | Add long-run replay stability job for index consistency and leak/regression detection |
 | 2026-03-01 | `d537be3` | feat | Add M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks |

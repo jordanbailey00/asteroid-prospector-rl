@@ -1,4 +1,4 @@
-# Asteroid Belt Prospector ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Ordered Build Checklist (Agent Work Plan)
+﻿# Asteroid Belt Prospector ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Ordered Build Checklist (Agent Work Plan)
 
 This document is a **chunked, ordered checklist** of all work needed to implement the project end-to-end, without attempting everything at once.
 
@@ -10,7 +10,7 @@ This document is a **chunked, ordered checklist** of all work needed to implemen
 
 ---
 
-## Phase 0 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Pre-flight / Repo Bootstrap (M0)
+## Phase 0 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Pre-flight / Repo Bootstrap (M0)
 
 ### 0.1 Repo structure (create skeleton only)
 - Create top-level structure:
@@ -32,7 +32,7 @@ This document is a **chunked, ordered checklist** of all work needed to implemen
   - lint/format checks
   - `pytest -q` (even if only a stub test exists)
 
-### 0.3 ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œHello envÃƒÂ¢Ã¢â€šÂ¬Ã‚Â stub (contract-only)
+### 0.3 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“Hello envÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â stub (contract-only)
 - Implement a minimal env that:
   - returns obs shape `(260,)` float32
   - accepts actions in `0..68` via `Discrete(69)`
@@ -48,9 +48,9 @@ This document is a **chunked, ordered checklist** of all work needed to implemen
 
 ---
 
-## Phase 1 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Python Reference Environment (Correctness Baseline) (M1)
+## Phase 1 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Python Reference Environment (Correctness Baseline) (M1)
 
-Purpose: Build a readable ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œgoldenÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Python env matching the RL spec exactly. This is used for debugging and parity comparisons.
+Purpose: Build a readable ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“goldenÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â Python env matching the RL spec exactly. This is used for debugging and parity comparisons.
 
 ### 1.1 Implement Python reference engine
 - Implement full environment per RL spec modules:
@@ -81,7 +81,7 @@ Add tests for:
 
 ---
 
-## Phase 2 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Native C Core (Performance) + Python Bindings (M2)
+## Phase 2 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Native C Core (Performance) + Python Bindings (M2)
 
 Purpose: Move the simulation hot loop to C while preserving semantics.
 
@@ -126,7 +126,7 @@ Choose one binding approach and stick to it:
 
 ---
 
-## Phase 3 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Parity Harness + Acceptance Test Completion (M2.5)
+## Phase 3 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Parity Harness + Acceptance Test Completion (M2.5)
 
 Purpose: Prove C core matches Python reference under fixed seeds and action sequences.
 
@@ -147,12 +147,12 @@ Purpose: Prove C core matches Python reference under fixed seeds and action sequ
 - Confirm: same seed + same actions => same done flags + near-identical float outputs.
 
 **Exit criteria (Phase 3)**
-- Parity suite passes required matrix (10 seeds ÃƒÆ’Ã¢â‚¬â€ suites ÃƒÆ’Ã¢â‚¬â€ steps).
-- ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œStop-the-lineÃƒÂ¢Ã¢â€šÂ¬Ã‚Â failures are all absent (NaN/Inf, nondeterminism, bounds violations).
+- Parity suite passes required matrix (10 seeds ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â suites ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â steps).
+- ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“Stop-the-lineÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â failures are all absent (NaN/Inf, nondeterminism, bounds violations).
 
 ---
 
-## Phase 4 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Training Loop (PufferLib) + W&B Observability (M3)
+## Phase 4 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Training Loop (PufferLib) + W&B Observability (M3)
 
 Purpose: Train locally at high throughput; log windowed metrics and artifacts.
 
@@ -182,12 +182,12 @@ Purpose: Train locally at high throughput; log windowed metrics and artifacts.
 - If Constellation is configured, ensure the run metadata captures its URL
 
 **Exit criteria (Phase 4)**
-- Training runs for ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¥ 3 windows without crash.
+- Training runs for ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°Ãƒâ€šÃ‚Â¥ 3 windows without crash.
 - Each window produces: checkpoint + window metrics row + W&B log event.
 
 ---
 
-## Phase 5 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Eval Runner + Replay Generation (Option A) (M4)
+## Phase 5 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Eval Runner + Replay Generation (Option A) (M4)
 
 Purpose: Generate watchable replays without slowing training.
 
@@ -222,7 +222,7 @@ Purpose: Generate watchable replays without slowing training.
 
 ---
 
-## Phase 6 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Backend API Server (M5)
+## Phase 6 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Backend API Server (M5)
 
 Purpose: Provide stable endpoints for frontend replay playback, play sessions, and analytics.
 
@@ -263,7 +263,7 @@ Sessions are ephemeral (TTL) and do not persist state.
 
 ---
 
-## Phase 7 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Frontend (Vercel) (M6)
+## Phase 7 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Frontend (Vercel) (M6)
 
 Purpose: Provide replay viewing, play mode, and historical analytics.
 
@@ -286,8 +286,8 @@ Purpose: Provide replay viewing, play mode, and historical analytics.
 - Display:
   - current action + decoded name
   - ship stats + cargo + market + event log
-  - window summary panel for the replayÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s window_id
-- Add ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œOpen in W&BÃƒÂ¢Ã¢â€šÂ¬Ã‚Â and ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œOpen ConstellationÃƒÂ¢Ã¢â€šÂ¬Ã‚Â links (if URLs provided by backend)
+  - window summary panel for the replayÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢s window_id
+- Add ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“Open in W&BÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â and ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“Open ConstellationÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â links (if URLs provided by backend)
 
 ### 7.3 Human pilot mode
 - Create/reset session
@@ -396,7 +396,7 @@ Purpose: Establish non-learning benchmarks and track improvements.
 
 ---
 
-## Phase 10 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Performance + Stability Hardening (M8)
+## Phase 10 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Performance + Stability Hardening (M8)
 
 Purpose: Ensure the system can run long training jobs reliably and fast.
 
@@ -420,7 +420,7 @@ Purpose: Ensure the system can run long training jobs reliably and fast.
 
 ---
 
-## ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œDo not proceedÃƒÂ¢Ã¢â€šÂ¬Ã‚Â blockers (stop-the-line)
+## ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“Do not proceedÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â blockers (stop-the-line)
 - Parity harness mismatch beyond tolerance
 - Nondeterminism under fixed seed/action sequence
 - NaN/Inf in obs/reward
@@ -455,6 +455,25 @@ Purpose: Execute current product priorities after M7+ hardening.
   - capture highest stable throughput
   - calibrate gate to measured floor
   - track delta-to-target in status docs.
+
+
+### 11.1.1 Performance-critical execution order (must follow)
+- P1 native PPO env path:
+  - add `ppo_env_impl` support (`reference|native|auto`)
+  - default to `auto` for profiling runs
+  - validate native path contracts in tests
+- P2 callback overhead reduction:
+  - remove per-env Python callback loop in hot stepping path
+  - introduce batch/aggregated metric processing
+- P3 C batch step/reset APIs:
+  - add native `step_many`/`reset_many` interfaces
+  - expose batched Python bridge
+  - add batch-vs-single parity tests
+- P4 native-core micro-optimizations:
+  - optimize observation packing and critical update loops
+  - keep determinism checks and contract tests green
+
+Reference plan: `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
 
 ### 11.2 W&B-to-website analytics integration
 - Add backend W&B proxy endpoints for:

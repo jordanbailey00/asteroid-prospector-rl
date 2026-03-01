@@ -1,4 +1,4 @@
-# Priority Implementation Plan: 100k Throughput + W&B Dashboard + Vercel
+﻿# Priority Implementation Plan: 100k Throughput + W&B Dashboard + Vercel
 
 Last updated: 2026-03-01
 Status: Approved planning baseline for next execution cycle
@@ -10,6 +10,8 @@ This plan covers only the following priorities:
 1. Training throughput target of 100,000 env steps/sec (or highest stable throughput if hardware ceiling is lower).
 2. W&B-backed analytics integration into the website for current iteration, full historical trend, and last-10 iteration drilldown.
 3. Frontend hosting on Vercel.
+
+Detailed runtime performance plan: `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
 
 ## Non-goals
 
