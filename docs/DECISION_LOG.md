@@ -219,3 +219,21 @@ Use this file for non-trivial project decisions.
 - Decision: Extend replay websocket streaming with `max_chunk_bytes` and `yield_every_batches` tuning controls, add transport profiling sweeps (`tools/profile_ws_replay_transport.py`), and add scheduled nightly regression workflow (`.github/workflows/m7-nightly-regression.yml`) that runs benchmark thresholds plus replay stability gates and publishes artifacts.
 - Consequences: Replay transport now has explicit chunk/backpressure controls and reproducible tuning evidence; benchmark/stability regressions can fail nightly automatically with artifact traces for diagnosis.
 - Related commits/docs: `server/app.py`, `frontend/lib/api.ts`, `tests/test_server_api.py`, `tools/profile_ws_replay_transport.py`, `tests/test_profile_ws_replay_transport.py`, `tools/bench_m7.py`, `.github/workflows/m7-nightly-regression.yml`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0024 - Adopt a 100k steps/sec target with native-core-first optimization and evidence-based fallback floor
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: The next cycle prioritizes maximizing training throughput with a desired target of 100,000 env steps/sec, but current PPO hot paths still include Python reference-environment overhead that can cap throughput.
+- Decision: Set 100,000 env steps/sec as the primary throughput target, implement a dedicated throughput profiler/report flow, and prioritize native-core integration in PPO hot loops before lower-ROI tuning. If 100,000 is not reachable on target hardware after these optimizations, record the highest stable measured floor and use that calibrated threshold for gates while continuing to track delta-to-target.
+- Consequences: Throughput work is now explicitly ordered around bottleneck elimination rather than ad hoc tuning. Nightly/local thresholds become evidence-backed and can fail on regressions relative to calibrated baselines.
+- Related commits/docs: `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`, `docs/PROJECT_STATUS.md`
+
+### ADR-0025 - Use backend W&B proxy as analytics source of truth and keep frontend hosted on Vercel
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: The website must show iteration-aware analytics (current iteration, historical progress, and last-10 iteration drilldown) while keeping W&B credentials off the client and maintaining replay websocket support.
+- Decision: Implement backend W&B proxy endpoints as the analytics source for the frontend dashboard, including run list, summary, history, and iteration-scoped views. Keep the frontend deployed on Vercel, and host the API separately on websocket-capable infrastructure with production CORS and secret-managed `WANDB_API_KEY`.
+- Consequences: Analytics data access is centralized and secure, frontend can remain static/edge-friendly on Vercel, and backend deployment owns websocket transport plus W&B integration concerns.
+- Related commits/docs: `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`, `docs/PROJECT_STATUS.md`, `server/app.py`, `frontend/components/analytics-dashboard.tsx`

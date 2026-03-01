@@ -1,7 +1,7 @@
 # Project Status
 
 Last updated: 2026-03-01
-Current focus: Baseline bot benchmark phase planning (post-M7+ completion)
+Current focus: Priority execution planning for 100k throughput, W&B analytics integration, and Vercel deployment
 
 ## Current state
 
@@ -34,6 +34,8 @@ Current focus: Baseline bot benchmark phase planning (post-M7+ completion)
   - image tag: `jordanbailey00/rl-puffer-base:py311-puffercore3.0.17`
   - published digest: `sha256:723c58843d9ed563fa66c0927da975bdbab5355c913ec965dbea25a2af67bb71`
 - Completed milestones: M0, M1, M2, M2.5, M3, M4, M5, M6, M6.5, and M7+ performance/stability hardening.
+- Priority execution plan document is now tracked at:
+  - `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`
 
 ## Milestone board
 
@@ -52,15 +54,31 @@ Current focus: Baseline bot benchmark phase planning (post-M7+ completion)
 
 ## Next work (ordered)
 
-1. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
-2. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
-3. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
+1. Add throughput profiler tooling and publish baseline reports against a 100,000 steps/sec target.
+2. Integrate native-core stepping path into PPO training hot loop and remove high-cost per-step Python overhead.
+3. Add calibrated throughput gates (local/nightly) with fallback floor tracking if 100,000 remains unattained.
+4. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
+5. Extend frontend analytics UI to show:
+   - current selected iteration metrics
+   - full historical trends across all prior iterations
+   - last-10 iteration dropdown drilldown
+   - quick KPI snapshot cards
+6. Complete production deployment path:
+   - frontend on Vercel
+   - backend on websocket-capable host
+   - production CORS/env/secret wiring
+7. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
+8. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
+9. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
 
 ## Active risks and blockers
 
 - Replay UI still buffers the full selected replay in client memory after load; very large artifacts may still need incremental playback virtualization.
 - Nightly threshold values may need calibration over time as CI runner performance characteristics drift.
 - There is no published `pufferlib 4.0` package on PyPI as of 2026-03-01; latest published line used here is `pufferlib-core 3.0.17`.
+- 100,000 steps/sec may be above current hardware/runtime ceiling; native-core hot-path integration and profiling evidence are needed before locking hard gates.
+- W&B API rate limits/latency can degrade dashboard responsiveness without backend caching and bounded history queries.
+- Split frontend/backend hosting (Vercel + external API) can fail due to CORS/WS misconfiguration if not validated with deployment smoke checks.
 
 ## Decision pointers
 
@@ -70,7 +88,8 @@ Current focus: Baseline bot benchmark phase planning (post-M7+ completion)
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-03-01 | pending (this commit) | feat | Complete M7+ with websocket tuning, transport profiling, and nightly regression gates |
+| 2026-03-01 | pending (this commit) | docs | Reprioritize next execution cycle around 100k throughput, W&B analytics integration, and Vercel deployment planning |
+| 2026-03-01 | pending (prior commit) | feat | Complete M7+ with websocket tuning, transport profiling, and nightly regression gates |
 | 2026-03-01 | `6404834` | feat | Add long-run replay stability job for index consistency and leak/regression detection |
 | 2026-03-01 | `d537be3` | feat | Add M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks |
 | 2026-03-01 | `81a8bad` | feat | Add websocket replay frame streaming endpoint and frontend HTTP/WS transport switch |
