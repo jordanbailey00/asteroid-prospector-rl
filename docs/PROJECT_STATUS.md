@@ -63,7 +63,7 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 | M5 - API server | Complete | FastAPI run/replay/metrics endpoints, HTTP replay frame pagination, websocket replay frame streaming, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, `98149f2`, `81a8bad` |
 | M6 - Frontend integration | Complete | Next.js replay page (`/`), human play mode (`/play`), analytics page (`/analytics`) wired to M5 APIs with playback controls, run/window/replay selection, and historical trend visualizations | `27ab411` |
 | M6.5 - Graphics + audio integration | Complete | Real Kenney assets wired to replay/play rendering, manifests file-backed, semantic asset tests passing, and final manual replay/play checklist evidence captured | `1a77f36`, `f606846`, `b7efc22` |
-| M7+ - Perf and stability hardening | Complete | HTTP+WS replay transport, websocket chunk tuning, benchmark harness, replay stability soak, websocket profiling sweep, and nightly regression workflow gates | `81a8bad`, `d537be3`, `6404834`, pending (this commit) |
+| M7+ - Perf and stability hardening | Complete | HTTP+WS replay transport, websocket chunk tuning, benchmark harness, replay stability soak, websocket profiling sweep, nightly regression workflow gates, and PPO/native-bridge throughput plumbing (P1-P3) | `81a8bad`, `d537be3`, `6404834`, `a433997`, `1023729`, `bf492c3`, `d3328eb` |
 
 ## Next work (ordered)
 
@@ -103,8 +103,8 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-03-01 | pending (this commit) | feat | Add native `step_many/reset_many` C APIs and Python bridge methods with fallback support |
-| 2026-03-01 | pending (prior commit) | feat | Complete M7+ with websocket tuning, transport profiling, and nightly regression gates |
+| 2026-03-01 | `d3328eb` | feat | Add native `step_many/reset_many` C APIs and Python bridge methods with fallback support |
+| 2026-03-01 | `a433997` | feat | Complete M7+ with websocket tuning, transport profiling, and nightly regression gates |
 | 2026-03-01 | `6404834` | feat | Add long-run replay stability job for index consistency and leak/regression detection |
 | 2026-03-01 | `d537be3` | feat | Add M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks |
 | 2026-03-01 | `81a8bad` | feat | Add websocket replay frame streaming endpoint and frontend HTTP/WS transport switch |
