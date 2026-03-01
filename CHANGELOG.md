@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added throughput matrix orchestrator `tools/run_throughput_matrix.py` for controlled env/trainer candidate sweeps, per-candidate artifact emission, and per-mode calibrated floor recommendations (`best_min_steps_per_sec * floor_safety_factor`).
+- Added regression tests for throughput matrix selection/error handling in `tests/test_run_throughput_matrix.py`.
+- Extended `tools/profile_training_throughput.py` with configurable PPO tuning knobs (`ppo_num_envs`, `ppo_num_workers`, `ppo_rollout_steps`, `ppo_num_minibatches`, `ppo_update_epochs`, `ppo_vector_backend`, `ppo_env_impl`) and surfaced those fields in trainer mode reports.
+- Added trainer-mode profiler regression coverage for PPO tuning field reporting in `tests/test_profile_training_throughput.py`.
+- Added throughput matrix baseline artifact `artifacts/throughput/throughput-matrix-20260301-p6.json` plus candidate profiler outputs under `artifacts/throughput/matrix/throughput-matrix-20260301-p6/`.
 - Added native C batch APIs `abp_core_reset_many`/`abp_core_step_many` and Python bridge methods `NativeProspectorCore.reset_many(...)`/`step_many(...)` with shared-library fast path plus scalar fallback support.
 - Added native PPO trainer hot-path integration via in-process batch vector runtime (`_NativeBatchVectorEnv`) that routes rollout stepping/reset through `NativeProspectorCore.step_many(...)` and `reset_many(...)`, with done-env autoreset semantics and selected-backend metadata (`ppo_vector_backend_selected`).
 - Added native-core hot-loop optimizations: cached station graph distance lookup (removing per-step BFS in obs packing), tighter `abp_pack_obs(...)` normalization/indexing path, and inverse-multiplier fast paths for repeated normalization divisions.

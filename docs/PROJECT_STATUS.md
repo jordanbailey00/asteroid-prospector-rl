@@ -36,6 +36,10 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
   - Replaced per-step station-distance BFS with cached graph distances recomputed at world generation.
   - Tightened observation packing hot path (`abp_pack_obs`) to reduce repeated normalization/indexing overhead.
   - Throughput profiler now supports native env-only reset signatures (`NativeProspectorCore.reset(...)` returns obs-only).
+- Throughput tuning matrix automation is now implemented:
+  - `tools/run_throughput_matrix.py` orchestrates env/trainer candidate sweeps and records per-candidate profiler artifacts.
+  - Matrix reports compute per-mode calibrated floor recommendations as `best_min_steps_per_sec * floor_safety_factor`.
+  - Latest baseline artifact: `artifacts/throughput/throughput-matrix-20260301-p6.json`.
 - Validation health (2026-03-01):
   - `python -m pytest -q tests/test_server_api.py` -> 9 passed.
   - `python -m pytest -q tests/test_bench_m7.py` -> 2 passed.
@@ -45,6 +49,7 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
   - `python tools/run_parity.py --seeds 2 --steps 512 --native-library engine_core/build/abp_core.dll` -> 12/12 parity cases passed.
   - `python tools/profile_training_throughput.py --modes env_only --env-impl native --env-duration-seconds 2.0 --env-repeats 3` -> ~21.9k mean native env-only steps/sec.
   - `python tools/profile_training_throughput.py --modes env_only --env-impl reference --env-duration-seconds 2.0 --env-repeats 3` -> ~156.7 mean reference env-only steps/sec.
+  - `python tools/run_throughput_matrix.py --run-id throughput-matrix-20260301-p6 --output-path artifacts/throughput/throughput-matrix-20260301-p6.json --modes env_only,trainer --env-impls native,reference --trainer-backends random --env-duration-seconds 2.0 --env-repeats 3 --trainer-total-env-steps 3000 --trainer-window-env-steps 1000 --trainer-repeats 3 --floor-safety-factor 0.9` -> env-only native mean ~22.4k (recommended floor ~19.5k), trainer-random mean ~263.6 (recommended floor ~204.9).
   - `npm --prefix frontend run lint` -> no ESLint warnings/errors.
   - `npm --prefix frontend run build` -> success for `/`, `/play`, `/analytics`.
 - M6.5 manual replay/play checklist remains captured with deterministic evidence:
@@ -74,12 +79,12 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 | M5 - API server | Complete | FastAPI run/replay/metrics endpoints, HTTP replay frame pagination, websocket replay frame streaming, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, `98149f2`, `81a8bad` |
 | M6 - Frontend integration | Complete | Next.js replay page (`/`), human play mode (`/play`), analytics page (`/analytics`) wired to M5 APIs with playback controls, run/window/replay selection, and historical trend visualizations | `27ab411` |
 | M6.5 - Graphics + audio integration | Complete | Real Kenney assets wired to replay/play rendering, manifests file-backed, semantic asset tests passing, and final manual replay/play checklist evidence captured | `1a77f36`, `f606846`, `b7efc22` |
-| M7+ - Perf and stability hardening | Complete | HTTP+WS replay transport, websocket chunk tuning, benchmark harness, replay stability soak, websocket profiling sweep, nightly regression workflow gates, and PPO/native-bridge throughput plumbing (P1-P4 + native-core hot-loop micro-optimizations) | `81a8bad`, `d537be3`, `6404834`, `a433997`, `1023729`, `bf492c3`, `d3328eb`, `84cb3db`, `bca65c4` |
+| M7+ - Perf and stability hardening | Complete | HTTP+WS replay transport, websocket chunk tuning, benchmark harness, replay stability soak, websocket profiling sweep, nightly regression workflow gates, PPO/native-bridge throughput plumbing (P1-P4 + native-core hot-loop micro-optimizations), and throughput matrix/floor automation | `81a8bad`, `d537be3`, `6404834`, `a433997`, `1023729`, `bf492c3`, `d3328eb`, `84cb3db`, `bca65c4` |
 
 ## Next work (ordered)
 
-1. Execute throughput tuning matrix after native-path changes and publish updated baseline/floor artifacts.
-2. Reassess enforcement threshold: keep 100,000 as aspirational target, calibrate stable floor if still unattainable.
+1. Reassess enforcement threshold policy from latest matrix artifact: keep 100,000 as aspirational target and calibrate local stable floor gates per mode.
+2. Execute PPO (`puffer_ppo`) throughput matrix on Linux/Docker across `num_envs/num_workers/rollout/minibatches` and publish best/floor artifact.
 3. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
 4. Extend frontend analytics UI to show:
    - current selected iteration metrics
@@ -99,7 +104,8 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 - Replay UI still buffers the full selected replay in client memory after load; very large artifacts may still need incremental playback virtualization.
 - Nightly threshold values may need calibration over time as CI runner performance characteristics drift.
 - There is no published `pufferlib 4.0` package on PyPI as of 2026-03-01; latest published line used here is `pufferlib-core 3.0.17`.
-- 100,000 steps/sec may be above current hardware/runtime ceiling; current native env-only samples are ~21.9k steps/sec on this host, so tuning/floor recalibration is still required before enforcing hard gates.
+- 100,000 steps/sec may be above current hardware/runtime ceiling; latest matrix shows ~22.4k native env-only mean and ~19.5k calibrated floor on this host, so threshold policy still needs explicit recalibration and ongoing delta-to-target tracking.
+- Trainer-mode throughput floor currently reflects `random` backend only on native Windows; PPO matrix evidence is pending Linux/Docker execution.
 - W&B API rate limits/latency can degrade dashboard responsiveness without backend caching and bounded history queries.
 - Split frontend/backend hosting (Vercel + external API) can fail due to CORS/WS misconfiguration if not validated with deployment smoke checks.
 - Native batch path currently runs in-process (`native_batch`); if future scaling requires multi-process native stepping, worker-sharded batch runners will be needed.

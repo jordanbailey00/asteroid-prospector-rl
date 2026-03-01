@@ -291,3 +291,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add per-node station-distance cache recomputed during world generation and switch `abp_steps_to_station(...)` to O(1) lookup. Tighten `abp_pack_obs(...)` by reducing transient normalization/indexing overhead and replacing repeated divide operations with precomputed inverse multipliers where behavior remains equivalent.
 - Consequences: Native hot-loop CPU overhead is reduced without changing frozen interface semantics. Parity remains required as the correctness gate after these micro-optimizations.
 - Related commits/docs: `engine_core/include/abp_core.h`, `engine_core/src/abp_core.c`, `tools/profile_training_throughput.py`, `tests/test_profile_training_throughput.py`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0032 - Standardize throughput matrix floor calibration as best-candidate minimum with safety margin
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: After landing P1-P4 runtime optimizations, throughput tuning requires reproducible candidate sweeps and a deterministic rule for selecting enforceable local floor thresholds before the 100k aspirational target is reachable.
+- Decision: Add `tools/run_throughput_matrix.py` to orchestrate env/trainer candidate sweeps and publish per-mode summaries. For each mode, select the best candidate by highest mean steps/sec and compute the recommended floor as `best_min_steps_per_sec * floor_safety_factor` (default `0.90`). Keep `100000` as the aspirational target and track delta-to-target in status artifacts.
+- Consequences: Throughput threshold calibration is now evidence-based and reproducible across commits, with candidate-level artifacts and an explicit safety margin to reduce flakiness.
+- Related commits/docs: `tools/run_throughput_matrix.py`, `tools/profile_training_throughput.py`, `tests/test_run_throughput_matrix.py`, `tests/test_profile_training_throughput.py`, `artifacts/throughput/throughput-matrix-20260301-p6.json`, `docs/PROJECT_STATUS.md`

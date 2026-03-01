@@ -162,6 +162,13 @@ class ThroughputProfileConfig:
     trainer_eval_replays_per_window: int = 1
     trainer_eval_max_steps_per_episode: int = 256
     trainer_repeats: int = 3
+    ppo_num_envs: int = 8
+    ppo_num_workers: int = 4
+    ppo_rollout_steps: int = 128
+    ppo_num_minibatches: int = 4
+    ppo_update_epochs: int = 4
+    ppo_vector_backend: str = "multiprocessing"  # serial|multiprocessing
+    ppo_env_impl: str = "auto"  # reference|native|auto
 
     target_steps_per_sec: float = 100000.0
     enforce_target: bool = False
@@ -185,6 +192,20 @@ def _validate_config(cfg: ThroughputProfileConfig) -> None:
         raise ValueError("trainer_window_env_steps must be positive.")
     if cfg.trainer_repeats <= 0:
         raise ValueError("trainer_repeats must be positive.")
+    if cfg.ppo_num_envs <= 0:
+        raise ValueError("ppo_num_envs must be positive.")
+    if cfg.ppo_num_workers <= 0:
+        raise ValueError("ppo_num_workers must be positive.")
+    if cfg.ppo_rollout_steps <= 0:
+        raise ValueError("ppo_rollout_steps must be positive.")
+    if cfg.ppo_num_minibatches <= 0:
+        raise ValueError("ppo_num_minibatches must be positive.")
+    if cfg.ppo_update_epochs <= 0:
+        raise ValueError("ppo_update_epochs must be positive.")
+    if cfg.ppo_vector_backend not in {"serial", "multiprocessing"}:
+        raise ValueError("ppo_vector_backend must be 'serial' or 'multiprocessing'.")
+    if cfg.ppo_env_impl not in {"reference", "native", "auto"}:
+        raise ValueError("ppo_env_impl must be one of: reference, native, auto.")
     if cfg.target_steps_per_sec <= 0.0:
         raise ValueError("target_steps_per_sec must be positive.")
     if cfg.trainer_eval_replays_per_window < 0:
@@ -331,6 +352,13 @@ def _profile_trainer_mode(
             eval_replays_per_window=int(eval_replays_per_window),
             eval_max_steps_per_episode=int(cfg.trainer_eval_max_steps_per_episode),
             eval_include_info=False,
+            ppo_num_envs=int(cfg.ppo_num_envs),
+            ppo_num_workers=int(cfg.ppo_num_workers),
+            ppo_rollout_steps=int(cfg.ppo_rollout_steps),
+            ppo_num_minibatches=int(cfg.ppo_num_minibatches),
+            ppo_update_epochs=int(cfg.ppo_update_epochs),
+            ppo_vector_backend=cfg.ppo_vector_backend,
+            ppo_env_impl=cfg.ppo_env_impl,
         )
 
         def _run_sample_training(*, _train_cfg: TrainConfig = train_cfg) -> dict[str, Any]:
@@ -370,6 +398,13 @@ def _profile_trainer_mode(
             cfg.trainer_eval_replays_per_window if mode == PROFILE_MODE_TRAINER_EVAL else 0
         ),
         "eval_max_steps_per_episode": int(cfg.trainer_eval_max_steps_per_episode),
+        "ppo_num_envs": int(cfg.ppo_num_envs),
+        "ppo_num_workers": int(cfg.ppo_num_workers),
+        "ppo_rollout_steps": int(cfg.ppo_rollout_steps),
+        "ppo_num_minibatches": int(cfg.ppo_num_minibatches),
+        "ppo_update_epochs": int(cfg.ppo_update_epochs),
+        "ppo_vector_backend": cfg.ppo_vector_backend,
+        "ppo_env_impl": cfg.ppo_env_impl,
         "samples": cfg.trainer_repeats,
         "steps_per_sec_samples": samples_steps_per_sec,
         "steps_per_sec_stats": _stats(samples_steps_per_sec),
@@ -473,6 +508,21 @@ def _parse_args() -> ThroughputProfileConfig:
     parser.add_argument("--trainer-eval-replays-per-window", type=int, default=1)
     parser.add_argument("--trainer-eval-max-steps-per-episode", type=int, default=256)
     parser.add_argument("--trainer-repeats", type=int, default=3)
+    parser.add_argument("--ppo-num-envs", type=int, default=8)
+    parser.add_argument("--ppo-num-workers", type=int, default=4)
+    parser.add_argument("--ppo-rollout-steps", type=int, default=128)
+    parser.add_argument("--ppo-num-minibatches", type=int, default=4)
+    parser.add_argument("--ppo-update-epochs", type=int, default=4)
+    parser.add_argument(
+        "--ppo-vector-backend",
+        choices=["serial", "multiprocessing"],
+        default="multiprocessing",
+    )
+    parser.add_argument(
+        "--ppo-env-impl",
+        choices=["reference", "native", "auto"],
+        default="auto",
+    )
 
     parser.add_argument("--target-steps-per-sec", type=float, default=100000.0)
     parser.add_argument("--enforce-target", action="store_true")
@@ -497,6 +547,13 @@ def _parse_args() -> ThroughputProfileConfig:
         trainer_eval_replays_per_window=args.trainer_eval_replays_per_window,
         trainer_eval_max_steps_per_episode=args.trainer_eval_max_steps_per_episode,
         trainer_repeats=args.trainer_repeats,
+        ppo_num_envs=args.ppo_num_envs,
+        ppo_num_workers=args.ppo_num_workers,
+        ppo_rollout_steps=args.ppo_rollout_steps,
+        ppo_num_minibatches=args.ppo_num_minibatches,
+        ppo_update_epochs=args.ppo_update_epochs,
+        ppo_vector_backend=args.ppo_vector_backend,
+        ppo_env_impl=args.ppo_env_impl,
         target_steps_per_sec=args.target_steps_per_sec,
         enforce_target=args.enforce_target,
     )

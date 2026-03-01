@@ -123,3 +123,38 @@ def test_throughput_profile_env_only_native_supports_obs_only_reset(
     assert mode["mode"] == PROFILE_MODE_ENV_ONLY
     assert mode["env_impl_selected"] == ENV_IMPL_NATIVE
     assert mode["steps_per_sec_stats"]["mean"] > 0.0
+
+
+def test_throughput_profile_trainer_mode_reports_ppo_tuning_fields(tmp_path: Path) -> None:
+    report = run_training_throughput_profile(
+        ThroughputProfileConfig(
+            run_root=tmp_path / "runs",
+            output_path=tmp_path / "throughput-trainer-ppo-fields.json",
+            run_id="throughput-trainer-ppo-fields",
+            seed=13,
+            modes=(PROFILE_MODE_TRAINER,),
+            trainer_backend="random",
+            trainer_total_env_steps=40,
+            trainer_window_env_steps=20,
+            trainer_repeats=1,
+            ppo_num_envs=12,
+            ppo_num_workers=3,
+            ppo_rollout_steps=96,
+            ppo_num_minibatches=6,
+            ppo_update_epochs=5,
+            ppo_vector_backend="serial",
+            ppo_env_impl="native",
+            target_steps_per_sec=1.0,
+            enforce_target=True,
+        )
+    )
+
+    mode = report["modes"][0]
+    assert mode["mode"] == PROFILE_MODE_TRAINER
+    assert mode["ppo_num_envs"] == 12
+    assert mode["ppo_num_workers"] == 3
+    assert mode["ppo_rollout_steps"] == 96
+    assert mode["ppo_num_minibatches"] == 6
+    assert mode["ppo_update_epochs"] == 5
+    assert mode["ppo_vector_backend"] == "serial"
+    assert mode["ppo_env_impl"] == "native"
