@@ -28,12 +28,16 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
   - C API exposes `abp_core_reset_many(...)` and `abp_core_step_many(...)` for batched handle processing.
   - Python wrapper exposes `NativeProspectorCore.reset_many(...)` and `NativeProspectorCore.step_many(...)`.
   - Bridge keeps scalar fallback when batch symbols are unavailable or cores are mixed.
+- P4 throughput step is now implemented in PPO runtime:
+  - Native PPO runs use in-process batched vector stepping (`_NativeBatchVectorEnv`) over `NativeProspectorCore.step_many(...)`/`reset_many(...)`.
+  - Done environments are auto-reset on the vector boundary so rollout semantics remain compatible with existing trainer logic.
+  - PPO metadata now includes `ppo_vector_backend_selected` (`native_batch` when this fast path is active).
 - Validation health (2026-03-01):
   - `python -m pytest -q tests/test_server_api.py` -> 9 passed.
   - `python -m pytest -q tests/test_bench_m7.py` -> 2 passed.
   - `python -m pytest -q tests/test_stability_replay_long_run.py` -> 1 passed.
   - `python -m pytest -q tests/test_profile_ws_replay_transport.py` -> 1 passed.
-  - `python -m pytest -q` -> 77 passed, 2 skipped.
+  - `python -m pytest -q` -> 79 passed, 2 skipped.
   - `npm --prefix frontend run lint` -> no ESLint warnings/errors.
   - `npm --prefix frontend run build` -> success for `/`, `/play`, `/analytics`.
 - M6.5 manual replay/play checklist remains captured with deterministic evidence:
@@ -63,27 +67,26 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 | M5 - API server | Complete | FastAPI run/replay/metrics endpoints, HTTP replay frame pagination, websocket replay frame streaming, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, `98149f2`, `81a8bad` |
 | M6 - Frontend integration | Complete | Next.js replay page (`/`), human play mode (`/play`), analytics page (`/analytics`) wired to M5 APIs with playback controls, run/window/replay selection, and historical trend visualizations | `27ab411` |
 | M6.5 - Graphics + audio integration | Complete | Real Kenney assets wired to replay/play rendering, manifests file-backed, semantic asset tests passing, and final manual replay/play checklist evidence captured | `1a77f36`, `f606846`, `b7efc22` |
-| M7+ - Perf and stability hardening | Complete | HTTP+WS replay transport, websocket chunk tuning, benchmark harness, replay stability soak, websocket profiling sweep, nightly regression workflow gates, and PPO/native-bridge throughput plumbing (P1-P3) | `81a8bad`, `d537be3`, `6404834`, `a433997`, `1023729`, `bf492c3`, `d3328eb` |
+| M7+ - Perf and stability hardening | Complete | HTTP+WS replay transport, websocket chunk tuning, benchmark harness, replay stability soak, websocket profiling sweep, nightly regression workflow gates, and PPO/native-bridge throughput plumbing (P1-P4) | `81a8bad`, `d537be3`, `6404834`, `a433997`, `1023729`, `bf492c3`, `d3328eb`, pending (this commit) |
 
 ## Next work (ordered)
 
 1. Run native-core hot-path optimization pass (obs packing + critical update loops) with deterministic parity checks.
 2. Execute throughput tuning matrix after native-path changes and publish updated baseline/floor artifacts.
 3. Reassess enforcement threshold: keep 100,000 as aspirational target, calibrate stable floor if still unattainable.
-4. Integrate native batch bridge into trainer hot path (replace per-core scalar native calls with `step_many/reset_many`).
-5. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
-6. Extend frontend analytics UI to show:
+4. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
+5. Extend frontend analytics UI to show:
    - current selected iteration metrics
    - full historical trends across all prior iterations
    - last-10 iteration dropdown drilldown
    - quick KPI snapshot cards
-7. Complete production deployment path:
+6. Complete production deployment path:
    - frontend on Vercel
    - backend on websocket-capable host
    - production CORS/env/secret wiring
-8. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
-9. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
-10. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
+7. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
+8. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
+9. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
 
 ## Active risks and blockers
 
@@ -93,7 +96,7 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 - 100,000 steps/sec may be above current hardware/runtime ceiling; native-core hot-path integration and profiling evidence are needed before locking hard gates.
 - W&B API rate limits/latency can degrade dashboard responsiveness without backend caching and bounded history queries.
 - Split frontend/backend hosting (Vercel + external API) can fail due to CORS/WS misconfiguration if not validated with deployment smoke checks.
-- Batch bridge is implemented but not yet wired into trainer vector stepping path; scalar native core calls still limit maximal throughput gains.
+- Native batch path currently runs in-process (`native_batch`); if future scaling requires multi-process native stepping, worker-sharded batch runners will be needed.
 
 ## Decision pointers
 
@@ -103,6 +106,7 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
+| 2026-03-01 | pending (this commit) | feat | Route PPO native runtime through batch `step_many/reset_many` vector hot path |
 | 2026-03-01 | `d3328eb` | feat | Add native `step_many/reset_many` C APIs and Python bridge methods with fallback support |
 | 2026-03-01 | `a433997` | feat | Complete M7+ with websocket tuning, transport profiling, and nightly regression gates |
 | 2026-03-01 | `6404834` | feat | Add long-run replay stability job for index consistency and leak/regression detection |

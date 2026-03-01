@@ -51,6 +51,8 @@ PPO env implementation selection:
 - `--ppo-env-impl auto` (default): prefer native core when available, otherwise fallback to reference env.
 - `--ppo-env-impl native`: require native core (fails fast if unavailable).
 - `--ppo-env-impl reference`: force Python reference env.
+
+When `ppo_env_impl` resolves to `native`, PPO runtime uses an in-process batched native vector path (`_NativeBatchVectorEnv`) that calls `NativeProspectorCore.step_many(...)`/`reset_many(...)` directly. `run_metadata.json` includes `ppo_vector_backend_selected` (`native_batch` for this path).
 Use `--eval-policy-deterministic` (default) for argmax actions or `--eval-policy-stochastic` for sampled actions.
 
 Milestone tag thresholds are configurable with comma-separated lists:

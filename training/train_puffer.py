@@ -524,6 +524,7 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
                 "ppo_rollout_steps",
                 "ppo_policy_updates",
                 "ppo_vector_backend",
+                "ppo_vector_backend_selected",
                 "ppo_policy_arch",
                 "ppo_env_impl_requested",
                 "ppo_env_impl_selected",

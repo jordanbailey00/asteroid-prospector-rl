@@ -274,6 +274,118 @@ class _ProspectorNativeGymEnv:
             self._core = None
 
 
+class _NativeBatchVectorEnv:
+    """Native vector env that batches reset/step calls through ctypes bridge."""
+
+    def __init__(self, *, time_max: float, seed: int, num_envs: int) -> None:
+        import gymnasium as gym
+        from asteroid_prospector import N_ACTIONS, OBS_DIM, NativeCoreConfig, NativeProspectorCore
+
+        if int(num_envs) <= 0:
+            raise ValueError("num_envs must be positive")
+
+        self._NativeProspectorCore = NativeProspectorCore
+        self._num_envs = int(num_envs)
+        self._time_max = float(time_max)
+        self._cores: list[Any] = []
+        self._episode_seed_rngs: list[np.random.Generator] = []
+
+        initial_seeds = self._sample_seed_vector(int(seed))
+        for env_seed in initial_seeds:
+            core = NativeProspectorCore(
+                seed=int(env_seed),
+                config=NativeCoreConfig(time_max=self._time_max),
+            )
+            self._cores.append(core)
+            self._episode_seed_rngs.append(np.random.default_rng(np.uint64(int(env_seed))))
+
+        self.single_action_space = gym.spaces.Discrete(N_ACTIONS)
+        self.single_observation_space = gym.spaces.Box(
+            low=-1.0,
+            high=1.0,
+            shape=(OBS_DIM,),
+            dtype=np.float32,
+        )
+
+    def _sample_seed_vector(self, base_seed: int) -> np.ndarray:
+        master = np.random.default_rng(np.uint64(int(base_seed)))
+        return master.integers(
+            0,
+            np.iinfo(np.uint64).max,
+            size=self._num_envs,
+            dtype=np.uint64,
+        )
+
+    def _next_episode_seed(self, env_index: int) -> int:
+        return int(
+            self._episode_seed_rngs[env_index].integers(
+                0,
+                np.iinfo(np.uint64).max,
+                dtype=np.uint64,
+            )
+        )
+
+    def reset(
+        self,
+        *,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+        del options
+        if seed is not None:
+            seeds = self._sample_seed_vector(int(seed))
+            self._episode_seed_rngs = [
+                np.random.default_rng(np.uint64(int(env_seed))) for env_seed in seeds
+            ]
+        else:
+            seeds = np.empty((self._num_envs,), dtype=np.uint64)
+            for env_index in range(self._num_envs):
+                seeds[env_index] = np.uint64(self._next_episode_seed(env_index))
+
+        obs = self._NativeProspectorCore.reset_many(
+            self._cores,
+            [int(env_seed) for env_seed in seeds],
+        )
+        return np.asarray(obs, dtype=np.float32), {}
+
+    def step(self, actions: Any) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Any]:
+        action_arr = np.asarray(actions, dtype=np.int64).reshape(-1)
+        if action_arr.shape[0] != self._num_envs:
+            raise ValueError(
+                f"Expected {self._num_envs} actions, received {action_arr.shape[0]}"
+            )
+
+        obs, rewards, terminated, truncated, infos = self._NativeProspectorCore.step_many(
+            self._cores,
+            [int(action) for action in action_arr],
+        )
+
+        # Keep vector-env autoreset behavior so the next obs for done envs is episode-start.
+        done = np.logical_or(terminated, truncated)
+        if bool(np.any(done)):
+            done_indices = np.flatnonzero(done)
+            reset_cores = [self._cores[int(idx)] for idx in done_indices]
+            reset_seeds = [self._next_episode_seed(int(idx)) for idx in done_indices]
+            reset_obs = self._NativeProspectorCore.reset_many(reset_cores, reset_seeds)
+            obs[done_indices] = reset_obs
+
+        return (
+            np.asarray(obs, dtype=np.float32),
+            np.asarray(rewards, dtype=np.float32),
+            np.asarray(terminated, dtype=bool),
+            np.asarray(truncated, dtype=bool),
+            infos,
+        )
+
+    def close(self) -> None:
+        for core in self._cores:
+            close = getattr(core, "close", None)
+            if callable(close):
+                close()
+        self._cores = []
+        self._episode_seed_rngs = []
+
+
 def run_puffer_ppo_training(
     *,
     cfg: PpoConfig,
@@ -287,36 +399,43 @@ def run_puffer_ppo_training(
     selected_env_impl, native_available, native_probe = _resolve_env_impl(cfg.env_impl)
     auto_fallback = cfg.env_impl == "auto" and selected_env_impl != "native"
 
-    import pufferlib.emulation
-    import pufferlib.vector
     import torch
     import torch.nn as nn
     import torch.optim as optim
 
-    backend = {
-        "serial": pufferlib.vector.Serial,
-        "multiprocessing": pufferlib.vector.Multiprocessing,
-    }[cfg.vector_backend]
-
-    def make_env(*, buf: Any | None = None, seed: int | None = None) -> Any:
-        env_seed = cfg.seed if seed is None else int(seed)
-        env_creator = _ProspectorGymEnv
-        if selected_env_impl == "native":
-            env_creator = _ProspectorNativeGymEnv
-        return pufferlib.emulation.GymnasiumPufferEnv(
-            env_creator=env_creator,
-            env_kwargs={"time_max": cfg.env_time_max, "seed": env_seed},
-            buf=buf,
+    vector_backend_selected = cfg.vector_backend
+    if selected_env_impl == "native":
+        envs = _NativeBatchVectorEnv(
+            time_max=cfg.env_time_max,
+            seed=cfg.seed,
+            num_envs=cfg.num_envs,
         )
+        vector_backend_selected = "native_batch"
+    else:
+        import pufferlib.emulation
+        import pufferlib.vector
 
-    vec_kwargs: dict[str, Any] = {
-        "backend": backend,
-        "num_envs": cfg.num_envs,
-    }
-    if backend is pufferlib.vector.Multiprocessing:
-        vec_kwargs["num_workers"] = cfg.num_workers
+        backend = {
+            "serial": pufferlib.vector.Serial,
+            "multiprocessing": pufferlib.vector.Multiprocessing,
+        }[cfg.vector_backend]
 
-    envs = pufferlib.vector.make(make_env, **vec_kwargs)
+        def make_env(*, buf: Any | None = None, seed: int | None = None) -> Any:
+            env_seed = cfg.seed if seed is None else int(seed)
+            return pufferlib.emulation.GymnasiumPufferEnv(
+                env_creator=_ProspectorGymEnv,
+                env_kwargs={"time_max": cfg.env_time_max, "seed": env_seed},
+                buf=buf,
+            )
+
+        vec_kwargs: dict[str, Any] = {
+            "backend": backend,
+            "num_envs": cfg.num_envs,
+        }
+        if backend is pufferlib.vector.Multiprocessing:
+            vec_kwargs["num_workers"] = cfg.num_workers
+
+        envs = pufferlib.vector.make(make_env, **vec_kwargs)
 
     try:
         obs_shape = tuple(int(v) for v in envs.single_observation_space.shape)
@@ -474,6 +593,7 @@ def run_puffer_ppo_training(
             "ppo_rollout_steps": cfg.rollout_steps,
             "ppo_policy_updates": policy_updates,
             "ppo_vector_backend": cfg.vector_backend,
+            "ppo_vector_backend_selected": vector_backend_selected,
             "ppo_policy_arch": POLICY_ARCH,
             "ppo_env_impl_requested": cfg.env_impl,
             "ppo_env_impl_selected": selected_env_impl,

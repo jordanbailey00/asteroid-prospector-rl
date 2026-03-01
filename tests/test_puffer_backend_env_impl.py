@@ -8,6 +8,7 @@ import pytest
 from training.puffer_backend import (
     PpoConfig,
     _dispatch_step_callbacks,
+    _NativeBatchVectorEnv,
     _ProspectorNativeGymEnv,
     _resolve_env_impl,
     _validate_config,
@@ -206,3 +207,140 @@ def test_dispatch_step_callbacks_falls_back_to_per_env_step_callback() -> None:
 
     assert stop is True
     assert calls["step"] == 2
+
+
+def test_native_batch_vector_env_uses_batch_bridge_and_autoresets_done_envs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_gym = types.SimpleNamespace(
+        spaces=types.SimpleNamespace(Discrete=_FakeDiscrete, Box=_FakeBox)
+    )
+    monkeypatch.setitem(sys.modules, "gymnasium", fake_gym)
+
+    class FakeCore:
+        instances: list["FakeCore"] = []
+        reset_many_calls: list[dict[str, object]] = []
+        step_many_calls: list[dict[str, object]] = []
+
+        def __init__(self, seed: int, *, config: object) -> None:
+            self.seed = int(seed)
+            self.config = config
+            self.closed = False
+            FakeCore.instances.append(self)
+
+        @staticmethod
+        def reset_many(cores: list["FakeCore"], seeds: list[int]) -> np.ndarray:
+            FakeCore.reset_many_calls.append(
+                {
+                    "count": len(cores),
+                    "seeds": [int(seed) for seed in seeds],
+                }
+            )
+            obs = np.full((len(cores), asteroid_prospector.OBS_DIM), 7.0, dtype=np.float32)
+            for i in range(len(cores)):
+                obs[i, 0] = np.float32(7.0 + i)
+            return obs
+
+        @staticmethod
+        def step_many(
+            cores: list["FakeCore"],
+            actions: list[int],
+        ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[str, np.ndarray]]:
+            count = len(cores)
+            FakeCore.step_many_calls.append(
+                {
+                    "count": count,
+                    "actions": [int(action) for action in actions],
+                }
+            )
+            obs = np.full((count, asteroid_prospector.OBS_DIM), 0.5, dtype=np.float32)
+            rewards = np.arange(1, count + 1, dtype=np.float32)
+            terminated = np.zeros((count,), dtype=bool)
+            if count > 1:
+                terminated[1] = True
+            truncated = np.zeros((count,), dtype=bool)
+            infos = {
+                "dt": np.ones((count,), dtype=np.int32),
+                "action_received": np.asarray(actions, dtype=np.int64),
+            }
+            return obs, rewards, terminated, truncated, infos
+
+        def close(self) -> None:
+            self.closed = True
+
+    monkeypatch.setattr(asteroid_prospector, "NativeProspectorCore", FakeCore)
+
+    env = _NativeBatchVectorEnv(time_max=321.0, seed=7, num_envs=3)
+
+    assert env.single_action_space.n == asteroid_prospector.N_ACTIONS
+    assert env.single_observation_space.shape == (asteroid_prospector.OBS_DIM,)
+
+    reset_obs, reset_info = env.reset(seed=11)
+    assert reset_obs.shape == (3, asteroid_prospector.OBS_DIM)
+    assert reset_obs.dtype == np.float32
+    assert reset_info == {}
+    assert len(FakeCore.reset_many_calls) == 1
+    assert FakeCore.reset_many_calls[0]["count"] == 3
+
+    obs, rewards, terminated, truncated, infos = env.step(np.array([4, 5, 6], dtype=np.int64))
+
+    assert len(FakeCore.step_many_calls) == 1
+    assert FakeCore.step_many_calls[0]["actions"] == [4, 5, 6]
+    assert rewards.tolist() == pytest.approx([1.0, 2.0, 3.0])
+    assert terminated.tolist() == [False, True, False]
+    assert truncated.tolist() == [False, False, False]
+    assert isinstance(infos, dict)
+
+    assert obs[0, 0] == pytest.approx(0.5)
+    assert obs[2, 0] == pytest.approx(0.5)
+    assert obs[1, 0] == pytest.approx(7.0)
+
+    assert len(FakeCore.reset_many_calls) == 2
+    assert FakeCore.reset_many_calls[1]["count"] == 1
+
+    env.close()
+    assert all(core.closed for core in FakeCore.instances)
+
+
+def test_native_batch_vector_env_rejects_wrong_action_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_gym = types.SimpleNamespace(
+        spaces=types.SimpleNamespace(Discrete=_FakeDiscrete, Box=_FakeBox)
+    )
+    monkeypatch.setitem(sys.modules, "gymnasium", fake_gym)
+
+    class FakeCore:
+        def __init__(self, seed: int, *, config: object) -> None:
+            self.seed = int(seed)
+            self.config = config
+
+        @staticmethod
+        def reset_many(cores: list["FakeCore"], seeds: list[int]) -> np.ndarray:
+            del seeds
+            return np.zeros((len(cores), asteroid_prospector.OBS_DIM), dtype=np.float32)
+
+        @staticmethod
+        def step_many(
+            cores: list["FakeCore"],
+            actions: list[int],
+        ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[str, np.ndarray]]:
+            del actions
+            count = len(cores)
+            return (
+                np.zeros((count, asteroid_prospector.OBS_DIM), dtype=np.float32),
+                np.zeros((count,), dtype=np.float32),
+                np.zeros((count,), dtype=bool),
+                np.zeros((count,), dtype=bool),
+                {},
+            )
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(asteroid_prospector, "NativeProspectorCore", FakeCore)
+
+    env = _NativeBatchVectorEnv(time_max=100.0, seed=5, num_envs=2)
+    with pytest.raises(ValueError, match="Expected 2 actions"):
+        env.step(np.array([1], dtype=np.int64))
+    env.close()

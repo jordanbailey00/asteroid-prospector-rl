@@ -273,3 +273,12 @@ Use this file for non-trivial project decisions.
 - Decision: Extend C API with `abp_core_reset_many(...)` and `abp_core_step_many(...)` that operate over arrays of state handles and contiguous output buffers. Extend Python wrapper with `NativeProspectorCore.reset_many(...)` and `NativeProspectorCore.step_many(...)` that use batch symbols when available and fall back to per-core scalar calls when unavailable/mixed.
 - Consequences: Native bridge now supports batched stepping/reset semantics needed for future trainer integration while preserving backward-compatible operation on scalar-only runtimes. Remaining performance work can focus on routing trainer hot path to these APIs.
 - Related commits/docs: `engine_core/include/abp_core.h`, `engine_core/src/abp_core.c`, `python/asteroid_prospector/native_core.py`, `tests/test_native_core_wrapper.py`, `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
+
+### ADR-0030 - Route native PPO runtime through in-process batched vector stepping
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: P3 added `step_many/reset_many` in C and Python bridge, but PPO training still stepped native envs through per-env wrappers in vector runtime, leaving Python<->C call overhead in the hot loop.
+- Decision: For PPO runs where `ppo_env_impl` resolves to `native`, instantiate an in-process `_NativeBatchVectorEnv` that owns one `NativeProspectorCore` per env and performs vector-step/reset with `NativeProspectorCore.step_many(...)` and `reset_many(...)`. Preserve vector-env autoreset behavior for done envs and retain existing Puffer vector path for reference env runs.
+- Consequences: Native PPO hot path now amortizes stepping/reset overhead into batched bridge calls and records selected runtime backend via `ppo_vector_backend_selected` (`native_batch` for native path). Native path no longer depends on per-env Gym wrapper stepping in the PPO inner loop.
+- Related commits/docs: `training/puffer_backend.py`, `training/train_puffer.py`, `tests/test_puffer_backend_env_impl.py`, `training/README.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
