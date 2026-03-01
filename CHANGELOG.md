@@ -77,6 +77,9 @@ All notable changes to this project will be documented in this file.
 - Frontend presentation tests now enforce file existence and semantic asset-class mapping for graphics keys, VFX keys, background keys, and non-`none` audio cues.
 - Added `tools/run_m65_manual_checklist.py` to generate deterministic M6.5 replay/play checklist evidence and validate action/event asset mappings against file-backed manifests.
 - Added M6.5 verification artifacts: `docs/M65_MANUAL_VERIFICATION.md` and `docs/verification/m65_sample_replay.jsonl`.
+- Added websocket replay frame streaming endpoint `WS /ws/runs/{run_id}/replays/{replay_id}/frames` with chunked frame messages and completion/error envelopes.
+- Added replay websocket API tests in `tests/test_server_api.py` for chunk streaming and missing replay errors.
+- Added frontend replay transport selection (`HTTP /frames` vs `WebSocket stream`) and configurable `NEXT_PUBLIC_BACKEND_WS_BASE` support.
 
 - Upgraded trainer runtime dependency pins to `pufferlib-core==3.0.17`, `gymnasium==1.2.3`, `torch==2.10.0`, `wandb==0.25.0`, and `numpy==2.4.2`.
 - Updated reusable trainer image tag defaults/docs to `py311-puffercore3.0.17` in compose and trainer handoff docs.

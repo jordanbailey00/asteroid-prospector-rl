@@ -184,3 +184,11 @@ Use this file for non-trivial project decisions.
 - Decision: Move trainer dependency pins to `pufferlib-core==3.0.17`, `gymnasium==1.2.3`, `torch==2.10.0`, `wandb==0.25.0`, and `numpy==2.4.2`. Update compose default image tag to `py311-puffercore3.0.17`. Harden PPO backend compatibility by accepting vector-provided `seed` in env factories and normalizing per-env info extraction for dict/list/array payload forms. Fix script-mode path handling in `training/train_puffer.py` to avoid stdlib `logging` shadowing by `training/logging.py`.
 - Consequences: Dockerized PPO training remains operational on the updated dependency stack and no longer relies on legacy 2.x behavior. Docs and image tags now match current dependency reality.
 - Related commits/docs: `infra/trainer/requirements.txt`, `infra/docker-compose.yml`, `infra/trainer/README.md`, `training/README.md`, `training/puffer_backend.py`, `training/train_puffer.py`
+### ADR-0020 - Add chunked websocket replay frame streaming while preserving HTTP pagination fallback
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: Replay playback on very large artifacts can be inefficient with full-frame HTTP fetch alone, but existing frontend and API contracts already depend on `/frames` pagination semantics.
+- Decision: Add websocket replay streaming endpoint `WS /ws/runs/{run_id}/replays/{replay_id}/frames` that emits chunked frame batches (`type=frames`) followed by terminal metadata (`type=complete`) and explicit error payloads (`type=error`). Keep `GET /frames` unchanged and add frontend transport selection (`HTTP` vs `WS`) with HTTP still available as fallback.
+- Consequences: Frontend can opt into lower-latency chunked replay loading without breaking existing HTTP clients; backend now maintains two replay transport paths sharing the same replay artifacts.
+- Related commits/docs: `server/app.py`, `tests/test_server_api.py`, `frontend/lib/api.ts`, `frontend/components/replay-dashboard.tsx`, `server/README.md`, `frontend/README.md`

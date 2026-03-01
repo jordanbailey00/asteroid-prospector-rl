@@ -12,7 +12,7 @@ from typing import Any
 from uuid import uuid4
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -106,6 +106,37 @@ def _load_jsonl_rows(path: Path) -> list[dict[str, Any]]:
             raise HTTPException(status_code=500, detail=f"Invalid JSONL row payload in {path}")
         rows.append(payload)
     return rows
+
+
+def _parse_replay_frame_payload(line: str) -> dict[str, Any] | None:
+    text = line.strip()
+    if text == "":
+        return None
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Invalid replay frame JSON",
+        ) from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=500,
+            detail="Invalid replay frame payload",
+        )
+    return payload
+
+
+def _resolve_replay_file_path(*, run_dir: Path, entry: dict[str, Any]) -> tuple[str, Path]:
+    replay_path_raw = entry.get("replay_path")
+    if not isinstance(replay_path_raw, str) or replay_path_raw.strip() == "":
+        raise HTTPException(status_code=500, detail="Replay entry missing replay_path")
+
+    replay_path = run_dir / replay_path_raw
+    if not replay_path.exists():
+        raise HTTPException(status_code=404, detail=f"replay file not found: {replay_path_raw}")
+
+    return replay_path_raw, replay_path
 
 
 def _obs_to_list(obs: Any) -> list[float]:
@@ -439,13 +470,7 @@ def create_app(
         if entry is None:
             raise HTTPException(status_code=404, detail=f"replay_id not found: {replay_id}")
 
-        replay_path_raw = entry.get("replay_path")
-        if not isinstance(replay_path_raw, str) or replay_path_raw.strip() == "":
-            raise HTTPException(status_code=500, detail="Replay entry missing replay_path")
-
-        replay_path = run_dir / replay_path_raw
-        if not replay_path.exists():
-            raise HTTPException(status_code=404, detail=f"replay file not found: {replay_path_raw}")
+        _, replay_path = _resolve_replay_file_path(run_dir=run_dir, entry=entry)
 
         frames: list[dict[str, Any]] = []
         has_more = False
@@ -457,21 +482,9 @@ def create_app(
                     has_more = True
                     break
 
-                text = line.strip()
-                if text == "":
+                payload = _parse_replay_frame_payload(line)
+                if payload is None:
                     continue
-                try:
-                    payload = json.loads(text)
-                except json.JSONDecodeError as exc:
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Invalid replay frame JSON",
-                    ) from exc
-                if not isinstance(payload, dict):
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Invalid replay frame payload",
-                    )
                 frames.append(payload)
 
         return {
@@ -483,6 +496,113 @@ def create_app(
             "has_more": has_more,
             "frames": frames,
         }
+
+    @app.websocket("/ws/runs/{run_id}/replays/{replay_id}/frames")
+    async def stream_replay_frames(websocket: WebSocket, run_id: str, replay_id: str) -> None:
+        await websocket.accept()
+        try:
+            try:
+                offset = int(websocket.query_params.get("offset", "0"))
+                limit = int(websocket.query_params.get("limit", "5000"))
+                batch_size = int(websocket.query_params.get("batch_size", "256"))
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail="offset, limit, and batch_size must be integers",
+                ) from exc
+
+            if offset < 0:
+                raise HTTPException(status_code=400, detail="offset must be >= 0")
+            if limit < 1 or limit > 50000:
+                raise HTTPException(status_code=400, detail="limit must be in [1, 50000]")
+            if batch_size < 1 or batch_size > 5000:
+                raise HTTPException(status_code=400, detail="batch_size must be in [1, 5000]")
+
+            run_dir = _resolve_run_dir(run_id)
+            _, index_payload = _load_index_for_run(run_id, run_dir)
+            entry = get_replay_entry_by_id(index_payload, replay_id)
+            if entry is None:
+                raise HTTPException(status_code=404, detail=f"replay_id not found: {replay_id}")
+
+            replay_path_raw, replay_path = _resolve_replay_file_path(run_dir=run_dir, entry=entry)
+
+            sent_count = 0
+            has_more = False
+            chunk: list[dict[str, Any]] = []
+            chunk_start = offset
+
+            with _open_replay(replay_path) as handle:
+                for frame_idx, line in enumerate(handle):
+                    if frame_idx < offset:
+                        continue
+                    if sent_count >= limit:
+                        has_more = True
+                        break
+
+                    payload = _parse_replay_frame_payload(line)
+                    if payload is None:
+                        continue
+
+                    chunk.append(payload)
+                    sent_count += 1
+
+                    if len(chunk) >= batch_size:
+                        next_offset = offset + sent_count
+                        await websocket.send_json(
+                            {
+                                "type": "frames",
+                                "run_id": run_id,
+                                "replay_id": replay_id,
+                                "offset": chunk_start,
+                                "next_offset": next_offset,
+                                "count": len(chunk),
+                                "has_more": True,
+                                "frames": chunk,
+                            }
+                        )
+                        chunk = []
+                        chunk_start = next_offset
+
+            if chunk:
+                await websocket.send_json(
+                    {
+                        "type": "frames",
+                        "run_id": run_id,
+                        "replay_id": replay_id,
+                        "offset": chunk_start,
+                        "next_offset": offset + sent_count,
+                        "count": len(chunk),
+                        "has_more": has_more,
+                        "frames": chunk,
+                    }
+                )
+
+            await websocket.send_json(
+                {
+                    "type": "complete",
+                    "run_id": run_id,
+                    "replay_id": replay_id,
+                    "offset": offset,
+                    "next_offset": offset + sent_count,
+                    "count": sent_count,
+                    "has_more": has_more,
+                    "replay_path": replay_path_raw,
+                }
+            )
+        except WebSocketDisconnect:
+            return
+        except HTTPException as exc:
+            try:
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "status_code": exc.status_code,
+                        "detail": str(exc.detail),
+                    }
+                )
+                await websocket.close(code=1008)
+            except RuntimeError:
+                return
 
     @app.post("/api/play/session")
     def create_play_session(request: CreatePlaySessionRequest) -> dict[str, Any]:

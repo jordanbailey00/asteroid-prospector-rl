@@ -20,6 +20,7 @@ The UI calls the M5 API server endpoints:
 Set backend URL via:
 
 - `NEXT_PUBLIC_BACKEND_HTTP_BASE` (default `http://127.0.0.1:8000`)
+- `NEXT_PUBLIC_BACKEND_WS_BASE` (optional; defaults from HTTP base as `ws://`/`wss://`)
 
 ## M6.5 presentation layer
 
@@ -66,6 +67,6 @@ These checks ensure:
 
 ## Notes
 
-- Replay playback still uses HTTP frame download (`/frames`) and client-side timer controls.
+- Replay playback supports selectable transport: HTTP frame pagination (`/frames`) or websocket chunked stream (`/ws/.../frames`).
 - Audio cues are file-backed from `/assets/audio/...`; synth fallback is only used when browser playback is blocked or a cue intentionally has no files.
 - Vercel deployment should point `NEXT_PUBLIC_BACKEND_HTTP_BASE` to your hosted FastAPI origin.

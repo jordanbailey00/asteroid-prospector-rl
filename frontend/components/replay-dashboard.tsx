@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -6,8 +6,10 @@ import { actionLabel } from "@/lib/actions";
 import { useCuePlayer } from "@/lib/audio";
 import {
   backendBaseUrl,
+  backendWsBase,
   getMetricsWindows,
   getReplayFrames,
+  getReplayFramesWebSocket,
   getRun,
   listReplays,
   listRuns,
@@ -32,6 +34,8 @@ type FrameHud = {
   netProfit: number;
   survival: number;
 };
+
+type ReplayFrameTransport = "http" | "ws";
 
 const CREDITS_CAP = 1.0e7;
 
@@ -137,6 +141,7 @@ export function ReplayDashboard() {
   const [loadingFrames, setLoadingFrames] = useState(false);
 
   const [tagFilter, setTagFilter] = useState("every_window");
+  const [frameTransport, setFrameTransport] = useState<ReplayFrameTransport>("http");
   const [fps, setFps] = useState(6);
   const [stride, setStride] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -238,7 +243,16 @@ export function ReplayDashboard() {
     }
 
     setLoadingFrames(true);
-    getReplayFrames(selectedRunId, selectedReplayId, { offset: 0, limit: 5000 })
+    const loadFrames =
+      frameTransport === "ws"
+        ? getReplayFramesWebSocket(selectedRunId, selectedReplayId, {
+            offset: 0,
+            limit: 5000,
+            batchSize: 256,
+          })
+        : getReplayFrames(selectedRunId, selectedReplayId, { offset: 0, limit: 5000 });
+
+    loadFrames
       .then((payload) => {
         setFrames(payload.frames);
         setFrameError(null);
@@ -246,12 +260,12 @@ export function ReplayDashboard() {
         setJumpTarget("1");
       })
       .catch((err: Error) => {
-        setFrameError(err.message);
+        setFrameError(`${frameTransport.toUpperCase()} transport: ${err.message}`);
         setFrames([]);
         setCursor(0);
       })
       .finally(() => setLoadingFrames(false));
-  }, [selectedRunId, selectedReplayId]);
+  }, [selectedRunId, selectedReplayId, frameTransport]);
 
   useEffect(() => {
     if (!isPlaying || frames.length < 2) {
@@ -331,6 +345,7 @@ export function ReplayDashboard() {
         <article className="card stack">
           <h2>Replay Source</h2>
           <p className="muted">Backend API: {backendBaseUrl()}</p>
+          <p className="muted">Backend WS: {backendWsBase()}</p>
           <label>
             Run ID
             <select
@@ -355,6 +370,19 @@ export function ReplayDashboard() {
               onChange={(event) => setTagFilter(event.target.value)}
               placeholder="every_window"
             />
+          </label>
+          <label>
+            Frame transport
+            <select
+              value={frameTransport}
+              onChange={(event) => {
+                setFrameTransport(event.target.value as ReplayFrameTransport);
+                void playCue("ui.click");
+              }}
+            >
+              <option value="http">HTTP /frames</option>
+              <option value="ws">WebSocket stream</option>
+            </select>
           </label>
           <label>
             Window ID

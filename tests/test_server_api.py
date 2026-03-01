@@ -229,6 +229,50 @@ def test_replay_catalog_filters_and_frame_fetch(tmp_path: Path) -> None:
     assert frames_payload["frames"][0]["action"] == 4
 
 
+def test_replay_frame_websocket_stream(tmp_path: Path) -> None:
+    run_id = "run-ws"
+    _make_run(tmp_path, run_id, updated_at="2026-02-28T05:00:00+00:00")
+
+    app = create_app(runs_root=tmp_path)
+    client = TestClient(app)
+
+    with client.websocket_connect(
+        f"/ws/runs/{run_id}/replays/{run_id}-replay/frames?offset=0&limit=2&batch_size=1"
+    ) as ws:
+        first = ws.receive_json()
+        second = ws.receive_json()
+        complete = ws.receive_json()
+
+    assert first["type"] == "frames"
+    assert first["count"] == 1
+    assert first["frames"][0]["action"] == 1
+
+    assert second["type"] == "frames"
+    assert second["count"] == 1
+    assert second["frames"][0]["action"] == 2
+
+    assert complete["type"] == "complete"
+    assert complete["count"] == 2
+    assert complete["has_more"] is False
+
+
+def test_replay_frame_websocket_unknown_replay(tmp_path: Path) -> None:
+    run_id = "run-ws-missing"
+    _make_run(tmp_path, run_id, updated_at="2026-02-28T06:00:00+00:00")
+
+    app = create_app(runs_root=tmp_path)
+    client = TestClient(app)
+
+    with client.websocket_connect(
+        f"/ws/runs/{run_id}/replays/does-not-exist/frames?offset=0&limit=10"
+    ) as ws:
+        payload = ws.receive_json()
+
+    assert payload["type"] == "error"
+    assert payload["status_code"] == 404
+    assert "replay_id not found" in payload["detail"]
+
+
 def test_play_session_lifecycle(tmp_path: Path) -> None:
     app = create_app(runs_root=tmp_path)
     client = TestClient(app)

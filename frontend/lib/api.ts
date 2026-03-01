@@ -6,17 +6,50 @@ import {
   PlaySessionState,
   PlaySessionStepRequest,
   ReplayEntry,
+  ReplayFrame,
   ReplayFramesResponse,
   ReplayListResponse,
   RunDetailResponse,
   RunsResponse,
 } from "@/lib/types";
 
-const HTTP_BASE =
-  process.env.NEXT_PUBLIC_BACKEND_HTTP_BASE?.replace(/\/$/, "") || "http://127.0.0.1:8000";
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/$/, "");
+}
+
+function deriveWsBase(httpBase: string): string {
+  if (httpBase.startsWith("https://")) {
+    return `wss://${httpBase.slice("https://".length)}`;
+  }
+  if (httpBase.startsWith("http://")) {
+    return `ws://${httpBase.slice("http://".length)}`;
+  }
+  return httpBase;
+}
+
+const HTTP_BASE = trimTrailingSlash(
+  process.env.NEXT_PUBLIC_BACKEND_HTTP_BASE || "http://127.0.0.1:8000",
+);
+
+const WS_BASE = trimTrailingSlash(
+  process.env.NEXT_PUBLIC_BACKEND_WS_BASE || deriveWsBase(HTTP_BASE),
+);
 
 function buildUrl(path: string, query?: Record<string, string | number | undefined>): string {
   const url = new URL(`${HTTP_BASE}${path}`);
+  if (query) {
+    for (const [key, value] of Object.entries(query)) {
+      if (value === undefined) {
+        continue;
+      }
+      url.searchParams.set(key, String(value));
+    }
+  }
+  return url.toString();
+}
+
+function buildWsUrl(path: string, query?: Record<string, string | number | undefined>): string {
+  const url = new URL(`${WS_BASE}${path}`);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value === undefined) {
@@ -60,6 +93,10 @@ async function requestJson<T>(
 
 export function backendBaseUrl(): string {
   return HTTP_BASE;
+}
+
+export function backendWsBase(): string {
+  return WS_BASE;
 }
 
 export async function listRuns(limit = 50): Promise<RunsResponse> {
@@ -109,6 +146,129 @@ export async function getReplayFrames(
       limit: options?.limit ?? 1024,
     },
   );
+}
+
+type ReplayFramesWsMessage = {
+  type?: string;
+  detail?: string;
+  status_code?: number;
+  next_offset?: number;
+  has_more?: boolean;
+  frames?: ReplayFrame[];
+};
+
+export async function getReplayFramesWebSocket(
+  runId: string,
+  replayId: string,
+  options?: { offset?: number; limit?: number; batchSize?: number },
+): Promise<ReplayFramesResponse> {
+  if (typeof WebSocket === "undefined") {
+    throw new Error("WebSocket replay transport is unavailable in this runtime");
+  }
+
+  const offset = options?.offset ?? 0;
+  const limit = options?.limit ?? 1024;
+  const batchSize = options?.batchSize ?? 256;
+
+  const wsUrl = buildWsUrl(
+    `/ws/runs/${encodeURIComponent(runId)}/replays/${encodeURIComponent(replayId)}/frames`,
+    {
+      offset,
+      limit,
+      batch_size: batchSize,
+    },
+  );
+
+  return await new Promise<ReplayFramesResponse>((resolve, reject) => {
+    const socket = new WebSocket(wsUrl);
+    const frames: ReplayFrame[] = [];
+
+    let settled = false;
+    let nextOffset = offset;
+    let hasMore = false;
+
+    const fail = (message: string) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      try {
+        socket.close();
+      } catch {
+        // no-op
+      }
+      reject(new Error(message));
+    };
+
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve({
+        run_id: runId,
+        replay_id: replayId,
+        offset,
+        next_offset: nextOffset,
+        count: frames.length,
+        has_more: hasMore,
+        frames,
+      });
+    };
+
+    socket.onmessage = (event) => {
+      let message: ReplayFramesWsMessage;
+      try {
+        message = JSON.parse(String(event.data)) as ReplayFramesWsMessage;
+      } catch {
+        fail("WebSocket replay stream returned invalid JSON payload");
+        return;
+      }
+
+      const messageType = String(message.type ?? "");
+      if (messageType === "error") {
+        const detail = String(message.detail ?? "websocket replay request failed");
+        fail(`${message.status_code ?? 500}: ${detail}`);
+        return;
+      }
+
+      if (typeof message.next_offset === "number" && Number.isFinite(message.next_offset)) {
+        nextOffset = Math.max(offset, Math.trunc(message.next_offset));
+      }
+      if (typeof message.has_more === "boolean") {
+        hasMore = message.has_more;
+      }
+
+      if (messageType === "frames") {
+        if (!Array.isArray(message.frames)) {
+          fail("WebSocket replay stream returned malformed frame batch");
+          return;
+        }
+        for (const frame of message.frames) {
+          frames.push(frame);
+        }
+        return;
+      }
+
+      if (messageType === "complete") {
+        finish();
+        return;
+      }
+
+      fail(`Unexpected websocket replay message type: ${messageType || "<missing>"}`);
+    };
+
+    socket.onerror = () => {
+      fail("WebSocket replay stream encountered a transport error");
+    };
+
+    socket.onclose = (event) => {
+      if (settled) {
+        return;
+      }
+      fail(`WebSocket replay stream closed before completion (code ${event.code})`);
+    };
+  });
 }
 
 export async function getMetricsWindows(

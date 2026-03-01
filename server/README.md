@@ -36,6 +36,7 @@ python -m uvicorn server.main:app --reload --port 8000
 - `GET /api/runs/{run_id}/replays`
 - `GET /api/runs/{run_id}/replays/{replay_id}`
 - `GET /api/runs/{run_id}/replays/{replay_id}/frames`
+- `WS /ws/runs/{run_id}/replays/{replay_id}/frames`
 - `POST /api/play/session`
 - `POST /api/play/session/{session_id}/reset`
 - `POST /api/play/session/{session_id}/step`
@@ -58,4 +59,4 @@ Replay frame pagination (`/frames`):
 
 Notes:
 - Play sessions are process-local, ephemeral, and in-memory.
-- Replay frame delivery currently uses HTTP file pagination (WS replay streaming can be added later).
+- Replay frame delivery supports both HTTP pagination and websocket chunked streaming (`batch_size`, `offset`, `limit`).
