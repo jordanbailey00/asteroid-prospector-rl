@@ -10,9 +10,14 @@ Current focus: M7 performance and stability hardening
   - HTTP pagination: `GET /api/runs/{run_id}/replays/{replay_id}/frames`
   - WS chunk stream: `WS /ws/runs/{run_id}/replays/{replay_id}/frames`
   - Frontend replay UI now exposes transport selection (`HTTP /frames` vs `WebSocket stream`).
+- M7 benchmark harness is now implemented in `tools/bench_m7.py` with validation in `tests/test_bench_m7.py`:
+  - trainer throughput (`steps/sec`) from real training runs
+  - replay API latency distribution (`min/mean/p50/p95/p99/max`)
+  - replay API memory soak check using `tracemalloc` growth thresholds
 - Validation health (2026-03-01):
   - `python -m pytest -q tests/test_server_api.py` -> 7 passed (includes websocket replay stream coverage).
   - `python -m pytest -q tests/test_frontend_presentation.py` -> 6 passed.
+  - `python -m pytest -q tests/test_bench_m7.py` -> 1 passed.
   - `npm --prefix frontend run lint` -> no ESLint warnings/errors.
   - `npm --prefix frontend run build` -> success for `/`, `/play`, `/analytics`.
 - M6.5 manual replay/play checklist remains captured with deterministic evidence:
@@ -37,21 +42,21 @@ Current focus: M7 performance and stability hardening
 | M2.5 - Parity harness | Complete | Fixed-suite parity harness, mismatch bundles, and deterministic RNG alignment across Python/C | `1cd2dfc`, `cb2efbf` |
 | M3 - Training + window metrics | Complete | Windowed trainer loop, checkpoint cadence, `windows.jsonl`, optional W&B logging, live `run_metadata.json`, and Dockerized Linux PPO backend validation | `1a90101`, `6dd1f89`, `4b3e684`, `dda8545` |
 | M4 - Eval + replay generation | Complete | Policy-driven PPO eval replays from serialized checkpoints, replay schema/index validation, `every_window` + `best_so_far` + `milestone:*` tagging, replay index filtering helpers, and checkpoint format tests | `b8a1880`, `452754c` |
-| M5 - API server | Complete | FastAPI run/replay/metrics endpoints, HTTP replay frame pagination, websocket replay frame streaming, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, `98149f2`, pending (this commit) |
+| M5 - API server | Complete | FastAPI run/replay/metrics endpoints, HTTP replay frame pagination, websocket replay frame streaming, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, `98149f2`, `81a8bad` |
 | M6 - Frontend integration | Complete | Next.js replay page (`/`), human play mode (`/play`), analytics page (`/analytics`) wired to M5 APIs with playback controls, run/window/replay selection, and historical trend visualizations | `27ab411` |
 | M6.5 - Graphics + audio integration | Complete | Real Kenney assets wired to replay/play rendering, manifests file-backed, semantic asset tests passing, and final manual replay/play checklist evidence captured | `1a77f36`, `f606846`, `b7efc22` |
-| M7+ - Perf and stability | In progress | Replay transport optimization landed (HTTP + WS); benchmark/soak automation still pending | pending |
+| M7+ - Perf and stability | In progress | Replay transport optimization and benchmark harness automation landed; long-run stability job and WS tuning still pending | pending |
 
 ## Next work (ordered)
 
-1. Implement M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks.
-2. Add long-run stability job for replay index consistency and leak/regression detection.
-3. Profile websocket replay transport under large artifacts and add backpressure/chunk tuning if needed.
+1. Add long-run stability job for replay index consistency and leak/regression detection.
+2. Profile websocket replay transport under large artifacts and add backpressure/chunk tuning if needed.
+3. Add CI/nightly threshold checks that fail on benchmark regressions.
 
 ## Active risks and blockers
 
 - Replay UI still buffers the full selected replay in client memory after load; very large artifacts may still need incremental playback virtualization.
-- M7 benchmark automation is not yet landed, so throughput regressions are not currently gated in CI/nightly.
+- M7 benchmark harness is currently manual-run and not yet enforced by CI/nightly threshold gates.
 - There is no published `pufferlib 4.0` package on PyPI as of 2026-03-01; latest published line used here is `pufferlib-core 3.0.17`.
 
 ## Decision pointers
@@ -62,7 +67,8 @@ Current focus: M7 performance and stability hardening
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-03-01 | pending (this commit) | feat | Add websocket replay frame streaming endpoint and frontend HTTP/WS transport switch |
+| 2026-03-01 | pending (this commit) | feat | Add M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks |
+| 2026-03-01 | `81a8bad` | feat | Add websocket replay frame streaming endpoint and frontend HTTP/WS transport switch |
 | 2026-03-01 | `b7efc22` | feat | Add reproducible M6.5 manual replay/play checklist runner and evidence artifacts |
 | 2026-02-28 | `55852e2` | docs | Refresh day-end status and handoff documentation |
 | 2026-02-28 | `dda8545` | chore | Upgrade trainer deps/image to latest published Puffer core stack and patch PPO runtime compatibility |

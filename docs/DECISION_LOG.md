@@ -192,3 +192,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add websocket replay streaming endpoint `WS /ws/runs/{run_id}/replays/{replay_id}/frames` that emits chunked frame batches (`type=frames`) followed by terminal metadata (`type=complete`) and explicit error payloads (`type=error`). Keep `GET /frames` unchanged and add frontend transport selection (`HTTP` vs `WS`) with HTTP still available as fallback.
 - Consequences: Frontend can opt into lower-latency chunked replay loading without breaking existing HTTP clients; backend now maintains two replay transport paths sharing the same replay artifacts.
 - Related commits/docs: `server/app.py`, `tests/test_server_api.py`, `frontend/lib/api.ts`, `frontend/components/replay-dashboard.tsx`, `server/README.md`, `frontend/README.md`
+
+### ADR-0021 - Use a single in-process M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: M7 required actionable perf/stability measurement without introducing external load-test infrastructure before baseline automation was available.
+- Decision: Add `tools/bench_m7.py` as a single benchmark harness that runs a deterministic short training job, measures trainer throughput (`steps/sec`), benchmarks replay API latency through in-process FastAPI `TestClient` calls, and executes a replay endpoint memory soak check using `tracemalloc` growth thresholds. Store benchmark reports as JSON artifacts for reproducible comparisons.
+- Consequences: The project now has a reproducible local benchmark path with low setup overhead; reported memory metrics cover Python heap growth specifically and CI/nightly threshold enforcement remains a follow-up.
+- Related commits/docs: `tools/bench_m7.py`, `tests/test_bench_m7.py`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`

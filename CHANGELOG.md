@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added M7 benchmark harness `tools/bench_m7.py` for trainer throughput, replay API latency percentiles, and replay endpoint memory soak checks, with report artifact output (`artifacts/benchmarks/*.json`).
+- Added benchmark harness regression test coverage in `tests/test_bench_m7.py`.
 - M0 repository scaffold (`engine_core`, `python`, `server`, `frontend`, `training`, `replay`, `tests`, `tools`).
 - Pre-commit hooks for Black, Ruff, clang-format, and basic hygiene checks.
 - CI workflow and local `tools/run_checks.ps1` gate for format/lint/tests.
