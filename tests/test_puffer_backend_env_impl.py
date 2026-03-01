@@ -1,5 +1,6 @@
 import sys
 import types
+from pathlib import Path
 
 import asteroid_prospector
 import numpy as np
@@ -9,6 +10,7 @@ from training.puffer_backend import (
     PpoConfig,
     _dispatch_step_callbacks,
     _NativeBatchVectorEnv,
+    _probe_native_core_availability,
     _ProspectorNativeGymEnv,
     _resolve_env_impl,
     _validate_config,
@@ -344,3 +346,31 @@ def test_native_batch_vector_env_rejects_wrong_action_count(
     with pytest.raises(ValueError, match="Expected 2 actions"):
         env.step(np.array([1], dtype=np.int64))
     env.close()
+
+
+def test_probe_native_core_availability_handles_load_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_library = tmp_path / "abp_core.dll"
+    fake_library.write_bytes(b"not a real library")
+
+    class _FailingCore:
+        def __init__(self, seed: int, *, config: object) -> None:
+            del seed, config
+            raise OSError("invalid ELF header")
+
+    monkeypatch.setattr(asteroid_prospector, "NativeProspectorCore", _FailingCore)
+    import asteroid_prospector.native_core as native_core_module
+
+    monkeypatch.setattr(
+        native_core_module,
+        "default_native_library_path",
+        lambda: fake_library,
+    )
+
+    available, detail = _probe_native_core_availability()
+
+    assert available is False
+    assert detail is not None
+    assert "load_error:OSError" in detail

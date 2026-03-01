@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ctypes
 import math
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -56,7 +57,21 @@ class _AbpCoreState(ctypes.Structure):
 
 
 def default_native_library_path() -> Path:
-    return Path(__file__).resolve().parents[2] / "engine_core" / "build" / "abp_core.dll"
+    build_dir = Path(__file__).resolve().parents[2] / "engine_core" / "build"
+
+    if sys.platform.startswith("win"):
+        candidate_names = ("abp_core.dll",)
+    elif sys.platform == "darwin":
+        candidate_names = ("abp_core.dylib", "abp_core.so", "abp_core.dll")
+    else:
+        candidate_names = ("abp_core.so", "abp_core.dylib", "abp_core.dll")
+
+    for name in candidate_names:
+        candidate = build_dir / name
+        if candidate.exists():
+            return candidate
+
+    return build_dir / candidate_names[0]
 
 
 class NativeProspectorCore:

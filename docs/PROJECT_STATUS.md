@@ -44,6 +44,13 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
   - `tools/gate_throughput_floors.py` reads matrix-recommended floors and enforces per-mode thresholds via `tools/profile_training_throughput.py`.
   - Latest floor-gate artifact: `artifacts/throughput/throughput-floor-gate-20260301-p1.json`.
   - Current calibrated local floors from matrix baseline: `env_only` native `19520.68`, `trainer` random `204.92` steps/sec.
+- PPO Linux throughput matrix (M9.1 step 2) is now executed and published:
+  - Linux runner: `docker compose -f infra/docker-compose.yml run --rm -T trainer ...`.
+  - Added Linux-native shared library build in-container (`engine_core/build/abp_core.so`) using `abp_core.c + abp_rng.c` for native runtime availability.
+  - Latest PPO matrix artifact: `artifacts/throughput/throughput-matrix-ppo-20260301-m9p2d.json`.
+  - Best trainer candidate (PPO/native auto): `num_envs=16`, `num_workers=2`, `rollout_steps=128`, `num_minibatches=2`, mean `~1210.8` steps/sec, recommended floor `~1089.7` steps/sec.
+- Native availability probing is now load-aware (not path-only):
+  - PPO `auto` env selection now falls back to reference when native binary exists but fails to load (for example invalid ELF/ABI mismatch), preventing hard failures during throughput sweeps.
 - Validation health (2026-03-01):
   - `python -m pytest -q tests/test_server_api.py` -> 9 passed.
   - `python -m pytest -q tests/test_bench_m7.py` -> 2 passed.
@@ -55,6 +62,8 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
   - `python tools/profile_training_throughput.py --modes env_only --env-impl reference --env-duration-seconds 2.0 --env-repeats 3` -> ~156.7 mean reference env-only steps/sec.
   - `python tools/run_throughput_matrix.py --run-id throughput-matrix-20260301-p6 --output-path artifacts/throughput/throughput-matrix-20260301-p6.json --modes env_only,trainer --env-impls native,reference --trainer-backends random --env-duration-seconds 2.0 --env-repeats 3 --trainer-total-env-steps 3000 --trainer-window-env-steps 1000 --trainer-repeats 3 --floor-safety-factor 0.9` -> env-only native mean ~22.4k (recommended floor ~19.5k), trainer-random mean ~263.6 (recommended floor ~204.9).
   - `python tools/gate_throughput_floors.py --matrix-report-path artifacts/throughput/throughput-matrix-20260301-p6.json --run-id throughput-floor-gate-20260301-p1 --output-path artifacts/throughput/throughput-floor-gate-20260301-p1.json --modes env_only,trainer --env-duration-seconds 2.0 --env-repeats 3 --trainer-total-env-steps 3000 --trainer-window-env-steps 1000 --trainer-repeats 3` -> pass; env-only mean ~26.6k vs floor ~19.5k, trainer-random mean ~287.7 vs floor ~204.9.
+  - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
+  - `docker compose -f infra/docker-compose.yml run --rm -T trainer python tools/run_throughput_matrix.py --run-id throughput-matrix-ppo-20260301-m9p2d --output-path artifacts/throughput/throughput-matrix-ppo-20260301-m9p2d.json --modes trainer --trainer-backends puffer_ppo --trainer-total-env-steps 4000 --trainer-window-env-steps 1000 --trainer-repeats 1 --ppo-num-envs-values 8,16 --ppo-num-workers-values 2,4 --ppo-rollout-steps-values 64,128 --ppo-num-minibatches-values 2,4 --ppo-update-epochs-values 4 --ppo-vector-backends multiprocessing --ppo-env-impls auto --floor-safety-factor 0.9` -> 16/16 successful candidates; best mean ~1210.8 steps/sec with recommended floor ~1089.7.
   - `npm --prefix frontend run lint` -> no ESLint warnings/errors.
   - `npm --prefix frontend run build` -> success for `/`, `/play`, `/analytics`.
 - M6.5 manual replay/play checklist remains captured with deterministic evidence:
@@ -88,20 +97,19 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 
 ## Next work (ordered)
 
-1. Execute PPO (`puffer_ppo`) throughput matrix on Linux/Docker across `num_envs/num_workers/rollout/minibatches` and publish best/floor artifact.
-2. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
-3. Extend frontend analytics UI to show:
+1. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
+2. Extend frontend analytics UI to show:
    - current selected iteration metrics
    - full historical trends across all prior iterations
    - last-10 iteration dropdown drilldown
    - quick KPI snapshot cards
-4. Complete production deployment path:
+3. Complete production deployment path:
    - frontend on Vercel
    - backend on websocket-capable host
    - production CORS/env/secret wiring
-5. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
-6. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
-7. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
+4. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
+5. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
+6. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
 
 ## Active risks and blockers
 
@@ -109,7 +117,8 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 - Nightly threshold values may need calibration over time as CI runner performance characteristics drift.
 - There is no published `pufferlib 4.0` package on PyPI as of 2026-03-01; latest published line used here is `pufferlib-core 3.0.17`.
 - 100,000 steps/sec may be above current hardware/runtime ceiling; latest matrix and floor-gate runs validate local floors (`env_only` ~19.5k, `trainer` random ~204.9) but still leave a large delta-to-target that must be tracked.
-- Trainer-mode throughput floor currently reflects `random` backend only on native Windows; PPO matrix evidence is pending Linux/Docker execution.
+- PPO trainer throughput now has Linux matrix evidence (`~1210.8` best mean, floor `~1089.7`), but remains far below the 100,000 aspirational target and needs further bottleneck reduction.
+- Native runtime on Linux depends on a valid `abp_core.so`; cross-OS artifact reuse (for example mounting Windows `.dll` into Linux containers) can still cause fallback behavior if native load fails.
 - W&B API rate limits/latency can degrade dashboard responsiveness without backend caching and bounded history queries.
 - Split frontend/backend hosting (Vercel + external API) can fail due to CORS/WS misconfiguration if not validated with deployment smoke checks.
 - Native batch path currently runs in-process (`native_batch`); if future scaling requires multi-process native stepping, worker-sharded batch runners will be needed.

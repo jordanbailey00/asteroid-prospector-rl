@@ -1,4 +1,5 @@
 import ctypes
+import sys
 
 import numpy as np
 import pytest
@@ -10,10 +11,16 @@ from asteroid_prospector.native_core import (
 )
 
 
-def test_default_native_library_path_points_to_dll_location() -> None:
+def test_default_native_library_path_points_to_platform_location() -> None:
     path = default_native_library_path()
-    assert path.name == "abp_core.dll"
     assert path.parent.name == "build"
+
+    if sys.platform.startswith("win"):
+        assert path.name == "abp_core.dll"
+    elif sys.platform == "darwin":
+        assert path.name in {"abp_core.dylib", "abp_core.so", "abp_core.dll"}
+    else:
+        assert path.name in {"abp_core.so", "abp_core.dylib", "abp_core.dll"}
 
 
 def test_native_core_raises_for_missing_library(tmp_path) -> None:

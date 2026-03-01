@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added Linux PPO throughput matrix artifact `artifacts/throughput/throughput-matrix-ppo-20260301-m9p2d.json` (16 `puffer_ppo` candidates across `num_envs/num_workers/rollout/minibatches`) with published best candidate/floor summary.
+- Added load-aware native probe behavior for PPO `auto` env selection so invalid native library loads (for example cross-OS `.dll` in Linux) fall back to reference instead of failing matrix runs.
+- Added platform-aware native library discovery in `default_native_library_path()` to prefer `.so`/`.dylib`/`.dll` by runtime OS.
+- Added regression coverage for platform-native path resolution and native probe load-failure fallback (`tests/test_native_core_wrapper.py`, `tests/test_puffer_backend_env_impl.py`).
 - Added throughput floor gate runner `tools/gate_throughput_floors.py` to enforce per-mode thresholds from a matrix artifact's recommended floors and best-candidate configs.
 - Added regression tests for throughput floor gate behavior in `tests/test_gate_throughput_floors.py`.
 - Added calibrated floor-gate artifact `artifacts/throughput/throughput-floor-gate-20260301-p1.json` with passing checks for `env_only` and `trainer` (random) modes.
@@ -126,6 +130,7 @@ All notable changes to this project will be documented in this file.
 - Configured user PATH to include CMake, LLVM, and WinLibs binaries.
 
 ### Docs
+- Updated `python/README.md` to document platform-selected native core library naming (`abp_core.{dll|so|dylib}`).
 - Standardized `docs/BUILD_CHECKLIST.md` milestone labeling so every phase/sub-chunk has explicit IDs (`M0..M9`, `M*.1`), and added a top-level milestone ID map for quick reference.
 - Clarified Phase 8 (M6.5) completion criteria in docs/BUILD_CHECKLIST.md to require full file-backed Kenney asset wiring for core gameplay semantics.
 - Corrected project status to mark M6.5 as in-progress until real assets are fully wired and validated.

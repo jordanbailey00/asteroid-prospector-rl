@@ -309,3 +309,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add `tools/gate_throughput_floors.py` to read `mode_summaries` + best candidates from a matrix artifact and run per-mode throughput profile checks with `enforce_target=True` against each mode's `recommended_floor_steps_per_sec`.
 - Consequences: Local throughput enforcement is now reproducible and source-of-truth-driven by matrix artifacts; floor thresholds can be recalibrated by publishing a new matrix and rerunning the floor gate without hardcoding mode-specific constants.
 - Related commits/docs: `tools/gate_throughput_floors.py`, `tests/test_gate_throughput_floors.py`, `artifacts/throughput/throughput-floor-gate-20260301-p1.json`, `docs/PROJECT_STATUS.md`
+
+### ADR-0034 - Make native core discovery load-aware and platform-aware for PPO auto mode in Linux containers
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: PPO matrix execution on Linux/Docker failed when `ppo_env_impl=auto` attempted to load a mounted Windows `abp_core.dll` (`invalid ELF header`). Path-only native availability checks treated this as available and prevented fallback.
+- Decision: Update native core path selection to prefer platform-compatible library names (`.so`/`.dylib`/`.dll`) and update PPO native probing to validate actual loadability by instantiating `NativeProspectorCore`. If load fails under `auto`, fallback to reference and expose probe detail in metadata.
+- Consequences: Throughput sweeps and training runs no longer fail hard on cross-OS native binary mismatches; `auto` behavior is resilient and diagnosable. Native path can be used in Linux once a valid `abp_core.so` is present.
+- Related commits/docs: `python/asteroid_prospector/native_core.py`, `training/puffer_backend.py`, `tests/test_native_core_wrapper.py`, `tests/test_puffer_backend_env_impl.py`, `artifacts/throughput/throughput-matrix-ppo-20260301-m9p2d.json`, `docs/PROJECT_STATUS.md`

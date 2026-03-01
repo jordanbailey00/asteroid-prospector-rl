@@ -69,13 +69,26 @@ def _validate_config(cfg: PpoConfig) -> None:
 def _probe_native_core_availability() -> tuple[bool, str | None]:
     try:
         from asteroid_prospector.native_core import default_native_library_path
+        from asteroid_prospector import NativeCoreConfig, NativeProspectorCore
     except Exception as exc:
         return False, f"import_error:{type(exc).__name__}: {exc}"
 
     library_path = default_native_library_path()
-    if library_path.exists():
-        return True, str(library_path)
-    return False, str(library_path)
+    if not library_path.exists():
+        return False, str(library_path)
+
+    try:
+        core = NativeProspectorCore(seed=0, config=NativeCoreConfig(time_max=1.0))
+    except Exception as exc:
+        return (
+            False,
+            f"{library_path}:load_error:{type(exc).__name__}: {exc}",
+        )
+
+    close = getattr(core, "close", None)
+    if callable(close):
+        close()
+    return True, str(library_path)
 
 
 def _resolve_env_impl(env_impl: str) -> tuple[str, bool, str | None]:
@@ -351,9 +364,7 @@ class _NativeBatchVectorEnv:
     def step(self, actions: Any) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Any]:
         action_arr = np.asarray(actions, dtype=np.int64).reshape(-1)
         if action_arr.shape[0] != self._num_envs:
-            raise ValueError(
-                f"Expected {self._num_envs} actions, received {action_arr.shape[0]}"
-            )
+            raise ValueError(f"Expected {self._num_envs} actions, received {action_arr.shape[0]}")
 
         obs, rewards, terminated, truncated, infos = self._NativeProspectorCore.step_many(
             self._cores,
