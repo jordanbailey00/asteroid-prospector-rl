@@ -16,21 +16,24 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
   - replay long-run stability job: `tools/stability_replay_long_run.py`
   - websocket transport profiler: `tools/profile_ws_replay_transport.py`
   - nightly regression workflow: `.github/workflows/m7-nightly-regression.yml`
-
 - P1 throughput step is implemented in trainer config/runtime:
   - PPO env selection supports `ppo_env_impl` = `reference|native|auto` (default `auto`).
   - `auto` mode probes native availability and falls back to reference when native core is unavailable.
   - PPO summary metadata records requested vs selected env implementation.
-- P2 throughput step is now implemented in trainer runtime:
+- P2 throughput step is implemented in trainer runtime:
   - PPO loop supports a batch callback boundary (`on_step_batch`) per vector step.
   - Trainer window aggregation now uses `record_step_batch(...)` for PPO runs.
   - Per-env callback invocations from PPO runtime to trainer were removed from the hot path.
+- P3 throughput step is now implemented in native bridge:
+  - C API exposes `abp_core_reset_many(...)` and `abp_core_step_many(...)` for batched handle processing.
+  - Python wrapper exposes `NativeProspectorCore.reset_many(...)` and `NativeProspectorCore.step_many(...)`.
+  - Bridge keeps scalar fallback when batch symbols are unavailable or cores are mixed.
 - Validation health (2026-03-01):
   - `python -m pytest -q tests/test_server_api.py` -> 9 passed.
   - `python -m pytest -q tests/test_bench_m7.py` -> 2 passed.
   - `python -m pytest -q tests/test_stability_replay_long_run.py` -> 1 passed.
   - `python -m pytest -q tests/test_profile_ws_replay_transport.py` -> 1 passed.
-  - `python -m pytest -q` -> 72 passed, 2 skipped.
+  - `python -m pytest -q` -> 77 passed, 2 skipped.
   - `npm --prefix frontend run lint` -> no ESLint warnings/errors.
   - `npm --prefix frontend run build` -> success for `/`, `/play`, `/analytics`.
 - M6.5 manual replay/play checklist remains captured with deterministic evidence:
@@ -64,10 +67,10 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 
 ## Next work (ordered)
 
-1. Design and implement C batch stepping/reset APIs (`step_many`/`reset_many`) plus Python bridge support.
-2. Run native-core hot-path optimization pass (obs packing + critical update loops) with deterministic parity checks.
-3. Execute throughput tuning matrix after native-path changes and publish updated baseline/floor artifacts.
-4. Reassess enforcement threshold: keep 100,000 as aspirational target, calibrate stable floor if still unattainable.
+1. Run native-core hot-path optimization pass (obs packing + critical update loops) with deterministic parity checks.
+2. Execute throughput tuning matrix after native-path changes and publish updated baseline/floor artifacts.
+3. Reassess enforcement threshold: keep 100,000 as aspirational target, calibrate stable floor if still unattainable.
+4. Integrate native batch bridge into trainer hot path (replace per-core scalar native calls with `step_many/reset_many`).
 5. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
 6. Extend frontend analytics UI to show:
    - current selected iteration metrics
@@ -90,7 +93,7 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 - 100,000 steps/sec may be above current hardware/runtime ceiling; native-core hot-path integration and profiling evidence are needed before locking hard gates.
 - W&B API rate limits/latency can degrade dashboard responsiveness without backend caching and bounded history queries.
 - Split frontend/backend hosting (Vercel + external API) can fail due to CORS/WS misconfiguration if not validated with deployment smoke checks.
-- Aggregation still iterates per-env rows inside batch ingestion; further gains depend on C-level `step_many/reset_many` adoption and reduced info-materialization overhead.
+- Batch bridge is implemented but not yet wired into trainer vector stepping path; scalar native core calls still limit maximal throughput gains.
 
 ## Decision pointers
 
@@ -100,7 +103,7 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-03-01 | pending (this commit) | feat | Add batch PPO callback dispatch and batch window aggregation path for hot-loop overhead reduction |
+| 2026-03-01 | pending (this commit) | feat | Add native `step_many/reset_many` C APIs and Python bridge methods with fallback support |
 | 2026-03-01 | pending (prior commit) | feat | Complete M7+ with websocket tuning, transport profiling, and nightly regression gates |
 | 2026-03-01 | `6404834` | feat | Add long-run replay stability job for index consistency and leak/regression detection |
 | 2026-03-01 | `d537be3` | feat | Add M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks |

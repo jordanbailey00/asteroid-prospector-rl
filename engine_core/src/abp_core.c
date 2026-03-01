@@ -1606,3 +1606,58 @@ void abp_core_step(AbpCoreState *state, uint8_t action, AbpCoreStepResult *out) 
 
     state->needs_reset = done;
 }
+
+void abp_core_reset_many(AbpCoreState **states, const uint64_t *seeds, uint32_t count,
+                         float *obs_out) {
+    uint32_t i = 0;
+
+    if (states == NULL || count == 0u) {
+        return;
+    }
+
+    for (i = 0; i < count; ++i) {
+        AbpCoreState *state = states[i];
+        uint64_t seed = 0u;
+        float *obs_ptr = NULL;
+
+        if (state == NULL) {
+            continue;
+        }
+
+        seed = (seeds != NULL) ? seeds[i] : state->seed;
+        if (obs_out != NULL) {
+            obs_ptr = obs_out + ((size_t)i * (size_t)ABP_OBS_DIM);
+        }
+
+        abp_core_reset(state, seed, obs_ptr);
+    }
+}
+
+void abp_core_step_many(AbpCoreState **states, const uint8_t *actions, uint32_t count,
+                        AbpCoreStepResult *out_results) {
+    uint32_t i = 0;
+
+    if (states == NULL || count == 0u) {
+        return;
+    }
+
+    for (i = 0; i < count; ++i) {
+        AbpCoreState *state = states[i];
+        uint8_t action = 6u;
+
+        if (state == NULL) {
+            continue;
+        }
+
+        if (actions != NULL) {
+            action = actions[i];
+        }
+
+        if (out_results != NULL) {
+            abp_core_step(state, action, &out_results[i]);
+        } else {
+            AbpCoreStepResult scratch;
+            abp_core_step(state, action, &scratch);
+        }
+    }
+}

@@ -139,6 +139,11 @@ void abp_core_init(AbpCoreState *state, const AbpCoreConfig *config, uint64_t se
 void abp_core_reset(AbpCoreState *state, uint64_t seed, float *obs_out);
 void abp_core_step(AbpCoreState *state, uint8_t action, AbpCoreStepResult *out);
 
+void abp_core_reset_many(AbpCoreState **states, const uint64_t *seeds, uint32_t count,
+                         float *obs_out);
+void abp_core_step_many(AbpCoreState **states, const uint8_t *actions, uint32_t count,
+                        AbpCoreStepResult *out_results);
+
 #ifdef __cplusplus
 }
 #endif

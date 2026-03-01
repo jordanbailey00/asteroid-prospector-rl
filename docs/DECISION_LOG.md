@@ -264,3 +264,12 @@ Use this file for non-trivial project decisions.
 - Decision: Introduce `on_step_batch` in `run_puffer_ppo_training` and dispatch one callback per vector step with reward/done arrays plus raw `infos`. Update trainer aggregation to consume this boundary via `WindowMetricsAggregator.record_step_batch(...)`, while preserving existing scalar `record_step(...)` behavior for non-batch paths.
 - Consequences: Cross-module callback overhead is reduced in the PPO hot loop without changing window metric semantics. Further throughput gains remain tied to reducing per-env processing inside aggregation and moving stepping to C batch APIs.
 - Related commits/docs: `training/puffer_backend.py`, `training/train_puffer.py`, `training/windowing.py`, `tests/test_puffer_backend_env_impl.py`, `tests/test_windowing.py`, `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
+
+### ADR-0029 - Add native batch reset/step APIs with Python bridge fast path and scalar fallback
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: P3 requires reducing Python<->C call overhead beyond callback batching by allowing one C call to process many env instances per vector step.
+- Decision: Extend C API with `abp_core_reset_many(...)` and `abp_core_step_many(...)` that operate over arrays of state handles and contiguous output buffers. Extend Python wrapper with `NativeProspectorCore.reset_many(...)` and `NativeProspectorCore.step_many(...)` that use batch symbols when available and fall back to per-core scalar calls when unavailable/mixed.
+- Consequences: Native bridge now supports batched stepping/reset semantics needed for future trainer integration while preserving backward-compatible operation on scalar-only runtimes. Remaining performance work can focus on routing trainer hot path to these APIs.
+- Related commits/docs: `engine_core/include/abp_core.h`, `engine_core/src/abp_core.c`, `python/asteroid_prospector/native_core.py`, `tests/test_native_core_wrapper.py`, `docs/PERFORMANCE_BOTTLENECK_PLAN.md`

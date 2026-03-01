@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added native C batch APIs `abp_core_reset_many`/`abp_core_step_many` and Python bridge methods `NativeProspectorCore.reset_many(...)`/`step_many(...)` with shared-library fast path plus scalar fallback support.
 - Added PPO runtime env implementation selection (`--ppo-env-impl`: `reference|native|auto`) with native auto-fallback probing and surfaced selection metadata in PPO run summaries.
 - Added native Gym-compatible PPO env wrapper in `training/puffer_backend.py` backed by `NativeProspectorCore`, including deterministic episode-seed stream handling for reset calls without explicit seeds.
 - Added regression tests for PPO env-impl resolution, native-wrapper contract behavior (DLL-free via fake core), and CLI parsing of `--ppo-env-impl` (`tests/test_puffer_backend_env_impl.py`, `tests/test_train_puffer_args.py`).

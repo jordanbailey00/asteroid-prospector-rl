@@ -5,7 +5,7 @@ Native C scaffolding for the authoritative simulation core.
 Current status (M2 scaffold):
 - deterministic RNG module (`abp_rng`, PCG32)
 - core state/config structs (`abp_core`)
-- handle-based API (`abp_core_create/destroy`) plus `reset`/`step`
+- handle-based API (`abp_core_create/destroy`) plus `reset`/`step` and batched `reset_many`/`step_many` entry points
 - smoke CLI runner `core_test_runner` for trace generation
 
 Build with:

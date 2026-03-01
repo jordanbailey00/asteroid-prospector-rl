@@ -6,6 +6,7 @@ Current components:
 - `HelloProspectorEnv`: M0 contract-only stub.
 - `ProspectorReferenceEnv`: M1 pure-Python reference implementation used as the correctness baseline for parity.
 - `NativeProspectorCore`: ctypes wrapper for the M2 C core scaffold (`engine_core/build/abp_core.dll`).
+  - Includes batched bridge methods `NativeProspectorCore.reset_many(...)` and `NativeProspectorCore.step_many(...)` for reduced Python<->C call overhead.
 
 Both env implementations preserve the frozen interface contract:
 - observation shape `(260,)`
