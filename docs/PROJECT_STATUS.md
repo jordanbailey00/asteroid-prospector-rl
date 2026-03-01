@@ -74,7 +74,7 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 | M5 - API server | Complete | FastAPI run/replay/metrics endpoints, HTTP replay frame pagination, websocket replay frame streaming, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, `98149f2`, `81a8bad` |
 | M6 - Frontend integration | Complete | Next.js replay page (`/`), human play mode (`/play`), analytics page (`/analytics`) wired to M5 APIs with playback controls, run/window/replay selection, and historical trend visualizations | `27ab411` |
 | M6.5 - Graphics + audio integration | Complete | Real Kenney assets wired to replay/play rendering, manifests file-backed, semantic asset tests passing, and final manual replay/play checklist evidence captured | `1a77f36`, `f606846`, `b7efc22` |
-| M7+ - Perf and stability hardening | Complete | HTTP+WS replay transport, websocket chunk tuning, benchmark harness, replay stability soak, websocket profiling sweep, nightly regression workflow gates, and PPO/native-bridge throughput plumbing (P1-P4 + native-core hot-loop micro-optimizations) | `81a8bad`, `d537be3`, `6404834`, `a433997`, `1023729`, `bf492c3`, `d3328eb`, `84cb3db`, pending (this commit) |
+| M7+ - Perf and stability hardening | Complete | HTTP+WS replay transport, websocket chunk tuning, benchmark harness, replay stability soak, websocket profiling sweep, nightly regression workflow gates, and PPO/native-bridge throughput plumbing (P1-P4 + native-core hot-loop micro-optimizations) | `81a8bad`, `d537be3`, `6404834`, `a433997`, `1023729`, `bf492c3`, `d3328eb`, `84cb3db`, `bca65c4` |
 
 ## Next work (ordered)
 
@@ -112,7 +112,7 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-03-01 | pending (this commit) | feat | Optimize native core hot loops (station-distance cache + obs packing path) and fix native throughput profiler reset handling |
+| 2026-03-01 | `bca65c4` | feat | Optimize native core hot loops (station-distance cache + obs packing path) and fix native throughput profiler reset handling |
 | 2026-03-01 | `84cb3db` | feat | Route PPO native runtime through batch `step_many/reset_many` vector hot path |
 | 2026-03-01 | `d3328eb` | feat | Add native `step_many/reset_many` C APIs and Python bridge methods with fallback support |
 | 2026-03-01 | `a433997` | feat | Complete M7+ with websocket tuning, transport profiling, and nightly regression gates |
