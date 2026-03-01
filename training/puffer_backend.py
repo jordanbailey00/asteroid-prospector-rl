@@ -30,11 +30,13 @@ class PpoConfig:
     vf_coef: float = 0.5
     max_grad_norm: float = 0.5
     vector_backend: str = "multiprocessing"  # serial|multiprocessing
+    env_impl: str = "auto"  # reference|native|auto
 
 
 StepCallback = Callable[[float, dict[str, Any], bool, bool], bool]
 StateGetter = Callable[[], dict[str, Any]]
 RegisterStateGetter = Callable[[StateGetter], None]
+SUPPORTED_PPO_ENV_IMPLS = ("reference", "native", "auto")
 
 
 def _validate_config(cfg: PpoConfig) -> None:
@@ -58,6 +60,44 @@ def _validate_config(cfg: PpoConfig) -> None:
         raise ValueError("ppo_vector_backend must be one of: serial, multiprocessing")
     if cfg.vector_backend == "multiprocessing" and cfg.num_envs % cfg.num_workers != 0:
         raise ValueError("ppo_num_envs must be divisible by ppo_num_workers")
+    if cfg.env_impl not in SUPPORTED_PPO_ENV_IMPLS:
+        valid = ", ".join(SUPPORTED_PPO_ENV_IMPLS)
+        raise ValueError(f"ppo_env_impl must be one of: {valid}")
+
+
+def _probe_native_core_availability() -> tuple[bool, str | None]:
+    try:
+        from asteroid_prospector.native_core import default_native_library_path
+    except Exception as exc:
+        return False, f"import_error:{type(exc).__name__}: {exc}"
+
+    library_path = default_native_library_path()
+    if library_path.exists():
+        return True, str(library_path)
+    return False, str(library_path)
+
+
+def _resolve_env_impl(env_impl: str) -> tuple[str, bool, str | None]:
+    impl = env_impl.strip().lower()
+    if impl not in SUPPORTED_PPO_ENV_IMPLS:
+        valid = ", ".join(SUPPORTED_PPO_ENV_IMPLS)
+        raise ValueError(f"ppo_env_impl must be one of: {valid}")
+
+    if impl == "reference":
+        return "reference", False, None
+
+    native_available, native_detail = _probe_native_core_availability()
+    if impl == "native":
+        if not native_available:
+            raise RuntimeError(
+                "ppo_env_impl='native' requested but native core is unavailable "
+                f"({native_detail})."
+            )
+        return "native", True, native_detail
+
+    if native_available:
+        return "native", True, native_detail
+    return "reference", False, native_detail
 
 
 def _coerce_info_value(value: Any, index: int) -> Any:
@@ -136,6 +176,68 @@ class _ProspectorGymEnv:
         return None
 
 
+class _ProspectorNativeGymEnv:
+    metadata = {"render_modes": []}
+
+    def __init__(self, *, time_max: float, seed: int | None = None) -> None:
+        import gymnasium as gym
+        from asteroid_prospector import N_ACTIONS, OBS_DIM, NativeCoreConfig, NativeProspectorCore
+
+        initial_seed = 0 if seed is None else int(seed)
+        self._episode_seed_rng = np.random.default_rng(np.uint64(initial_seed))
+        self._core = NativeProspectorCore(
+            seed=initial_seed,
+            config=NativeCoreConfig(time_max=float(time_max)),
+        )
+        self.action_space = gym.spaces.Discrete(N_ACTIONS)
+        self.observation_space = gym.spaces.Box(
+            low=-1.0,
+            high=1.0,
+            shape=(OBS_DIM,),
+            dtype=np.float32,
+        )
+        self.render_mode = None
+
+    def _next_episode_seed(self) -> int:
+        return int(
+            self._episode_seed_rng.integers(
+                0,
+                np.iinfo(np.uint64).max,
+                dtype=np.uint64,
+            )
+        )
+
+    def reset(
+        self,
+        *,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+        del options
+        if seed is not None:
+            episode_seed = int(seed)
+            self._episode_seed_rng = np.random.default_rng(np.uint64(episode_seed))
+        else:
+            episode_seed = self._next_episode_seed()
+        obs = self._core.reset(episode_seed)
+        return np.asarray(obs, dtype=np.float32), {}
+
+    def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
+        obs, reward, terminated, truncated, info = self._core.step(int(action))
+        return (
+            np.asarray(obs, dtype=np.float32),
+            float(reward),
+            bool(terminated),
+            bool(truncated),
+            info,
+        )
+
+    def close(self) -> None:
+        if hasattr(self, "_core") and self._core is not None:
+            self._core.close()
+            self._core = None
+
+
 def run_puffer_ppo_training(
     *,
     cfg: PpoConfig,
@@ -143,6 +245,8 @@ def run_puffer_ppo_training(
     register_checkpoint_state_getter: RegisterStateGetter | None = None,
 ) -> dict[str, Any]:
     _validate_config(cfg)
+    selected_env_impl, native_available, native_probe = _resolve_env_impl(cfg.env_impl)
+    auto_fallback = cfg.env_impl == "auto" and selected_env_impl != "native"
 
     import pufferlib.emulation
     import pufferlib.vector
@@ -157,8 +261,11 @@ def run_puffer_ppo_training(
 
     def make_env(*, buf: Any | None = None, seed: int | None = None) -> Any:
         env_seed = cfg.seed if seed is None else int(seed)
+        env_creator = _ProspectorGymEnv
+        if selected_env_impl == "native":
+            env_creator = _ProspectorNativeGymEnv
         return pufferlib.emulation.GymnasiumPufferEnv(
-            env_creator=_ProspectorGymEnv,
+            env_creator=env_creator,
             env_kwargs={"time_max": cfg.env_time_max, "seed": env_seed},
             buf=buf,
         )
@@ -331,6 +438,11 @@ def run_puffer_ppo_training(
             "ppo_policy_updates": policy_updates,
             "ppo_vector_backend": cfg.vector_backend,
             "ppo_policy_arch": POLICY_ARCH,
+            "ppo_env_impl_requested": cfg.env_impl,
+            "ppo_env_impl_selected": selected_env_impl,
+            "ppo_env_impl_auto_fallback": auto_fallback,
+            "ppo_native_available": native_available,
+            "ppo_native_probe": native_probe,
         }
     finally:
         envs.close()

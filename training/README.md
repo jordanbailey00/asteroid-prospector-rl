@@ -29,7 +29,7 @@ docker compose -f infra/docker-compose.yml run --rm trainer python -c "import im
 Run short PPO training in container:
 
 ```powershell
-docker compose -f infra/docker-compose.yml run --rm -T trainer python training/train_puffer.py --trainer-backend puffer_ppo --total-env-steps 2000 --window-env-steps 500 --ppo-num-envs 8 --ppo-num-workers 4 --ppo-rollout-steps 128 --ppo-num-minibatches 4 --ppo-update-epochs 4 --wandb-mode disabled
+docker compose -f infra/docker-compose.yml run --rm -T trainer python training/train_puffer.py --trainer-backend puffer_ppo --total-env-steps 2000 --window-env-steps 500 --ppo-num-envs 8 --ppo-num-workers 4 --ppo-rollout-steps 128 --ppo-num-minibatches 4 --ppo-update-epochs 4 --ppo-env-impl auto --wandb-mode disabled
 ```
 
 ## Random backend (host or container)
@@ -47,6 +47,10 @@ python training/train_puffer.py --trainer-backend random --total-env-steps 6000 
 ```
 
 For PPO runs, eval replay generation is policy-driven from serialized checkpoint policy state.
+PPO env implementation selection:
+- `--ppo-env-impl auto` (default): prefer native core when available, otherwise fallback to reference env.
+- `--ppo-env-impl native`: require native core (fails fast if unavailable).
+- `--ppo-env-impl reference`: force Python reference env.
 Use `--eval-policy-deterministic` (default) for argmax actions or `--eval-policy-stochastic` for sampled actions.
 
 Milestone tag thresholds are configurable with comma-separated lists:

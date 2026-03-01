@@ -82,6 +82,7 @@ class TrainConfig:
     ppo_vf_coef: float = 0.5
     ppo_max_grad_norm: float = 0.5
     ppo_vector_backend: str = "multiprocessing"  # serial|multiprocessing
+    ppo_env_impl: str = "auto"  # reference|native|auto
 
 
 def default_run_id() -> str:
@@ -479,6 +480,7 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
                     vf_coef=cfg.ppo_vf_coef,
                     max_grad_norm=cfg.ppo_max_grad_norm,
                     vector_backend=cfg.ppo_vector_backend,
+                    env_impl=cfg.ppo_env_impl,
                 ),
                 on_step=on_step,
                 register_checkpoint_state_getter=register_checkpoint_state_getter,
@@ -520,6 +522,11 @@ def run_training(cfg: TrainConfig) -> dict[str, Any]:
                 "ppo_policy_updates",
                 "ppo_vector_backend",
                 "ppo_policy_arch",
+                "ppo_env_impl_requested",
+                "ppo_env_impl_selected",
+                "ppo_env_impl_auto_fallback",
+                "ppo_native_available",
+                "ppo_native_probe",
             ):
                 if key in metadata:
                     summary[key] = metadata[key]
@@ -657,6 +664,11 @@ def _parse_args() -> TrainConfig:
         choices=["serial", "multiprocessing"],
         default="multiprocessing",
     )
+    parser.add_argument(
+        "--ppo-env-impl",
+        choices=["reference", "native", "auto"],
+        default="auto",
+    )
 
     args = parser.parse_args()
     return TrainConfig(
@@ -698,6 +710,7 @@ def _parse_args() -> TrainConfig:
         ppo_vf_coef=args.ppo_vf_coef,
         ppo_max_grad_norm=args.ppo_max_grad_norm,
         ppo_vector_backend=args.ppo_vector_backend,
+        ppo_env_impl=args.ppo_env_impl,
     )
 
 

@@ -246,3 +246,12 @@ Use this file for non-trivial project decisions.
 - Decision: Execute performance work in this strict order: (1) native-backed PPO env path (`ppo_env_impl`), (2) batch/aggregated callback processing in trainer hot loop, (3) native C batch stepping/reset interfaces with Python bridge support, then (4) micro-optimizations in C hot functions. Keep 100,000 steps/sec as aspirational target while using evidence-based floor calibration if hardware/runtime ceilings persist.
 - Consequences: Performance workstream now prioritizes architecture-level bottleneck removal over incremental tuning; implementation risk shifts toward native-path parity, requiring explicit batch-vs-single parity and determinism validation gates.
 - Related commits/docs: `tools/profile_training_throughput.py`, `docs/PERFORMANCE_BOTTLENECK_PLAN.md`, `docs/BUILD_CHECKLIST.md`, `docs/PROJECT_STATUS.md`
+
+### ADR-0027 - Add selectable PPO env implementation path with native-first auto fallback
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: Throughput workstream P1 requires moving PPO stepping off the Python reference env path when native runtime is available, while preserving trainer usability on setups where native binaries are absent.
+- Decision: Extend PPO runtime config with `ppo_env_impl` (`reference|native|auto`), default to `auto`, add native-availability probing, and route PPO env creation to either reference or native Gym wrapper accordingly. For `auto`, prefer native and fallback to reference; for `native`, fail fast with a clear runtime error when native core is unavailable.
+- Consequences: PPO training can opt into native stepping without changing external trainer APIs, and environments without native binaries remain functional via deterministic fallback behavior. Run metadata now records requested/selected env implementation for observability.
+- Related commits/docs: `training/puffer_backend.py`, `training/train_puffer.py`, `training/README.md`, `tests/test_puffer_backend_env_impl.py`, `tests/test_train_puffer_args.py`, `docs/PERFORMANCE_BOTTLENECK_PLAN.md`

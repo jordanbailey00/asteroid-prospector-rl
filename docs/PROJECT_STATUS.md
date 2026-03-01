@@ -1,4 +1,4 @@
-﻿# Project Status
+# Project Status
 
 Last updated: 2026-03-01
 Current focus: Performance-first runtime optimization (game bottleneck) for maximum training throughput
@@ -11,17 +11,21 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
   - WS chunk stream: `WS /ws/runs/{run_id}/replays/{replay_id}/frames`
   - WS tuning controls: `batch_size`, `max_chunk_bytes`, `yield_every_batches`
   - Frontend replay UI exposes transport selection (`HTTP /frames` vs `WebSocket stream`).
-- M7 benchmark/stability/profiling automation is landed:
+- M7 benchmark/stability/profiling automation remains active:
   - benchmark harness: `tools/bench_m7.py` (+ thresholds and non-zero exit on regression)
   - replay long-run stability job: `tools/stability_replay_long_run.py`
   - websocket transport profiler: `tools/profile_ws_replay_transport.py`
   - nightly regression workflow: `.github/workflows/m7-nightly-regression.yml`
+- P1 throughput step is now implemented in trainer config/runtime:
+  - PPO env selection supports `ppo_env_impl` = `reference|native|auto` (default `auto`).
+  - `auto` mode probes native availability and falls back to reference when native core is unavailable.
+  - PPO summary metadata records requested vs selected env implementation.
 - Validation health (2026-03-01):
   - `python -m pytest -q tests/test_server_api.py` -> 9 passed.
   - `python -m pytest -q tests/test_bench_m7.py` -> 2 passed.
   - `python -m pytest -q tests/test_stability_replay_long_run.py` -> 1 passed.
   - `python -m pytest -q tests/test_profile_ws_replay_transport.py` -> 1 passed.
-  - `python -m pytest -q` -> 60 passed, 2 skipped.
+  - `python -m pytest -q` -> 68 passed, 2 skipped.
   - `npm --prefix frontend run lint` -> no ESLint warnings/errors.
   - `npm --prefix frontend run build` -> success for `/`, `/play`, `/analytics`.
 - M6.5 manual replay/play checklist remains captured with deterministic evidence:
@@ -55,25 +59,24 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 
 ## Next work (ordered)
 
-1. Implement PPO native env path (`ppo_env_impl`: `reference|native|auto`) and validate trainer parity/contracts.
-2. Reduce per-env per-step Python callback overhead in PPO hot loop via batch/aggregated metric processing.
-3. Design and implement C batch stepping/reset APIs (`step_many`/`reset_many`) plus Python bridge support.
-4. Run native-core hot-path optimization pass (obs packing + critical update loops) with deterministic parity checks.
-5. Execute throughput tuning matrix after native-path changes and publish updated baseline/floor artifacts.
-6. Reassess enforcement threshold: keep 100,000 as aspirational target, calibrate stable floor if still unattainable.
-7. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
-8. Extend frontend analytics UI to show:
+1. Reduce per-env per-step Python callback overhead in PPO hot loop via batch/aggregated metric processing.
+2. Design and implement C batch stepping/reset APIs (`step_many`/`reset_many`) plus Python bridge support.
+3. Run native-core hot-path optimization pass (obs packing + critical update loops) with deterministic parity checks.
+4. Execute throughput tuning matrix after native-path changes and publish updated baseline/floor artifacts.
+5. Reassess enforcement threshold: keep 100,000 as aspirational target, calibrate stable floor if still unattainable.
+6. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
+7. Extend frontend analytics UI to show:
    - current selected iteration metrics
    - full historical trends across all prior iterations
    - last-10 iteration dropdown drilldown
    - quick KPI snapshot cards
-9. Complete production deployment path:
+8. Complete production deployment path:
    - frontend on Vercel
    - backend on websocket-capable host
    - production CORS/env/secret wiring
-10. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
-11. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
-12. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
+9. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
+10. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
+11. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
 
 ## Active risks and blockers
 
@@ -93,7 +96,7 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-03-01 | pending (this commit) | docs | Add game-bottleneck performance roadmap prioritizing native runtime, batch stepping, and callback overhead reduction |
+| 2026-03-01 | pending (this commit) | feat | Add PPO env implementation selection (`reference|native|auto`) with native auto-fallback path and wrapper contract tests |
 | 2026-03-01 | pending (prior commit) | feat | Complete M7+ with websocket tuning, transport profiling, and nightly regression gates |
 | 2026-03-01 | `6404834` | feat | Add long-run replay stability job for index consistency and leak/regression detection |
 | 2026-03-01 | `d537be3` | feat | Add M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks |
