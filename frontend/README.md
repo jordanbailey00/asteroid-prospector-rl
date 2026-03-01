@@ -1,6 +1,6 @@
 # frontend
 
-M6 + M6.5 frontend implementation for the Asteroid Prospector MVP.
+M6/M6.5 frontend implementation with M8 replay transport upgrades for the Asteroid Prospector MVP.
 
 ## Routes
 

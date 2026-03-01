@@ -1,169 +1,100 @@
 # Project Status
 
 Last updated: 2026-03-01
-Current focus: Performance-first runtime optimization (game bottleneck) for maximum training throughput
+Current focus: M9 execution (throughput evidence, W&B-backed analytics integration, Vercel deployment alignment)
 
 ## Current state
 
-- Frozen interface status: unchanged (`OBS_DIM=260`, `N_ACTIONS=69`, action indexing `0..68`, reward definition unchanged).
-- Replay transport now supports both HTTP and websocket paths:
-  - HTTP pagination: `GET /api/runs/{run_id}/replays/{replay_id}/frames`
-  - WS chunk stream: `WS /ws/runs/{run_id}/replays/{replay_id}/frames`
-  - WS tuning controls: `batch_size`, `max_chunk_bytes`, `yield_every_batches`
-  - Frontend replay UI exposes transport selection (`HTTP /frames` vs `WebSocket stream`).
-- M7 benchmark/stability/profiling automation remains active:
-  - benchmark harness: `tools/bench_m7.py` (+ thresholds and non-zero exit on regression)
-  - replay long-run stability job: `tools/stability_replay_long_run.py`
-  - websocket transport profiler: `tools/profile_ws_replay_transport.py`
-  - nightly regression workflow: `.github/workflows/m7-nightly-regression.yml`
-- P1 throughput step is implemented in trainer config/runtime:
-  - PPO env selection supports `ppo_env_impl` = `reference|native|auto` (default `auto`).
-  - `auto` mode probes native availability and falls back to reference when native core is unavailable.
-  - PPO summary metadata records requested vs selected env implementation.
-- P2 throughput step is implemented in trainer runtime:
-  - PPO loop supports a batch callback boundary (`on_step_batch`) per vector step.
-  - Trainer window aggregation now uses `record_step_batch(...)` for PPO runs.
-  - Per-env callback invocations from PPO runtime to trainer were removed from the hot path.
-- P3 throughput step is now implemented in native bridge:
-  - C API exposes `abp_core_reset_many(...)` and `abp_core_step_many(...)` for batched handle processing.
-  - Python wrapper exposes `NativeProspectorCore.reset_many(...)` and `NativeProspectorCore.step_many(...)`.
-  - Bridge keeps scalar fallback when batch symbols are unavailable or cores are mixed.
-- P4 throughput step is now implemented in PPO runtime:
-  - Native PPO runs use in-process batched vector stepping (`_NativeBatchVectorEnv`) over `NativeProspectorCore.step_many(...)`/`reset_many(...)`.
-  - Done environments are auto-reset on the vector boundary so rollout semantics remain compatible with existing trainer logic.
-  - PPO metadata now includes `ppo_vector_backend_selected` (`native_batch` when this fast path is active).
-- Native-core hot-loop micro-optimization pass is now implemented:
-  - Replaced per-step station-distance BFS with cached graph distances recomputed at world generation.
-  - Tightened observation packing hot path (`abp_pack_obs`) to reduce repeated normalization/indexing overhead.
-  - Throughput profiler now supports native env-only reset signatures (`NativeProspectorCore.reset(...)` returns obs-only).
-- Throughput tuning matrix automation is now implemented:
-  - `tools/run_throughput_matrix.py` orchestrates env/trainer candidate sweeps and records per-candidate profiler artifacts.
-  - Matrix reports compute per-mode calibrated floor recommendations as `best_min_steps_per_sec * floor_safety_factor`.
-  - Latest baseline artifact: `artifacts/throughput/throughput-matrix-20260301-p6.json`.
-- Throughput floor enforcement policy is now calibrated and executable locally:
-  - `tools/gate_throughput_floors.py` reads matrix-recommended floors and enforces per-mode thresholds via `tools/profile_training_throughput.py`.
-  - Latest floor-gate artifact: `artifacts/throughput/throughput-floor-gate-20260301-p1.json`.
-  - Current calibrated local floors from matrix baseline: `env_only` native `19520.68`, `trainer` random `204.92` steps/sec.
-- PPO Linux throughput matrix (M9.1 step 2) is now executed and published:
-  - Linux runner: `docker compose -f infra/docker-compose.yml run --rm -T trainer ...`.
-  - Added Linux-native shared library build in-container (`engine_core/build/abp_core.so`) using `abp_core.c + abp_rng.c` for native runtime availability.
-  - Latest PPO matrix artifact: `artifacts/throughput/throughput-matrix-ppo-20260301-m9p2d.json`.
-  - Best trainer candidate (PPO/native auto): `num_envs=16`, `num_workers=2`, `rollout_steps=128`, `num_minibatches=2`, mean `~1210.8` steps/sec, recommended floor `~1089.7` steps/sec.
-- Native availability probing is now load-aware (not path-only):
-  - PPO `auto` env selection now falls back to reference when native binary exists but fails to load (for example invalid ELF/ABI mismatch), preventing hard failures during throughput sweeps.
-- Validation health (2026-03-01):
-  - `python -m pytest -q tests/test_server_api.py` -> 9 passed.
-  - `python -m pytest -q tests/test_bench_m7.py` -> 2 passed.
-  - `python -m pytest -q tests/test_stability_replay_long_run.py` -> 1 passed.
-  - `python -m pytest -q tests/test_profile_ws_replay_transport.py` -> 1 passed.
-  - `python -m pytest -q` -> 80 passed, 2 skipped.
-  - `python tools/run_parity.py --seeds 2 --steps 512 --native-library engine_core/build/abp_core.dll` -> 12/12 parity cases passed.
-  - `python tools/profile_training_throughput.py --modes env_only --env-impl native --env-duration-seconds 2.0 --env-repeats 3` -> ~21.9k mean native env-only steps/sec.
-  - `python tools/profile_training_throughput.py --modes env_only --env-impl reference --env-duration-seconds 2.0 --env-repeats 3` -> ~156.7 mean reference env-only steps/sec.
-  - `python tools/run_throughput_matrix.py --run-id throughput-matrix-20260301-p6 --output-path artifacts/throughput/throughput-matrix-20260301-p6.json --modes env_only,trainer --env-impls native,reference --trainer-backends random --env-duration-seconds 2.0 --env-repeats 3 --trainer-total-env-steps 3000 --trainer-window-env-steps 1000 --trainer-repeats 3 --floor-safety-factor 0.9` -> env-only native mean ~22.4k (recommended floor ~19.5k), trainer-random mean ~263.6 (recommended floor ~204.9).
-  - `python tools/gate_throughput_floors.py --matrix-report-path artifacts/throughput/throughput-matrix-20260301-p6.json --run-id throughput-floor-gate-20260301-p1 --output-path artifacts/throughput/throughput-floor-gate-20260301-p1.json --modes env_only,trainer --env-duration-seconds 2.0 --env-repeats 3 --trainer-total-env-steps 3000 --trainer-window-env-steps 1000 --trainer-repeats 3` -> pass; env-only mean ~26.6k vs floor ~19.5k, trainer-random mean ~287.7 vs floor ~204.9.
-  - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
-  - `docker compose -f infra/docker-compose.yml run --rm -T trainer python tools/run_throughput_matrix.py --run-id throughput-matrix-ppo-20260301-m9p2d --output-path artifacts/throughput/throughput-matrix-ppo-20260301-m9p2d.json --modes trainer --trainer-backends puffer_ppo --trainer-total-env-steps 4000 --trainer-window-env-steps 1000 --trainer-repeats 1 --ppo-num-envs-values 8,16 --ppo-num-workers-values 2,4 --ppo-rollout-steps-values 64,128 --ppo-num-minibatches-values 2,4 --ppo-update-epochs-values 4 --ppo-vector-backends multiprocessing --ppo-env-impls auto --floor-safety-factor 0.9` -> 16/16 successful candidates; best mean ~1210.8 steps/sec with recommended floor ~1089.7.
-  - `npm --prefix frontend run lint` -> no ESLint warnings/errors.
-  - `npm --prefix frontend run build` -> success for `/`, `/play`, `/analytics`.
-- M6.5 manual replay/play checklist remains captured with deterministic evidence:
-  - checklist report: `docs/M65_MANUAL_VERIFICATION.md`
-  - sampled replay trace: `docs/verification/m65_sample_replay.jsonl`
-  - reproducible generator: `tools/run_m65_manual_checklist.py`
-- Trainer runtime baseline remains:
-  - dependency pin: `pufferlib-core==3.0.17`
-  - module runtime: `pufferlib 3.0.3`
-  - image tag: `jordanbailey00/rl-puffer-base:py311-puffercore3.0.17`
-  - published digest: `sha256:723c58843d9ed563fa66c0927da975bdbab5355c913ec965dbea25a2af67bb71`
-- Completed milestones: M0, M1, M2, M2.5, M3, M4, M5, M6, M6.5, and M7+ performance/stability hardening.
-- Priority execution plan documents:
-  - `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`
-  - `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
+- Frozen interface unchanged: `OBS_DIM=260`, `N_ACTIONS=69`, action indexing `0..68`.
+- Native runtime path for PPO now supports:
+  - env implementation selection (`reference|native|auto`),
+  - native load-aware probing in `auto` mode,
+  - in-process native batched stepping path (`step_many/reset_many`).
+- Throughput tooling now includes:
+  - profiler (`tools/profile_training_throughput.py`),
+  - matrix runner (`tools/run_throughput_matrix.py`),
+  - floor gate (`tools/gate_throughput_floors.py`),
+  - Linux PPO matrix artifact (`artifacts/throughput/throughput-matrix-ppo-20260301-m9p2d.json`).
+- Replay transport supports both:
+  - HTTP frame pagination (`GET /api/runs/{run_id}/replays/{replay_id}/frames`),
+  - websocket chunk stream (`WS /ws/runs/{run_id}/replays/{replay_id}/frames`).
+- Frontend routes are live for replay (`/`), play (`/play`), and analytics (`/analytics`).
+- M6.5 manual verification artifacts remain captured:
+  - `docs/M65_MANUAL_VERIFICATION.md`
+  - `docs/verification/m65_sample_replay.jsonl`
 
 ## Milestone board
 
-| Milestone | Status | What is done | Evidence |
-| --- | --- | --- | --- |
-| M0 - Scaffold and hello env | Complete | Repo skeleton, tooling, CI, contract stub env | `001a004` |
-| M1 - Python reference env | Complete | Reference environment, tier tests, determinism and reward checks | `b009f53`, `6e33091`, `b4e31bd` |
-| M2 - Native core + bindings | Complete | Full C world/step dynamics, reward + obs packing, expanded native parity metrics surfaced through ctypes | `5aa1058` |
-| M2.5 - Parity harness | Complete | Fixed-suite parity harness, mismatch bundles, and deterministic RNG alignment across Python/C | `1cd2dfc`, `cb2efbf` |
-| M3 - Training + window metrics | Complete | Windowed trainer loop, checkpoint cadence, `windows.jsonl`, optional W&B logging, live `run_metadata.json`, and Dockerized Linux PPO backend validation | `1a90101`, `6dd1f89`, `4b3e684`, `dda8545` |
-| M4 - Eval + replay generation | Complete | Policy-driven PPO eval replays from serialized checkpoints, replay schema/index validation, `every_window` + `best_so_far` + `milestone:*` tagging, replay index filtering helpers, and checkpoint format tests | `b8a1880`, `452754c` |
-| M5 - API server | Complete | FastAPI run/replay/metrics endpoints, HTTP replay frame pagination, websocket replay frame streaming, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, `98149f2`, `81a8bad` |
-| M6 - Frontend integration | Complete | Next.js replay page (`/`), human play mode (`/play`), analytics page (`/analytics`) wired to M5 APIs with playback controls, run/window/replay selection, and historical trend visualizations | `27ab411` |
-| M6.5 - Graphics + audio integration | Complete | Real Kenney assets wired to replay/play rendering, manifests file-backed, semantic asset tests passing, and final manual replay/play checklist evidence captured | `1a77f36`, `f606846`, `b7efc22` |
-| M7+ - Perf and stability hardening | Complete | HTTP+WS replay transport, websocket chunk tuning, benchmark harness, replay stability soak, websocket profiling sweep, nightly regression workflow gates, PPO/native-bridge throughput plumbing (P1-P4 + native-core hot-loop micro-optimizations), and throughput matrix/floor automation | `81a8bad`, `d537be3`, `6404834`, `a433997`, `1023729`, `bf492c3`, `d3328eb`, `84cb3db`, `bca65c4` |
+| Milestone | Status | Summary |
+| --- | --- | --- |
+| M0 - Scaffold and hello env | Complete | Repo structure, baseline tooling, contract stub env |
+| M1 - Python reference env | Complete | Deterministic reference implementation with contract tests |
+| M2 - Native core + bindings | Complete | C simulation core with Python bridge |
+| M2.5 - Parity harness | Complete | Deterministic parity runner and mismatch artifacts |
+| M3 - Training + window metrics | Complete | Windowed training loop, checkpoints, metrics, optional W&B logging |
+| M4 - Eval + replay generation | Complete | Policy-driven eval replays and replay indexing |
+| M5 - API server | Complete | Run/metrics/replay/play-session API surface |
+| M6 - Frontend integration | Complete | Replay/play/analytics pages wired to backend APIs |
+| M6.5 - Graphics + audio | Complete | File-backed Kenney asset wiring plus validation checks |
+| M7 - Baselines + benchmarking | Pending | Baseline bots and benchmark protocol automation are not complete yet |
+| M8 - Performance + stability hardening | Complete | Replay transport tuning, benchmark/stability runners, native batch runtime path |
+| M9 - Throughput + W&B dashboard + Vercel alignment | In Progress | Throughput matrix/floor artifacts are in place; W&B proxy + analytics/deployment work remains |
+
+## Latest recorded validation health (2026-03-01)
+
+- `python -m pytest -q` -> 80 passed, 2 skipped.
+- `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
+- `npm --prefix frontend run lint` -> pass.
+- `npm --prefix frontend run build` -> pass (`/`, `/play`, `/analytics`).
+- `python tools/run_parity.py --seeds 2 --steps 512 --native-library engine_core/build/abp_core.dll` -> 12/12 cases passed.
+- Linux PPO matrix run published with best observed candidate near `1210.8` steps/sec and recommended floor near `1089.7`.
 
 ## Next work (ordered)
 
-1. Implement backend W&B proxy endpoints (runs, history, summary, iteration views) with cache/TTL behavior.
+1. Implement backend W&B proxy endpoints (runs, summary, history, iteration-scoped views) with bounded queries and cache TTL.
 2. Extend frontend analytics UI to show:
-   - current selected iteration metrics
-   - full historical trends across all prior iterations
-   - last-10 iteration dropdown drilldown
-   - quick KPI snapshot cards
-3. Complete production deployment path:
-   - frontend on Vercel
-   - backend on websocket-capable host
-   - production CORS/env/secret wiring
-4. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
-5. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
-6. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
+   - selected iteration metrics,
+   - full historical trend,
+   - last-10 iteration dropdown drilldown,
+   - KPI snapshot cards.
+3. Complete deployment path:
+   - frontend on Vercel,
+   - backend on websocket-capable host,
+   - production CORS/env/secret wiring.
+4. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
+5. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
 
 ## Active risks and blockers
 
-- Replay UI still buffers the full selected replay in client memory after load; very large artifacts may still need incremental playback virtualization.
-- Nightly threshold values may need calibration over time as CI runner performance characteristics drift.
-- There is no published `pufferlib 4.0` package on PyPI as of 2026-03-01; latest published line used here is `pufferlib-core 3.0.17`.
-- 100,000 steps/sec may be above current hardware/runtime ceiling; latest matrix and floor-gate runs validate local floors (`env_only` ~19.5k, `trainer` random ~204.9) but still leave a large delta-to-target that must be tracked.
-- PPO trainer throughput now has Linux matrix evidence (`~1210.8` best mean, floor `~1089.7`), but remains far below the 100,000 aspirational target and needs further bottleneck reduction.
-- Native runtime on Linux depends on a valid `abp_core.so`; cross-OS artifact reuse (for example mounting Windows `.dll` into Linux containers) can still cause fallback behavior if native load fails.
-- W&B API rate limits/latency can degrade dashboard responsiveness without backend caching and bounded history queries.
-- Split frontend/backend hosting (Vercel + external API) can fail due to CORS/WS misconfiguration if not validated with deployment smoke checks.
-- Native batch path currently runs in-process (`native_batch`); if future scaling requires multi-process native stepping, worker-sharded batch runners will be needed.
+- 100,000 steps/sec remains aspirational; current measured trainer throughput is far below target and requires further bottleneck reduction.
+- W&B API latency/rate limits can degrade analytics UX without backend caching and bounded history windows.
+- Split frontend/backend hosting (Vercel + external API) can fail from CORS/WS configuration drift.
+- M7 baseline bots/benchmark automation remains a functional gap for comparative performance reporting.
 
 ## Decision pointers
 
-- See `docs/DECISION_LOG.md` for accepted architecture and process decisions.
+- See `docs/DECISION_LOG.md` for accepted architecture/process decisions and milestone taxonomy decisions.
 
 ## Commit ledger (latest first)
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-03-01 | `bca65c4` | feat | Optimize native core hot loops (station-distance cache + obs packing path) and fix native throughput profiler reset handling |
-| 2026-03-01 | `84cb3db` | feat | Route PPO native runtime through batch `step_many/reset_many` vector hot path |
-| 2026-03-01 | `d3328eb` | feat | Add native `step_many/reset_many` C APIs and Python bridge methods with fallback support |
-| 2026-03-01 | `a433997` | feat | Complete M7+ with websocket tuning, transport profiling, and nightly regression gates |
-| 2026-03-01 | `6404834` | feat | Add long-run replay stability job for index consistency and leak/regression detection |
-| 2026-03-01 | `d537be3` | feat | Add M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks |
-| 2026-03-01 | `81a8bad` | feat | Add websocket replay frame streaming endpoint and frontend HTTP/WS transport switch |
-| 2026-03-01 | `b7efc22` | feat | Add reproducible M6.5 manual replay/play checklist runner and evidence artifacts |
-| 2026-02-28 | `55852e2` | docs | Refresh day-end status and handoff documentation |
-| 2026-02-28 | `dda8545` | chore | Upgrade trainer deps/image to latest published Puffer core stack and patch PPO runtime compatibility |
-| 2026-02-28 | `f606846` | feat | Wire sector rendering to file-backed Kenney assets and enforce manifest asset validation in tests |
-| 2026-02-28 | `b2b98cf` | docs | Tighten M6.5 completion criteria to require real Kenney asset wiring |
-| 2026-02-28 | `1a77f36` | feat | Implement M6.5 graphics/audio presentation scaffolding |
-| 2026-02-28 | `27ab411` | feat | Implement M6 frontend replay/play/analytics UI |
-| 2026-02-28 | `98149f2` | feat | Complete M5 metrics and play API endpoints |
-| 2026-02-28 | `18ae6b0` | chore | Configure shareable trainer base image tag |
-| 2026-02-28 | `e1fe165` | feat | Add M5 run and replay API endpoints |
-| 2026-02-28 | `452754c` | feat | Add policy-driven PPO replay checkpoint eval |
-| 2026-02-28 | `b8a1880` | feat | Begin M4 with eval runner, replay schema/index, and replay tests |
-| 2026-02-28 | `4b3e684` | feat | Add dockerized pufferlib ppo training backend |
-| 2026-02-28 | `6dd1f89` | feat | Persist live M3 run metadata contract |
-| 2026-02-28 | `cb2efbf` | fix | Align reference RNG with native core for parity |
-| 2026-02-28 | `1cd2dfc` | feat | Parity harness with mismatch bundle output |
-| 2026-02-28 | `5aa1058` | feat | Native core full step semantics and parity metric surface |
-| 2026-02-27 | `25c87e7` | docs | Public GitHub README and MIT license |
-| 2026-02-27 | `87c2fc0` | feat | Native build runner and ctypes wrapper |
-| 2026-02-27 | `287a79f` | feat | Native core scaffold with RNG and API |
-| 2026-02-27 | `b4e31bd` | test | M1 determinism, reward, observation contract hardening |
-| 2026-02-27 | `09f4852` | docs | M1 status and changelog updates |
-| 2026-02-27 | `6e33091` | test | M1 tier1 and tier2 coverage |
-| 2026-02-27 | `b009f53` | feat | M1 Python reference environment baseline |
-| 2026-02-27 | `1be752b` | docs | Commit-per-change agent instruction |
-| 2026-02-27 | `001a004` | feat | M0 scaffold and hello env contract stub |
+| 2026-03-01 | `9dbdedc` | feat | Publish Linux PPO throughput matrix and harden native auto probe behavior |
+| 2026-03-01 | `c1fef2a` | feat | Add matrix-driven throughput floor gate |
+| 2026-03-01 | `f96e3b5` | docs | Standardize build checklist milestone identifiers |
+| 2026-03-01 | `9ff3d1c` | feat | Add throughput matrix runner and floor calibration |
+| 2026-03-01 | `bca65c4` | feat | Optimize native core hot loop and throughput profiling path |
+| 2026-02-28 | `84cb3db` | feat | Route native PPO runtime through batched step/reset bridge |
+| 2026-02-28 | `d3328eb` | feat | Add native batch step/reset APIs and Python bridge support |
+| 2026-02-28 | `bf492c3` | feat | Batch PPO callback path to reduce hot-loop overhead |
+| 2026-02-28 | `1023729` | feat | Add PPO env implementation selection with native auto fallback |
+| 2026-02-28 | `6714d56` | feat | Add throughput profiler with target/floor gate capability |
+| 2026-02-28 | `855c1a3` | docs | Add priority plan for 100k throughput + W&B + Vercel |
+| 2026-02-28 | `a433997` | feat | Complete transport tuning and nightly regression gates |
+| 2026-02-28 | `6404834` | feat | Add long-run replay stability job |
+| 2026-02-28 | `d537be3` | feat | Add benchmark harness |
+| 2026-02-28 | `81a8bad` | feat | Add websocket replay frame streaming transport |
+| 2026-02-28 | `b7efc22` | feat | Add reproducible M6.5 manual replay/play verification runner |
 
 ## Update policy (required)
 
@@ -171,5 +102,5 @@ Current focus: Performance-first runtime optimization (game bottleneck) for maxi
   - `docs/PROJECT_STATUS.md`, or
   - `docs/DECISION_LOG.md`, or
   - `CHANGELOG.md`.
-- Any non-trivial technical decision must include a new entry in `docs/DECISION_LOG.md`.
+- Any non-trivial technical decision must include a same-commit ADR entry in `docs/DECISION_LOG.md`.
 - Keep the "Next work (ordered)" section current so remaining direction is explicit.

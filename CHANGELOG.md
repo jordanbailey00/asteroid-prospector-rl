@@ -139,3 +139,7 @@ All notable changes to this project will be documented in this file.
 - Rewrote root `README.md` as a public GitHub-facing project overview (purpose, goals, stack, quick start, and roadmap context).
 - Updated `docs/DOCS_INDEX.md` to include hygiene/parity/checklist/status/decision tracking docs in the authoritative read order.
 - Updated `frontend/README.md` notes to reflect file-backed audio cue usage with synth as fallback-only behavior.
+- Reconciled milestone taxonomy across `docs/BUILD_CHECKLIST.md`, `docs/PROJECT_STATUS.md`, and `README.md` (`M7` baselines, `M8` hardening, `M9` current focus).
+- Rewrote `docs/AGENT_HANDOFF_BRIEF.md` and `docs/AGENT_HYGIENE_GUARDRAILS.md` into clean ASCII and removed stale/duplicative milestone guidance.
+- Refreshed `docs/PROJECT_STATUS.md` with current milestone board, ordered next work, active risks, and latest commit ledger.
+- Updated root `README.md` to reflect current completion state, active priorities, and next execution steps.

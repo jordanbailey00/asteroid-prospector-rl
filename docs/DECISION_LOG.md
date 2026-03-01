@@ -318,3 +318,12 @@ Use this file for non-trivial project decisions.
 - Decision: Update native core path selection to prefer platform-compatible library names (`.so`/`.dylib`/`.dll`) and update PPO native probing to validate actual loadability by instantiating `NativeProspectorCore`. If load fails under `auto`, fallback to reference and expose probe detail in metadata.
 - Consequences: Throughput sweeps and training runs no longer fail hard on cross-OS native binary mismatches; `auto` behavior is resilient and diagnosable. Native path can be used in Linux once a valid `abp_core.so` is present.
 - Related commits/docs: `python/asteroid_prospector/native_core.py`, `training/puffer_backend.py`, `tests/test_native_core_wrapper.py`, `tests/test_puffer_backend_env_impl.py`, `artifacts/throughput/throughput-matrix-ppo-20260301-m9p2d.json`, `docs/PROJECT_STATUS.md`
+
+### ADR-0035 - Standardize milestone taxonomy across checklist/status/readme and treat M7 baseline automation as distinct from M8 hardening
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: Documentation drift had created conflicting milestone references (for example "M7+ performance" in status docs while checklist defined M7 as baselines and M8 as performance/stability hardening), plus handoff/hygiene docs with encoding corruption that made execution guidance noisy.
+- Decision: Treat `docs/BUILD_CHECKLIST.md` as canonical milestone taxonomy (`M7` baselines/benchmarking, `M8` performance/stability, `M9` throughput+W&B+Vercel), then align `README.md`, `docs/PROJECT_STATUS.md`, and agent-facing docs to that taxonomy. Rewrite corrupted handoff/hygiene docs into clean ASCII to remove ambiguity and redundant stale guidance.
+- Consequences: Current and remaining work is now explicit and non-conflicting across planning/status docs; future updates must keep milestone naming synchronized with the checklist to avoid roadmap drift.
+- Related commits/docs: `docs/BUILD_CHECKLIST.md`, `docs/PROJECT_STATUS.md`, `docs/AGENT_HANDOFF_BRIEF.md`, `docs/AGENT_HYGIENE_GUARDRAILS.md`, `README.md`, `CHANGELOG.md`

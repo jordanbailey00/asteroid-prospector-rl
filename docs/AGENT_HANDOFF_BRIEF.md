@@ -1,221 +1,76 @@
-# Asteroid Belt Prospector â€” Agent Handoff Brief
+# Asteroid Belt Prospector - Agent Handoff Brief
 
 ## Purpose
 
-Build a high-throughput RL game environment (â€œAsteroid Belt Prospectorâ€) with:
-- **Local training** via PufferLib (fast CPU stepping).
-- **Eval-run replays** produced every **window_env_steps** and served for **record-then-play** viewing on a website.
-- A **human-play mode** (no accounts, no persistence) so humans can learn the game.
-- **Observability** via **Weights & Biases** (metrics + artifacts) and PufferLib dashboards (including â€œConstellationâ€ if enabled).
+This brief is a quick orientation for any coding agent starting work in this repo.
+It explains what is already built, what remains, and which documents are authoritative.
 
-This brief explains **what weâ€™re building, why weâ€™re building it, and how to use the accompanying specs**.
+## Current snapshot (2026-03-01)
 
----
+- Frozen RL interface remains unchanged: `OBS_DIM=260`, `N_ACTIONS=69`, action IDs `0..68`.
+- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M8`.
+- In progress milestone: `M9` (throughput program + W&B-backed analytics + Vercel deployment alignment).
+- Remaining milestone not complete: `M7` (baseline bots + benchmark protocol automation).
 
-## Why this exists
+## Canonical milestone map
 
-The project is designed as a **strategic, long-horizon, partially observable RL environment** where progress emerges over millions of steps:
-- Information gathering (scan) vs exploitation (mine)
-- Risk management (pirates, hazards, fractures)
-- Resource constraints (fuel, heat, tool wear, cargo)
-- Market timing + slippage
+- `M0`: Scaffold and CI/bootstrap
+- `M1`: Python reference env
+- `M2`: Native core + bindings
+- `M2.5`: Parity harness
+- `M3`: Training + window metrics + W&B logging
+- `M4`: Eval runner + replay generation
+- `M5`: Backend API
+- `M6`: Frontend integration
+- `M6.5`: Graphics/audio integration
+- `M7`: Baselines + benchmarking
+- `M8`: Performance/stability hardening
+- `M9`: Throughput + W&B analytics dashboard + Vercel alignment
 
-The website exists to make training progress understandable to humans through:
-- Watchable â€œbestâ€ / â€œevery-windowâ€ replays
-- Window summaries + historical training charts
-- A playable version of the same environment
+Use `docs/BUILD_CHECKLIST.md` as the execution sequence source of truth.
 
----
+## Active priorities
 
-## Non-goals
+1. Throughput: maximize training speed with native-first runtime path and repeatable profiling evidence.
+2. W&B analytics integration: backend proxy endpoints plus frontend iteration views.
+3. Deployment alignment: Vercel frontend with websocket-capable backend hosting.
 
-- No user accounts, no persistent player state
-- No live streaming from the trainer (record-then-play only)
-- No custom art creation (Kenney packs only)
-- No multiplayer / economy persistence across runs
+## Required shared identifiers
 
----
+- `run_id`: unique training run identifier.
+- `window_env_steps`: step budget per metrics/checkpoint/eval window.
+- `window_id`: monotonic window index in a run.
+- `replay_id`: unique replay artifact ID.
+- Replay tags:
+  - `every_window`
+  - `best_so_far`
+  - `milestone:*`
 
-## Definitions (must be consistent across code)
+## System boundaries
 
-- **run_id**: unique identifier for a training run (timestamp + git SHA recommended)
-- **window_env_steps**: number of environment steps in a training window; used to:
-  - aggregate metrics
-  - trigger checkpoint saves
-  - trigger eval-run replay generation
-- **window_id**: monotonically increasing window index within a run
-- **replay_id**: unique ID for a recorded eval episode
-- **replay tags**:
-  - `every_window` (or `every_n`) â€” the canonical replay produced each window
-  - `best_so_far` â€” replay beats prior best by margin
-  - `milestone:*` â€” threshold-based replays (profit, survival, etc.)
+- `engine_core/`: authoritative simulation in C.
+- `python/`: wrappers and reference env for parity/debug.
+- `training/`: training loop, checkpointing, eval/replay generation.
+- `server/`: API endpoints (runs/metrics/replays/play sessions, WS replay stream).
+- `frontend/`: replay/play/analytics UI only.
 
----
+Do not move authoritative game logic into frontend code.
 
-## System components (backend-only + frontend)
+## Docs to read first
 
-### A) Simulation Engine (authoritative)
-- Implements the environment step loop and all dynamics.
-- Must keep the RL interface stable:
-  - fixed obs layout (OBS_DIM=260)
-  - fixed action indexing (0..68)
-  - deterministic reward computation
-- **Performance requirement:** core step loop should run in C where it materially improves throughput.
+1. `docs/DOCS_INDEX.md`
+2. `docs/RL spec/01_core_constants.md` through `06_gym_puffer_compat.md`
+3. `docs/BUILD_CHECKLIST.md`
+4. `docs/PROJECT_STATUS.md`
+5. `docs/DECISION_LOG.md`
+6. `docs/AGENT_HYGIENE_GUARDRAILS.md`
 
-### B) Python RL Wrapper (Gymnasium/PufferLib-compatible)
-- Thin wrapper around native core.
-- Provides `reset()` / `step()` and emits:
-  - `obs` (float32 vector)
-  - `reward`
-  - `terminated/truncated`
-  - `info` metrics
+If documents conflict, frozen RL interface docs win.
 
-### C) Trainer (PufferLib)
-- Runs vectorized training, saves checkpoints each window.
-- Logs window metrics to W&B (and uses Puffer dashboards).
-- Does NOT generate replays in the hot path.
+## Tracking artifacts (must stay current)
 
-### D) Evaluator + Replay Generator (Option A)
-- Triggered once per window:
-  - loads latest checkpoint
-  - runs 1..M eval episodes in a single env process
-  - records frames for replay
-  - tags and stores replays
-  - logs replays as W&B artifacts (or at minimum links them)
-
-### E) API Server
-- Provides endpoints for:
-  - listing runs/windows/replays
-  - serving replay frames (WS or downloadable file)
-  - human-play sessions (create/reset/step)
-  - serving historical window metrics (for the website)
-
-### F) Frontend (Vercel)
-- Main page: latest replay + window summary
-- Play page: human pilot mode
-- Analytics page: historical window charts
-
----
-
-## Build order (milestones / gates)
-
-### M0 â€” Repo scaffold + CI shape
-- repo structure with `engine_core/` (C), `python/` wrapper, `server/`, `frontend/`
-- runnable â€œhello envâ€ stub with fixed obs/action sizes
-
-### M1 â€” Python reference env (correctness baseline)
-- Implement a pure-Python reference that matches the RL spec.
-- This is used ONLY to validate C parity.
-
-### M2 â€” Native core v1 (C) + parity harness
-- Implement core state + reset + step in C.
-- Build Python bindings.
-- Create a parity test harness:
-  - same seed + same action sequence
-  - compare obs/reward/done (within tolerances)
-
-### M3 â€” Trainer + windowing + W&B logging
-- Train loop produces window metrics every window_env_steps
-- Saves checkpoints
-- W&B logs:
-  - window metrics
-  - config
-  - checkpoint artifacts
-
-### M4 â€” Eval runner + replay recording
-- Every window:
-  - load checkpoint
-  - run eval episode(s)
-  - produce replay files and replay index
-
-### M5 â€” API server endpoints
-- run + replay catalogs
-- replay playback endpoint (WS or download)
-- human-play session endpoints
-- metrics/windows endpoint
-
-### M6 â€” Frontend integration
-- replay player + window analytics
-- human-play mode
-- historical analytics charts
-
-### M7 â€” Performance + stability pass
-- target steps/sec reached
-- memory leak checks
-- deterministic seeds confirmed
-- W&B artifacts + dashboards reliable
-
----
-
-## Acceptance criteria (definition of â€œdone enough to iterateâ€)
-
-- Training can run for at least 3 windows without crashing.
-- Each window produces:
-  - checkpoint
-  - window metrics row
-  - at least one replay (every_window)
-- Frontend can:
-  - play latest replay at a controlled FPS
-  - show window summary metrics for that replayâ€™s window
-  - allow a human to play (reset/step) and see the same HUD
-  - show historical metrics across windows
-
----
-
-## Artifact naming conventions (W&B + filesystem)
-
-### W&B
-- project: `asteroid-prospector`
-- run name: `{run_id}`
-- groups: optional `{experiment_name}`
-- artifacts:
-  - `model-{run_id}:latest` (checkpoint)
-  - `replay-{run_id}-{window_id}-{replay_id}` (replay frames)
-  - `replay_index-{run_id}` (index DB or JSON)
-
-### Filesystem (local)
-- `runs/{run_id}/checkpoints/ckpt_{window_id}.pt`
-- `runs/{run_id}/metrics/windows.parquet` (or jsonl)
-- `runs/{run_id}/replays/{replay_id}.<format>`
-- `runs/{run_id}/replay_index.sqlite`
-
----
-
-## Required specs to follow (donâ€™t improvise)
-
-- RL Game Design Document (GDD)
-- RL spec modules (constants, obs layout, actions, transition, reward, compatibility, baselines, benchmarking)
-- Backend engine spec (C/W&B updated)
-- Frontend spec (W&B updated)
-- Graphics + audio spec
-
----
-
-## Operational notes
-
-- The website should default to the **latest run** and **latest window replay**.
-- Replay selection and analytics must always be keyed by:
-  - `run_id`
-  - `window_id`
-  - `replay_id`
-
----
-
-## Deliverables checklist (what must exist in git)
-
-- Native core + Python binding package
-- Reference env + parity tests
-- Training script + eval script
-- API server
-- Frontend
-- Docs index (so an agent can find everything quickly)
-
-## Project tracking artifacts
-
-Use these files to understand current execution state and remaining work:
-- `docs/PROJECT_STATUS.md`: single current-state board and ordered next steps.
-- `docs/DECISION_LOG.md`: ADR-style decision history with consequences.
+- `docs/PROJECT_STATUS.md`: current state, ordered next work, risks.
+- `docs/DECISION_LOG.md`: ADR decisions and consequences.
 - `CHANGELOG.md`: user-visible change history.
 
-Operational rule:
-- Every commit updates at least one of the tracking artifacts above.
+Repository policy requires each commit to update at least one of the tracking artifacts above.

@@ -1,10 +1,10 @@
 # Asteroid Belt Prospector - Ordered Build Checklist (Agent Work Plan)
 
-This document is a **chunked, ordered checklist** of all work needed to implement the project end-to-end, without attempting everything at once.
+This document is a chunked, ordered checklist of all work needed to implement the project end-to-end, without attempting everything at once.
 
-**Read order / context**
+Read order / context:
 - Follow `DOCS_INDEX.md` for authoritative precedence.
-- Treat the RL interface as **frozen** (OBS_DIM, N_ACTIONS, obs layout, action indexing, reward).
+- Treat the RL interface as frozen (OBS_DIM, N_ACTIONS, obs layout, action indexing, reward).
 - Follow `AGENT_HYGIENE_GUARDRAILS.md` for repo discipline.
 - Follow `ACCEPTANCE_TESTS_PARITY_HARNESS.md` for gating tests and parity requirements.
 
@@ -26,6 +26,13 @@ This document is a **chunked, ordered checklist** of all work needed to implemen
 - `M9`: Phase 11 (Throughput + W&B dashboard + Vercel alignment)
 - Sub-chunks are numbered as `M*.1`, `M*.2`, etc.
 
+## Execution Snapshot (2026-03-01)
+
+- Completed: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M8`
+- Active: `M9`
+- Remaining: `M7`
+
+This file is the canonical milestone naming source used by `README.md`, `docs/PROJECT_STATUS.md`, and handoff docs.
 
 ## Phase 0 - Pre-flight / Repo Bootstrap (M0)
 
@@ -67,7 +74,7 @@ This document is a **chunked, ordered checklist** of all work needed to implemen
 
 ## Phase 1 - Python Reference Environment (Correctness Baseline) (M1)
 
-Purpose: Build a readable ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“goldenÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â Python env matching the RL spec exactly. This is used for debugging and parity comparisons.
+Purpose: Build a readable "golden" Python env matching the RL spec exactly. This is used for debugging and parity comparisons.
 
 ### 1.1 [M1.1] Implement Python reference engine
 - Implement full environment per RL spec modules:
@@ -164,8 +171,8 @@ Purpose: Prove C core matches Python reference under fixed seeds and action sequ
 - Confirm: same seed + same actions => same done flags + near-identical float outputs.
 
 **Exit criteria (Phase 3)**
-- Parity suite passes required matrix (10 seeds ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â suites ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â steps).
-- ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“Stop-the-lineÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â failures are all absent (NaN/Inf, nondeterminism, bounds violations).
+- Parity suite passes required matrix (10 seeds x suites x steps).
+- "Stop-the-line" failures are all absent (NaN/Inf, nondeterminism, bounds violations).
 
 ---
 
@@ -199,7 +206,7 @@ Purpose: Train locally at high throughput; log windowed metrics and artifacts.
 - If Constellation is configured, ensure the run metadata captures its URL
 
 **Exit criteria (Phase 4)**
-- Training runs for ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°Ãƒâ€šÃ‚Â¥ 3 windows without crash.
+- Training runs for >= 3 windows without crash.
 - Each window produces: checkpoint + window metrics row + W&B log event.
 
 ---
@@ -303,8 +310,8 @@ Purpose: Provide replay viewing, play mode, and historical analytics.
 - Display:
   - current action + decoded name
   - ship stats + cargo + market + event log
-  - window summary panel for the replayÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢s window_id
-- Add ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“Open in W&BÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â and ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“Open ConstellationÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â links (if URLs provided by backend)
+  - window summary panel for the replay's `window_id`
+- Add "Open in W&B" and "Open Constellation" links (if URLs provided by backend)
 
 ### 7.3 [M6.3] Human pilot mode
 - Create/reset session
@@ -459,7 +466,7 @@ Purpose: Ensure the system can run long training jobs reliably and fast.
 
 ## Phase 11 - Throughput + W&B Dashboard + Vercel Deployment Alignment (M9)
 
-Purpose: Execute current product priorities after M7+ hardening.
+Purpose: Execute current product priorities after M8 hardening.
 
 ### 11.1 [M9.1] Throughput target program (100,000 steps/sec)
 - Add throughput profiler tooling for:
