@@ -210,3 +210,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add `tools/stability_replay_long_run.py` to execute repeated training/eval cycles, validate replay index invariants (count, ordering, uniqueness, replay-file schema integrity), and run repeated replay catalog/frame/index reload loops with memory growth thresholds for leak/regression detection. Capture structured JSON reports for auditability.
 - Consequences: The repo now has a reproducible local long-run stability workflow for replay artifacts and API access paths; enforcement in scheduled CI/nightly remains a follow-up integration step.
 - Related commits/docs: `tools/stability_replay_long_run.py`, `tests/test_stability_replay_long_run.py`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0023 - Complete M7 hardening with websocket chunk tuning, profiling sweeps, and nightly regression gates
+
+- Date: 2026-03-01
+- Status: Accepted
+- Context: Remaining M7 work required validating websocket replay behavior on larger artifacts and turning benchmark/stability checks into automated regression gates.
+- Decision: Extend replay websocket streaming with `max_chunk_bytes` and `yield_every_batches` tuning controls, add transport profiling sweeps (`tools/profile_ws_replay_transport.py`), and add scheduled nightly regression workflow (`.github/workflows/m7-nightly-regression.yml`) that runs benchmark thresholds plus replay stability gates and publishes artifacts.
+- Consequences: Replay transport now has explicit chunk/backpressure controls and reproducible tuning evidence; benchmark/stability regressions can fail nightly automatically with artifact traces for diagnosis.
+- Related commits/docs: `server/app.py`, `frontend/lib/api.ts`, `tests/test_server_api.py`, `tools/profile_ws_replay_transport.py`, `tests/test_profile_ws_replay_transport.py`, `tools/bench_m7.py`, `.github/workflows/m7-nightly-regression.yml`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`

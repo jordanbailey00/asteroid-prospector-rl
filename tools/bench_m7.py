@@ -108,7 +108,11 @@ def _bench_replay_latency(
 
     for _ in range(warmup):
         _request_frames(
-            client=client, run_id=run_id, replay_id=replay_id, offset=offset, limit=limit
+            client=client,
+            run_id=run_id,
+            replay_id=replay_id,
+            offset=offset,
+            limit=limit,
         )
 
     for _ in range(total):
@@ -120,8 +124,7 @@ def _bench_replay_latency(
             offset=offset,
             limit=limit,
         )
-        elapsed_ms = (perf_counter() - start) * 1000.0
-        durations_ms.append(elapsed_ms)
+        durations_ms.append((perf_counter() - start) * 1000.0)
         frame_counts.append(int(payload.get("count", 0)))
 
     count_mean = float(statistics.fmean(frame_counts)) if frame_counts else 0.0
@@ -211,6 +214,46 @@ class BenchmarkConfig:
     memory_soak_iterations: int = 400
     memory_growth_limit_mb: float = 16.0
 
+    min_trainer_steps_per_sec: float | None = None
+    max_replay_latency_p95_ms: float | None = None
+    max_memory_final_growth_mb: float | None = None
+
+
+def _evaluate_threshold_failures(
+    *,
+    cfg: BenchmarkConfig,
+    trainer_steps_per_sec: float,
+    latency_metrics: dict[str, Any],
+    memory_metrics: dict[str, Any],
+) -> list[str]:
+    failures: list[str] = []
+
+    if cfg.min_trainer_steps_per_sec is not None:
+        minimum = float(cfg.min_trainer_steps_per_sec)
+        if trainer_steps_per_sec < minimum:
+            failures.append(
+                f"trainer steps/sec {trainer_steps_per_sec:.3f} below minimum {minimum:.3f}"
+            )
+
+    if cfg.max_replay_latency_p95_ms is not None:
+        maximum = float(cfg.max_replay_latency_p95_ms)
+        observed = float(latency_metrics.get("p95_ms", 0.0))
+        if observed > maximum:
+            failures.append(f"replay API latency p95 {observed:.3f}ms above max {maximum:.3f}ms")
+
+    if cfg.max_memory_final_growth_mb is not None:
+        maximum = float(cfg.max_memory_final_growth_mb)
+        observed = float(memory_metrics.get("final_growth_mb", 0.0))
+        if observed > maximum:
+            failures.append(f"memory soak final growth {observed:.3f}MB above max {maximum:.3f}MB")
+
+    if not bool(memory_metrics.get("pass", False)):
+        failures.append(
+            "memory soak final growth exceeded memory_growth_limit_mb configured for benchmark run"
+        )
+
+    return failures
+
 
 def run_benchmark(cfg: BenchmarkConfig) -> dict[str, Any]:
     run_id = cfg.run_id or _default_run_id()
@@ -276,10 +319,27 @@ def run_benchmark(cfg: BenchmarkConfig) -> dict[str, Any]:
     if output_path is None:
         output_path = Path("artifacts/benchmarks") / f"{run_id}.json"
 
+    threshold_failures = _evaluate_threshold_failures(
+        cfg=cfg,
+        trainer_steps_per_sec=trainer_steps_per_sec,
+        latency_metrics=latency_metrics,
+        memory_metrics=memory_metrics,
+    )
+
     report: dict[str, Any] = {
         "generated_at": now_iso(),
         "run_id": run_id,
         "config": _serialize_config(cfg),
+        "summary": {
+            "pass": len(threshold_failures) == 0,
+            "threshold_failures": threshold_failures,
+            "thresholds": {
+                "min_trainer_steps_per_sec": cfg.min_trainer_steps_per_sec,
+                "max_replay_latency_p95_ms": cfg.max_replay_latency_p95_ms,
+                "max_memory_final_growth_mb": cfg.max_memory_final_growth_mb,
+                "memory_growth_limit_mb": cfg.memory_growth_limit_mb,
+            },
+        },
         "trainer": {
             "backend": cfg.trainer_backend,
             "elapsed_seconds": trainer_elapsed_seconds,
@@ -325,6 +385,9 @@ def _parse_args() -> BenchmarkConfig:
     parser.add_argument("--replay-latency-warmup-iterations", type=int, default=3)
     parser.add_argument("--memory-soak-iterations", type=int, default=400)
     parser.add_argument("--memory-growth-limit-mb", type=float, default=16.0)
+    parser.add_argument("--min-trainer-steps-per-sec", type=float, default=None)
+    parser.add_argument("--max-replay-latency-p95-ms", type=float, default=None)
+    parser.add_argument("--max-memory-final-growth-mb", type=float, default=None)
 
     args = parser.parse_args()
     return BenchmarkConfig(
@@ -342,6 +405,9 @@ def _parse_args() -> BenchmarkConfig:
         replay_latency_warmup_iterations=args.replay_latency_warmup_iterations,
         memory_soak_iterations=args.memory_soak_iterations,
         memory_growth_limit_mb=args.memory_growth_limit_mb,
+        min_trainer_steps_per_sec=args.min_trainer_steps_per_sec,
+        max_replay_latency_p95_ms=args.max_replay_latency_p95_ms,
+        max_memory_final_growth_mb=args.max_memory_final_growth_mb,
     )
 
 
@@ -349,7 +415,8 @@ def main() -> int:
     cfg = _parse_args()
     report = run_benchmark(cfg)
     print(json.dumps(report, indent=2))
-    return 0
+    summary = report.get("summary", {})
+    return 0 if bool(summary.get("pass", True)) else 2
 
 
 if __name__ == "__main__":

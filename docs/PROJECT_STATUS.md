@@ -1,7 +1,7 @@
 # Project Status
 
 Last updated: 2026-03-01
-Current focus: M7 performance and stability hardening
+Current focus: Baseline bot benchmark phase planning (post-M7+ completion)
 
 ## Current state
 
@@ -9,20 +9,19 @@ Current focus: M7 performance and stability hardening
 - Replay transport now supports both HTTP and websocket paths:
   - HTTP pagination: `GET /api/runs/{run_id}/replays/{replay_id}/frames`
   - WS chunk stream: `WS /ws/runs/{run_id}/replays/{replay_id}/frames`
-  - Frontend replay UI now exposes transport selection (`HTTP /frames` vs `WebSocket stream`).
-- M7 benchmark harness is now implemented in `tools/bench_m7.py` with validation in `tests/test_bench_m7.py`:
-  - trainer throughput (`steps/sec`) from real training runs
-  - replay API latency distribution (`min/mean/p50/p95/p99/max`)
-  - replay API memory soak check using `tracemalloc` growth thresholds
-- M7 long-run stability job is now implemented in `tools/stability_replay_long_run.py` with validation in `tests/test_stability_replay_long_run.py`:
-  - replay index consistency checks (count/ordering/uniqueness/file integrity)
-  - repeated replay catalog + frame endpoint drift detection
-  - cycle-level memory growth thresholds for leak/regression detection
+  - WS tuning controls: `batch_size`, `max_chunk_bytes`, `yield_every_batches`
+  - Frontend replay UI exposes transport selection (`HTTP /frames` vs `WebSocket stream`).
+- M7 benchmark/stability/profiling automation is landed:
+  - benchmark harness: `tools/bench_m7.py` (+ thresholds and non-zero exit on regression)
+  - replay long-run stability job: `tools/stability_replay_long_run.py`
+  - websocket transport profiler: `tools/profile_ws_replay_transport.py`
+  - nightly regression workflow: `.github/workflows/m7-nightly-regression.yml`
 - Validation health (2026-03-01):
-  - `python -m pytest -q tests/test_server_api.py` -> 7 passed (includes websocket replay stream coverage).
-  - `python -m pytest -q tests/test_frontend_presentation.py` -> 6 passed.
-  - `python -m pytest -q tests/test_bench_m7.py` -> 1 passed.
+  - `python -m pytest -q tests/test_server_api.py` -> 9 passed.
+  - `python -m pytest -q tests/test_bench_m7.py` -> 2 passed.
   - `python -m pytest -q tests/test_stability_replay_long_run.py` -> 1 passed.
+  - `python -m pytest -q tests/test_profile_ws_replay_transport.py` -> 1 passed.
+  - `python -m pytest -q` -> 60 passed, 2 skipped.
   - `npm --prefix frontend run lint` -> no ESLint warnings/errors.
   - `npm --prefix frontend run build` -> success for `/`, `/play`, `/analytics`.
 - M6.5 manual replay/play checklist remains captured with deterministic evidence:
@@ -34,8 +33,7 @@ Current focus: M7 performance and stability hardening
   - module runtime: `pufferlib 3.0.3`
   - image tag: `jordanbailey00/rl-puffer-base:py311-puffercore3.0.17`
   - published digest: `sha256:723c58843d9ed563fa66c0927da975bdbab5355c913ec965dbea25a2af67bb71`
-- Completed milestones: M0, M1, M2, M2.5, M3, M4, M5, M6, and M6.5.
-- Active milestone: M7+ performance and stability hardening.
+- Completed milestones: M0, M1, M2, M2.5, M3, M4, M5, M6, M6.5, and M7+ performance/stability hardening.
 
 ## Milestone board
 
@@ -50,18 +48,18 @@ Current focus: M7 performance and stability hardening
 | M5 - API server | Complete | FastAPI run/replay/metrics endpoints, HTTP replay frame pagination, websocket replay frame streaming, in-memory play-session lifecycle endpoints, and CORS configuration with endpoint tests | `e1fe165`, `98149f2`, `81a8bad` |
 | M6 - Frontend integration | Complete | Next.js replay page (`/`), human play mode (`/play`), analytics page (`/analytics`) wired to M5 APIs with playback controls, run/window/replay selection, and historical trend visualizations | `27ab411` |
 | M6.5 - Graphics + audio integration | Complete | Real Kenney assets wired to replay/play rendering, manifests file-backed, semantic asset tests passing, and final manual replay/play checklist evidence captured | `1a77f36`, `f606846`, `b7efc22` |
-| M7+ - Perf and stability | In progress | Replay transport optimization, benchmark harness automation, and long-run replay stability job landed; websocket profiling/tuning and CI gating remain | pending |
+| M7+ - Perf and stability hardening | Complete | HTTP+WS replay transport, websocket chunk tuning, benchmark harness, replay stability soak, websocket profiling sweep, and nightly regression workflow gates | `81a8bad`, `d537be3`, `6404834`, pending (this commit) |
 
 ## Next work (ordered)
 
-1. Profile websocket replay transport under large artifacts and add backpressure/chunk tuning if needed.
-2. Add CI/nightly threshold checks that fail on benchmark and stability regressions.
-3. Add automated schedule wiring for `tools/stability_replay_long_run.py` in nightly workflows.
+1. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and add reproducible CLI runs.
+2. Automate PPO-vs-baseline benchmark protocol across seeds and aggregate summary metrics.
+3. Publish benchmark summaries to W&B as eval job artifacts and expose them in run metadata/API.
 
 ## Active risks and blockers
 
 - Replay UI still buffers the full selected replay in client memory after load; very large artifacts may still need incremental playback virtualization.
-- M7 benchmark/stability harnesses are currently manual-run and not yet enforced by CI/nightly threshold gates.
+- Nightly threshold values may need calibration over time as CI runner performance characteristics drift.
 - There is no published `pufferlib 4.0` package on PyPI as of 2026-03-01; latest published line used here is `pufferlib-core 3.0.17`.
 
 ## Decision pointers
@@ -72,7 +70,8 @@ Current focus: M7 performance and stability hardening
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
-| 2026-03-01 | pending (this commit) | feat | Add long-run replay stability job for index consistency and leak/regression detection |
+| 2026-03-01 | pending (this commit) | feat | Complete M7+ with websocket tuning, transport profiling, and nightly regression gates |
+| 2026-03-01 | `6404834` | feat | Add long-run replay stability job for index consistency and leak/regression detection |
 | 2026-03-01 | `d537be3` | feat | Add M7 benchmark harness for trainer throughput, replay API latency, and memory soak checks |
 | 2026-03-01 | `81a8bad` | feat | Add websocket replay frame streaming endpoint and frontend HTTP/WS transport switch |
 | 2026-03-01 | `b7efc22` | feat | Add reproducible M6.5 manual replay/play checklist runner and evidence artifacts |

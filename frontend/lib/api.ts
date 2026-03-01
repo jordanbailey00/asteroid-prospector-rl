@@ -160,7 +160,13 @@ type ReplayFramesWsMessage = {
 export async function getReplayFramesWebSocket(
   runId: string,
   replayId: string,
-  options?: { offset?: number; limit?: number; batchSize?: number },
+  options?: {
+    offset?: number;
+    limit?: number;
+    batchSize?: number;
+    maxChunkBytes?: number;
+    yieldEveryBatches?: number;
+  },
 ): Promise<ReplayFramesResponse> {
   if (typeof WebSocket === "undefined") {
     throw new Error("WebSocket replay transport is unavailable in this runtime");
@@ -169,6 +175,8 @@ export async function getReplayFramesWebSocket(
   const offset = options?.offset ?? 0;
   const limit = options?.limit ?? 1024;
   const batchSize = options?.batchSize ?? 256;
+  const maxChunkBytes = options?.maxChunkBytes;
+  const yieldEveryBatches = options?.yieldEveryBatches;
 
   const wsUrl = buildWsUrl(
     `/ws/runs/${encodeURIComponent(runId)}/replays/${encodeURIComponent(replayId)}/frames`,
@@ -176,6 +184,8 @@ export async function getReplayFramesWebSocket(
       offset,
       limit,
       batch_size: batchSize,
+      max_chunk_bytes: maxChunkBytes,
+      yield_every_batches: yieldEveryBatches,
     },
   );
 

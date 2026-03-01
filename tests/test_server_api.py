@@ -254,6 +254,61 @@ def test_replay_frame_websocket_stream(tmp_path: Path) -> None:
     assert complete["type"] == "complete"
     assert complete["count"] == 2
     assert complete["has_more"] is False
+    assert complete["chunks_sent"] == 2
+
+
+def test_replay_frame_websocket_max_chunk_bytes_splits_stream(tmp_path: Path) -> None:
+    run_id = "run-ws-chunk-bytes"
+    _make_run(tmp_path, run_id, updated_at="2026-02-28T05:30:00+00:00")
+
+    _write_replay(
+        tmp_path / run_id / "replays" / f"{run_id}-replay.jsonl.gz",
+        [
+            {"frame_index": 0, "action": 1, "blob": "x" * 1500},
+            {"frame_index": 1, "action": 2, "blob": "y" * 1500},
+        ],
+    )
+
+    app = create_app(runs_root=tmp_path)
+    client = TestClient(app)
+
+    with client.websocket_connect(
+        f"/ws/runs/{run_id}/replays/{run_id}-replay/frames"
+        "?offset=0&limit=2&batch_size=10&max_chunk_bytes=1024"
+    ) as ws:
+        first = ws.receive_json()
+        second = ws.receive_json()
+        complete = ws.receive_json()
+
+    assert first["type"] == "frames"
+    assert first["count"] == 1
+    assert first["chunk_bytes"] > 1024
+
+    assert second["type"] == "frames"
+    assert second["count"] == 1
+    assert second["chunk_bytes"] > 1024
+
+    assert complete["type"] == "complete"
+    assert complete["count"] == 2
+    assert complete["chunks_sent"] == 2
+    assert complete["max_chunk_bytes"] == 1024
+
+
+def test_replay_frame_websocket_invalid_chunk_bytes_param(tmp_path: Path) -> None:
+    run_id = "run-ws-invalid-param"
+    _make_run(tmp_path, run_id, updated_at="2026-02-28T05:45:00+00:00")
+
+    app = create_app(runs_root=tmp_path)
+    client = TestClient(app)
+
+    with client.websocket_connect(
+        f"/ws/runs/{run_id}/replays/{run_id}-replay/frames?max_chunk_bytes=1"
+    ) as ws:
+        payload = ws.receive_json()
+
+    assert payload["type"] == "error"
+    assert payload["status_code"] == 400
+    assert "max_chunk_bytes" in payload["detail"]
 
 
 def test_replay_frame_websocket_unknown_replay(tmp_path: Path) -> None:

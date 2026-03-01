@@ -59,4 +59,5 @@ Replay frame pagination (`/frames`):
 
 Notes:
 - Play sessions are process-local, ephemeral, and in-memory.
-- Replay frame delivery supports both HTTP pagination and websocket chunked streaming (`batch_size`, `offset`, `limit`).
+- Replay frame delivery supports both HTTP pagination and websocket chunked streaming (`offset`, `limit`, `batch_size`).
+- Websocket replay stream tuning query params: `max_chunk_bytes` (default `262144`) and `yield_every_batches` (default `8`) for chunk size/backpressure tuning under large artifacts.

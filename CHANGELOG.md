@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added websocket replay stream chunk-tuning controls (`max_chunk_bytes`, `yield_every_batches`) and expanded websocket API test coverage.
+- Added websocket transport profiling sweep tool `tools/profile_ws_replay_transport.py` with regression coverage in `tests/test_profile_ws_replay_transport.py`.
+- Added benchmark threshold gating to `tools/bench_m7.py` with non-zero exit behavior for regression failures and threshold-focused tests.
+- Added scheduled nightly regression workflow `.github/workflows/m7-nightly-regression.yml` to run benchmark/stability gates and publish artifacts.
 - Added M7 long-run stability job `tools/stability_replay_long_run.py` for replay index consistency checks and replay API drift/leak regression detection across repeated cycles.
 - Added stability runner regression test coverage in `tests/test_stability_replay_long_run.py`.
 - Added M7 benchmark harness `tools/bench_m7.py` for trainer throughput, replay API latency percentiles, and replay endpoint memory soak checks, with report artifact output (`artifacts/benchmarks/*.json`).

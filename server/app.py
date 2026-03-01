@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import gzip
 import json
 import random
@@ -505,10 +506,15 @@ def create_app(
                 offset = int(websocket.query_params.get("offset", "0"))
                 limit = int(websocket.query_params.get("limit", "5000"))
                 batch_size = int(websocket.query_params.get("batch_size", "256"))
+                max_chunk_bytes = int(websocket.query_params.get("max_chunk_bytes", "262144"))
+                yield_every_batches = int(websocket.query_params.get("yield_every_batches", "8"))
             except ValueError as exc:
                 raise HTTPException(
                     status_code=400,
-                    detail="offset, limit, and batch_size must be integers",
+                    detail=(
+                        "offset, limit, batch_size, max_chunk_bytes, and "
+                        "yield_every_batches must be integers"
+                    ),
                 ) from exc
 
             if offset < 0:
@@ -517,6 +523,16 @@ def create_app(
                 raise HTTPException(status_code=400, detail="limit must be in [1, 50000]")
             if batch_size < 1 or batch_size > 5000:
                 raise HTTPException(status_code=400, detail="batch_size must be in [1, 5000]")
+            if max_chunk_bytes < 1024 or max_chunk_bytes > 4 * 1024 * 1024:
+                raise HTTPException(
+                    status_code=400,
+                    detail="max_chunk_bytes must be in [1024, 4194304]",
+                )
+            if yield_every_batches < 0 or yield_every_batches > 1000:
+                raise HTTPException(
+                    status_code=400,
+                    detail="yield_every_batches must be in [0, 1000]",
+                )
 
             run_dir = _resolve_run_dir(run_id)
             _, index_payload = _load_index_for_run(run_id, run_dir)
@@ -529,6 +545,8 @@ def create_app(
             sent_count = 0
             has_more = False
             chunk: list[dict[str, Any]] = []
+            chunk_bytes = 0
+            chunks_sent = 0
             chunk_start = offset
 
             with _open_replay(replay_path) as handle:
@@ -544,10 +562,12 @@ def create_app(
                         continue
 
                     chunk.append(payload)
+                    chunk_bytes += len(line.encode("utf-8"))
                     sent_count += 1
 
-                    if len(chunk) >= batch_size:
+                    if len(chunk) >= batch_size or chunk_bytes >= max_chunk_bytes:
                         next_offset = offset + sent_count
+                        chunks_sent += 1
                         await websocket.send_json(
                             {
                                 "type": "frames",
@@ -557,13 +577,20 @@ def create_app(
                                 "next_offset": next_offset,
                                 "count": len(chunk),
                                 "has_more": True,
+                                "chunk_index": chunks_sent - 1,
+                                "chunk_bytes": chunk_bytes,
+                                "max_chunk_bytes": max_chunk_bytes,
                                 "frames": chunk,
                             }
                         )
                         chunk = []
+                        chunk_bytes = 0
                         chunk_start = next_offset
+                        if yield_every_batches > 0 and chunks_sent % yield_every_batches == 0:
+                            await asyncio.sleep(0)
 
             if chunk:
+                chunks_sent += 1
                 await websocket.send_json(
                     {
                         "type": "frames",
@@ -573,6 +600,9 @@ def create_app(
                         "next_offset": offset + sent_count,
                         "count": len(chunk),
                         "has_more": has_more,
+                        "chunk_index": chunks_sent - 1,
+                        "chunk_bytes": chunk_bytes,
+                        "max_chunk_bytes": max_chunk_bytes,
                         "frames": chunk,
                     }
                 )
@@ -587,6 +617,10 @@ def create_app(
                     "count": sent_count,
                     "has_more": has_more,
                     "replay_path": replay_path_raw,
+                    "chunks_sent": chunks_sent,
+                    "batch_size": batch_size,
+                    "max_chunk_bytes": max_chunk_bytes,
+                    "yield_every_batches": yield_every_batches,
                 }
             )
         except WebSocketDisconnect:
