@@ -91,6 +91,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
+| 2026-03-02 | `d394e3a` | feat | Expand M9 smoke checks across W&B analytics routes |
 | 2026-03-02 | `eb5bb73` | feat | Add W&B operation telemetry diagnostics to status endpoint |
 | 2026-03-02 | `6816b10` | feat | Gate M9 deployment smoke checks on W&B status endpoint |
 | 2026-03-02 | `140eadf` | feat | Add W&B proxy diagnostics endpoint with cache telemetry and ops guidance |

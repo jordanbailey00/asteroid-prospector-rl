@@ -6,7 +6,7 @@ Asteroid Prospector RL is an end-to-end reinforcement learning project for a det
 - FastAPI replay/play APIs (HTTP + websocket replay transport),
 - and a Next.js frontend for replay, play, and analytics.
 
-## Current Status (2026-03-01)
+## Current Status (2026-03-02)
 
 - Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M8`.
 - Active milestone: `M9` (throughput program + W&B analytics integration + Vercel alignment).
@@ -35,10 +35,10 @@ Published trainer base image:
 
 ## Immediate Next Work
 
-1. Add backend W&B proxy endpoints for run summaries/history/iteration views.
-2. Extend analytics UI for current iteration, full history, and last-10 iteration drilldown.
-3. Complete deployment path (Vercel frontend + websocket-capable backend) with production env/CORS checks.
-4. Implement baseline bots and automate PPO-vs-baseline benchmark reporting.
+1. Complete live deployment path (Vercel frontend + websocket-capable backend) with production env/CORS/secret wiring.
+2. Run strict M9 deployment smoke checks against production endpoints and publish artifacts.
+3. Implement baseline bots (greedy miner, cautious scanner, market timer) for M7.
+4. Automate PPO-vs-baseline benchmark reporting and publish reproducible summaries.
 
 ## Quick Start
 

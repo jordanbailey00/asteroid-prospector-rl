@@ -425,9 +425,9 @@ Purpose: Establish non-learning benchmarks and track improvements.
 Purpose: Ensure the system can run long training jobs reliably and fast.
 
 ### 10.1 [M8.1] Steps/sec benchmarks
-- Add `tools/bench_steps_per_sec.py`:
-  - fixed config/seed
-  - report env steps/sec and CPU usage
+- Maintain throughput benchmark tooling (`tools/profile_training_throughput.py`, `tools/bench_m7.py`):
+  - fixed config/seed candidate runs
+  - report env/trainer steps/sec and benchmark artifacts
 - Track before/after for performance PRs.
 
 ### 10.2 [M8.2] Native safety checks

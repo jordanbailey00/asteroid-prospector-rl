@@ -5,7 +5,7 @@
 This brief is a quick orientation for any coding agent starting work in this repo.
 It explains what is already built, what remains, and which documents are authoritative.
 
-## Current snapshot (2026-03-01)
+## Current snapshot (2026-03-02)
 
 - Frozen RL interface remains unchanged: `OBS_DIM=260`, `N_ACTIONS=69`, action IDs `0..68`.
 - Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M8`.

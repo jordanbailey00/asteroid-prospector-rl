@@ -1,11 +1,11 @@
-# Asteroid Belt Prospector — Acceptance Tests & Parity Harness Spec
+# Asteroid Belt Prospector - Acceptance Tests & Parity Harness Spec
 
 ## 1) Purpose
 
-This document defines the **acceptance test suite** and the **Python↔C parity harness** required before:
+This document defines the **acceptance test suite** and the **Python<->C parity harness** required before:
 - long-running PufferLib training,
 - replay generation (Option A eval-run recording),
-- and any “learning progress” claims.
+- and any "learning progress" claims.
 
 The environment is intentionally stochastic and non-linear, but it must remain:
 - **API-correct** (Gymnasium-style step/reset),
@@ -28,7 +28,7 @@ These values must never change once training begins:
 ### Episode end semantics (Gymnasium)
 `step()` must return `(obs, reward, terminated, truncated, info)`.
 - `terminated=True` means the episode ended due to a terminal state in the environment (e.g., destroyed/stranded/cash-out).
-- `truncated=True` means the episode ended due to an external time/step limit (e.g., time budget exhausted), even if the environment did not “fail”.
+- `truncated=True` means the episode ended due to an external time/step limit (e.g., time budget exhausted), even if the environment did not "fail".
 
 When either `terminated` or `truncated` is true, the caller must `reset()` before stepping again.
 
@@ -38,25 +38,25 @@ When either `terminated` or `truncated` is true, the caller must `reset()` befor
 
 The test suite is organized into tiers so CI can run fast checks always and heavier checks on demand.
 
-### Tier 0 — Static contract checks (always run)
+### Tier 0 - Static contract checks (always run)
 - Shapes, dtypes, value ranges, and deterministic seeding behavior
 - Action indexing bounds and invalid action handling
 - Reward outputs are finite (no NaN/Inf) and within expected magnitude
 
-### Tier 1 — Engine unit tests (always run)
+### Tier 1 - Engine unit tests (always run)
 - Mining, scan update, market tick, pirate/hazard models: local correctness properties
 - Resource clamps (fuel/hull/heat/tool/cargo bounds)
 - Station-only behaviors (sell/buy/repair) enforced
 
-### Tier 2 — Integration tests (always run)
+### Tier 2 - Integration tests (always run)
 - Full env rollouts (short episodes) do not crash
 - `info` metrics keys exist and are consistent
 - Windowing logic (`window_env_steps`) increments correctly
 
-### Tier 3 — Parity harness (run on main branch, nightly, or manually)
+### Tier 3 - Parity harness (run on main branch, nightly, or manually)
 - Python reference env vs C core match under identical seeds and action sequences
 
-### Tier 4 — Performance and soak tests (manual / nightly)
+### Tier 4 - Performance and soak tests (manual / nightly)
 - steps/sec benchmarks
 - multi-hour stability (no leaks, no drift)
 
@@ -65,7 +65,7 @@ The test suite is organized into tiers so CI can run fast checks always and heav
 ## 4) Required test tooling
 
 ### Python test framework
-- Use `pytest` for unit + integration tests, including parametrization.  
+- Use `pytest` for unit + integration tests, including parametrization.
 - Use `hypothesis` for property-based tests (randomized edge-case generation).
 
 ### Native core test harness
@@ -77,12 +77,12 @@ The test suite is organized into tiers so CI can run fast checks always and heav
 
 ## 5) Determinism contract (required for parity and reproducible replays)
 
-Because NumPy’s RNG and a custom C RNG will not match bit-for-bit by default, define one authoritative RNG:
+Because NumPy's RNG and a custom C RNG will not match bit-for-bit by default, define one authoritative RNG:
 
 ### 5.1 Authoritative RNG requirement
 - The C core must implement a deterministic RNG algorithm (e.g., PCG32 / xoshiro / splitmix) with:
   - explicit seed initialization
-  - explicit “next_u32/next_f32” functions
+  - explicit "next_u32/next_f32" functions
 - The Python reference environment MUST use the *same RNG algorithm* (either by:
   - calling into the C RNG via bindings, or
   - implementing the same RNG in Python with exact integer arithmetic)
@@ -111,7 +111,7 @@ Because NumPy’s RNG and a custom C RNG will not match bit-for-bit by default, 
 ## 6) Parity harness (Python reference vs C core)
 
 ### 6.1 Why a Python reference env exists
-Before optimizing in C, implement a “golden” Python environment that:
+Before optimizing in C, implement a "golden" Python environment that:
 - follows the frozen interface exactly,
 - is readable/debuggable,
 - is used for parity comparisons only (not for production training once C core is ready).
@@ -171,7 +171,7 @@ Because float math may differ slightly across compilers/platforms:
   - `abs_diff <= 1e-4 * max(1, |value|)` (or equivalent)
 
 If tolerances fail:
-- dump a “mismatch bundle”:
+- dump a "mismatch bundle":
   - seed
   - config hash
   - action sequence
@@ -192,8 +192,8 @@ Use three test action suites:
 - repeated emergency burns and cooldown loops
 
 **Suite C: Scenario scripts (semi-deterministic)**
-- “scan → select → mine → cool → return → dock → sell”
-- “risk run”: aggressive mine until heat threshold, test overheat clamping
+- "scan -> select -> mine -> cool -> return -> dock -> sell"
+- "risk run": aggressive mine until heat threshold, test overheat clamping
 
 ### 6.6 Parity test matrix (minimum)
 Run parity across:
@@ -202,7 +202,7 @@ Run parity across:
 - 2 episode configs (short and medium TIME_MAX)
 
 Minimum parity workload:
-- 10 seeds × 3 suites × T=2000 steps = 60k step comparisons
+- 10 seeds x 3 suites x T=2000 steps = 60k step comparisons
 
 ---
 
@@ -280,7 +280,7 @@ Each frame contains:
 
 ### 9.2 Replay fidelity test (key)
 For an eval episode recorded from a checkpoint:
-- replay frames must match the env’s step outputs for:
+- replay frames must match the env's step outputs for:
   - action sequence
   - reward sequence
   - terminated/truncated location
@@ -337,10 +337,10 @@ Use FastAPI test client to validate:
 
 ### Must-pass before long training runs
 - Tier 3 (parity harness) on at least:
-  - 10 seeds × Suite A and Suite B
+  - 10 seeds x Suite A and Suite B
 
 ### Performance checks (non-gating unless explicitly enabled)
-- Run `bench_steps_per_sec` and report in CI logs
+- Run `tools/profile_training_throughput.py` (and optionally `tools/bench_m7.py`) and report results in CI logs
 
 ---
 
@@ -363,13 +363,13 @@ Use FastAPI test client to validate:
 - `tests/test_replay_schema.py`
 - `tests/test_windowing.py`
 - `tests/test_wandb_offline.py`
-- `tests/test_api_smoke.py`
+- `tests/test_server_api.py`
 - `tools/run_parity.py`
 - `engine_core/core_test_runner.c` (or equivalent)
 
 ---
 
-## 16) “Stop-the-line” failures (must fix immediately)
+## 16) "Stop-the-line" failures (must fix immediately)
 
 If any of these occur, do not proceed with training:
 - parity harness mismatch beyond tolerance
