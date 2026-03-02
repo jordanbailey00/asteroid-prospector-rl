@@ -363,3 +363,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add `GET /api/wandb/status` to expose backend-side W&B proxy diagnostics (`available`, `reason`, configured default scope, and cache telemetry counters including `ttl_seconds`, `hits`, `misses`, `expired`, `sets`). Also return operator notes that flag missing scope defaults, disabled/low cache TTL, and unavailable proxy state.
 - Consequences: Operators can quickly validate W&B integration health and tune `ABP_WANDB_CACHE_TTL_SECONDS` with explicit API feedback before/after deployment smoke runs.
 - Related commits/docs: `server/app.py`, `tests/test_server_api.py`, `server/README.md`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0040 - Gate deployment smoke checks on W&B proxy status with optional strict notes mode
+
+- Date: 2026-03-02
+- Status: Accepted
+- Context: After adding `/api/wandb/status`, deployment smoke still only validated `/api/wandb/runs/latest`, which could pass while status diagnostics reported unresolved auth/scope/cache issues.
+- Decision: Extend `tools/smoke_m9_deployment.py` to validate `GET /api/wandb/status` and add `--require-clean-wandb-status` so release checks can fail when actionable notes are present. Mirror this in the manual CI workflow through `require_clean_wandb_status` input.
+- Consequences: Operators can choose non-strict checks for exploratory verification and strict checks for release promotion, while smoke artifacts now include explicit W&B status-gate evidence.
+- Related commits/docs: `tools/smoke_m9_deployment.py`, `tests/test_smoke_m9_deployment.py`, `.github/workflows/m9-deployment-smoke.yml`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`

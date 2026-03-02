@@ -1,4 +1,11 @@
-from tools.smoke_m9_deployment import _build_url, derive_ws_base, normalize_base
+import pytest
+
+from tools.smoke_m9_deployment import (
+    _build_url,
+    _parse_wandb_status_payload,
+    derive_ws_base,
+    normalize_base,
+)
 
 
 def test_derive_ws_base_from_http_and_https() -> None:
@@ -22,3 +29,41 @@ def test_build_url_with_query() -> None:
         "https://api.example.com/api/runs?limit=10&order=desc",
         "https://api.example.com/api/runs?order=desc&limit=10",
     }
+
+
+def test_parse_wandb_status_payload_allows_available_non_strict() -> None:
+    available, reason, notes = _parse_wandb_status_payload(
+        {
+            "available": True,
+            "reason": None,
+            "notes": [" cache ttl is low ", ""],
+        },
+        require_clean_wandb_status=False,
+    )
+    assert available is True
+    assert reason is None
+    assert notes == ["cache ttl is low"]
+
+
+def test_parse_wandb_status_payload_rejects_unavailable() -> None:
+    with pytest.raises(RuntimeError, match="reported unavailable"):
+        _parse_wandb_status_payload(
+            {
+                "available": False,
+                "reason": "missing api key",
+                "notes": [],
+            },
+            require_clean_wandb_status=False,
+        )
+
+
+def test_parse_wandb_status_payload_rejects_notes_in_strict_mode() -> None:
+    with pytest.raises(RuntimeError, match="strict mode"):
+        _parse_wandb_status_payload(
+            {
+                "available": True,
+                "reason": None,
+                "notes": ["missing defaults"],
+            },
+            require_clean_wandb_status=True,
+        )

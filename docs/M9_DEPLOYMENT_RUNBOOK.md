@@ -55,6 +55,7 @@ python tools/smoke_m9_deployment.py \
   --frontend-base "https://<vercel-app-domain>" \
   --wandb-entity "<wandb-entity>" \
   --wandb-project "<wandb-project>" \
+  --require-clean-wandb-status \
   --output-path artifacts/deploy/smoke-m9.json
 ```
 
@@ -73,6 +74,7 @@ Notes:
   - backend `/health`, runs catalog, replay HTTP frames,
   - replay websocket stream route,
   - frontend routes (`/`, `/play`, `/analytics`),
+  - W&B proxy status endpoint (`/api/wandb/status`),
   - W&B proxy latest-runs endpoint.
 - Exit code is non-zero when any check fails.
 - Check `GET /api/wandb/status` for auth/config/cache diagnostics before retrying failed W&B smoke checks.
@@ -92,6 +94,7 @@ Optional inputs:
 - `run_id` + `replay_id`
 - `allow_empty_runs`
 - `skip_wandb`
+- `require_clean_wandb_status`
 - `wandb_entity`, `wandb_project`
 
 The workflow uploads `artifacts/deploy/m9-smoke-<run_id>.json` as an artifact.

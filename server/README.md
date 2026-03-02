@@ -88,9 +88,10 @@ python tools/smoke_m9_deployment.py \
   --backend-ws-base "wss://<backend-host>" \
   --frontend-base "https://<vercel-domain>" \
   --wandb-entity "<wandb-entity>" \
-  --wandb-project "<wandb-project>"
+  --wandb-project "<wandb-project>" \
+  --require-clean-wandb-status
 ```
 
-See `docs/M9_DEPLOYMENT_RUNBOOK.md` for full procedure.
+See `docs/M9_DEPLOYMENT_RUNBOOK.md` for full procedure. Use `--require-clean-wandb-status` for release gating when W&B status notes must be empty.
 
 Manual CI run: `.github/workflows/m9-deployment-smoke.yml` (workflow_dispatch).

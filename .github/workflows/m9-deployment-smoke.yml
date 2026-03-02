@@ -33,6 +33,11 @@ on:
         required: false
         default: false
         type: boolean
+      require_clean_wandb_status:
+        description: "Fail if /api/wandb/status returns actionable notes"
+        required: false
+        default: false
+        type: boolean
       wandb_entity:
         description: "Optional W&B entity override"
         required: false
@@ -96,6 +101,10 @@ jobs:
 
           if [ "${{ inputs.skip_wandb }}" = "true" ]; then
             CMD+=(--skip-wandb)
+          fi
+
+          if [ "${{ inputs.require_clean_wandb_status }}" = "true" ]; then
+            CMD+=(--require-clean-wandb-status)
           fi
 
           if [ -n "${{ inputs.wandb_entity }}" ]; then

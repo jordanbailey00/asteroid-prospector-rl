@@ -30,6 +30,7 @@ class SmokeConfig:
     replay_id: str | None
     allow_empty_runs: bool
     skip_wandb: bool
+    require_clean_wandb_status: bool
     wandb_entity: str | None
     wandb_project: str | None
     output_path: Path | None
@@ -371,6 +372,14 @@ def run_smoke(cfg: SmokeConfig) -> dict[str, Any]:
     if cfg.skip_wandb:
         results.append(
             SmokeCheckResult(
+                name="wandb-status",
+                ok=True,
+                elapsed_ms=0.0,
+                detail="Skipped W&B status check (--skip-wandb).",
+            )
+        )
+        results.append(
+            SmokeCheckResult(
                 name="wandb-latest-runs",
                 ok=True,
                 elapsed_ms=0.0,
@@ -378,6 +387,11 @@ def run_smoke(cfg: SmokeConfig) -> dict[str, Any]:
             )
         )
     else:
+        _record_check(
+            name="wandb-status",
+            results=results,
+            fn=lambda: _check_wandb_status(session=session, cfg=cfg),
+        )
         _record_check(
             name="wandb-latest-runs",
             results=results,
@@ -521,6 +535,69 @@ def _check_wandb_latest(*, session: requests.Session, cfg: SmokeConfig) -> str:
     return f"W&B latest endpoint returned {len(rows)} rows"
 
 
+def _parse_wandb_status_payload(
+    payload: Any,
+    *,
+    require_clean_wandb_status: bool,
+) -> tuple[bool, str | None, list[str]]:
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Unexpected W&B status payload: {payload!r}")
+
+    available_raw = payload.get("available")
+    if not isinstance(available_raw, bool):
+        raise RuntimeError(f"W&B status missing boolean 'available': {payload!r}")
+
+    reason_raw = payload.get("reason")
+    reason: str | None = None
+    if isinstance(reason_raw, str) and reason_raw.strip() != "":
+        reason = reason_raw.strip()
+
+    notes_raw = payload.get("notes", [])
+    if notes_raw is None:
+        notes_raw = []
+    if not isinstance(notes_raw, list):
+        raise RuntimeError(f"W&B status notes must be a list: {payload!r}")
+
+    notes: list[str] = []
+    for item in notes_raw:
+        if not isinstance(item, str):
+            continue
+        text = item.strip()
+        if text != "":
+            notes.append(text)
+
+    if not available_raw:
+        reason_suffix = f": {reason}" if reason is not None else ""
+        raise RuntimeError(f"W&B status reported unavailable{reason_suffix}")
+
+    if require_clean_wandb_status and len(notes) > 0:
+        raise RuntimeError(
+            "W&B status reported actionable notes while strict mode is enabled: " + "; ".join(notes)
+        )
+
+    return available_raw, reason, notes
+
+
+def _check_wandb_status(*, session: requests.Session, cfg: SmokeConfig) -> str:
+    url = _build_url(cfg.backend_http_base, "/api/wandb/status")
+    status_code, payload = _http_json(session=session, url=url, timeout_seconds=cfg.timeout_seconds)
+    if status_code != 200:
+        raise RuntimeError(f"Expected 200, got {status_code}: {payload!r}")
+
+    _, _, notes = _parse_wandb_status_payload(
+        payload,
+        require_clean_wandb_status=cfg.require_clean_wandb_status,
+    )
+
+    mode = "strict" if cfg.require_clean_wandb_status else "non-strict"
+    if len(notes) == 0:
+        return f"W&B status endpoint reported available=true (notes=0, mode={mode})"
+    return (
+        "W&B status endpoint reported available=true "
+        f"(notes={len(notes)}, mode={mode}): " + "; ".join(notes)
+    )
+
+
 def _parse_args() -> SmokeConfig:
     parser = argparse.ArgumentParser(description="Deployment smoke checks for M9 split hosting")
     parser.add_argument("--backend-http-base", type=str, required=True)
@@ -531,6 +608,7 @@ def _parse_args() -> SmokeConfig:
     parser.add_argument("--replay-id", type=str, default=None)
     parser.add_argument("--allow-empty-runs", action="store_true")
     parser.add_argument("--skip-wandb", action="store_true")
+    parser.add_argument("--require-clean-wandb-status", action="store_true")
     parser.add_argument("--wandb-entity", type=str, default=None)
     parser.add_argument("--wandb-project", type=str, default=None)
     parser.add_argument("--output-path", type=Path, default=None)
@@ -557,6 +635,7 @@ def _parse_args() -> SmokeConfig:
         replay_id=args.replay_id,
         allow_empty_runs=bool(args.allow_empty_runs),
         skip_wandb=bool(args.skip_wandb),
+        require_clean_wandb_status=bool(args.require_clean_wandb_status),
         wandb_entity=args.wandb_entity,
         wandb_project=args.wandb_project,
         output_path=args.output_path,
