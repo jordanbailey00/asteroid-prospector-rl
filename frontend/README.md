@@ -15,6 +15,10 @@ The UI calls the M5 API server endpoints:
 - `/api/runs`, `/api/runs/{run_id}`
 - `/api/runs/{run_id}/replays` + replay detail/frames
 - `/api/runs/{run_id}/metrics/windows`
+- `/api/wandb/runs/latest`
+- `/api/wandb/runs/{wandb_run_id}/summary`
+- `/api/wandb/runs/{wandb_run_id}/history`
+- `/api/wandb/runs/{wandb_run_id}/iteration-view`
 - `/api/play/session` lifecycle endpoints
 
 Set backend URL via:

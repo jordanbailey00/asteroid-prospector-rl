@@ -18,6 +18,10 @@ python -m uvicorn server.main:app --reload --port 8000
 - `ABP_RUNS_ROOT` (default `runs`)
 - `ABP_CORS_ORIGINS` (comma-separated list; optional)
 - `ABP_CORS_ORIGIN_REGEX` (optional; defaults to `https://.*\.vercel\.app`)
+- `ABP_WANDB_ENTITY` (optional default W&B entity for proxy routes)
+- `ABP_WANDB_PROJECT` (optional default W&B project for proxy routes)
+- `WANDB_API_KEY` (optional; server-side key used by W&B proxy routes)
+- `ABP_WANDB_CACHE_TTL_SECONDS` (optional; default `30`, controls W&B proxy cache TTL)
 
 Examples:
 
@@ -30,6 +34,10 @@ python -m uvicorn server.main:app --reload --port 8000
 ## Implemented endpoints
 
 - `GET /health`
+- `GET /api/wandb/runs/latest`
+- `GET /api/wandb/runs/{wandb_run_id}/summary`
+- `GET /api/wandb/runs/{wandb_run_id}/history`
+- `GET /api/wandb/runs/{wandb_run_id}/iteration-view`
 - `GET /api/runs`
 - `GET /api/runs/{run_id}`
 - `GET /api/runs/{run_id}/metrics/windows`
@@ -52,6 +60,12 @@ Replay list filters (`/api/runs/{run_id}/replays`):
 Metrics query (`/api/runs/{run_id}/metrics/windows`):
 - `limit`
 - `order` (`asc` or `desc`)
+
+W&B proxy query controls:
+- `/api/wandb/runs/latest`: `limit` (1..50), optional `entity`, `project`
+- `/api/wandb/runs/{wandb_run_id}/history`: optional `keys` CSV and `max_points` (1..5000)
+- `/api/wandb/runs/{wandb_run_id}/iteration-view`: optional `keys` CSV and `max_points` (1..5000)
+- If `entity`/`project` query args are omitted, server defaults from `ABP_WANDB_ENTITY` + `ABP_WANDB_PROJECT`.
 
 Replay frame pagination (`/frames`):
 - `offset`

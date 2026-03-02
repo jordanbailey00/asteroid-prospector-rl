@@ -90,6 +90,61 @@ export interface WindowMetric {
   [key: string]: unknown;
 }
 
+export interface WandbRunLite {
+  run_id: string;
+  name?: string | null;
+  state?: string | null;
+  url?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  summary_preview?: Record<string, unknown>;
+}
+
+export interface WandbLatestRunsResponse {
+  entity: string;
+  project: string;
+  count: number;
+  runs: WandbRunLite[];
+}
+
+export interface WandbRunSummary {
+  run_id: string;
+  name?: string | null;
+  state?: string | null;
+  url?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  config?: Record<string, unknown>;
+  summary: Record<string, unknown>;
+}
+
+export interface WandbRunSummaryResponse {
+  entity: string;
+  project: string;
+  run: WandbRunSummary;
+}
+
+export interface WandbRunHistoryResponse {
+  entity: string;
+  project: string;
+  run_id: string;
+  keys: string[] | null;
+  count: number;
+  rows: Array<Record<string, unknown>>;
+}
+
+export interface WandbIterationViewResponse {
+  entity: string;
+  project: string;
+  run: WandbRunSummary;
+  history: {
+    keys: string[];
+    count: number;
+    rows: Array<Record<string, unknown>>;
+  };
+  kpis: Record<string, unknown>;
+}
+
 export interface PlaySessionCreateRequest {
   seed?: number;
   env_time_max?: number;

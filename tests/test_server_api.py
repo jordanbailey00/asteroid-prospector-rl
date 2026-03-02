@@ -395,3 +395,185 @@ def test_cors_preflight_allows_localhost_origin(tmp_path: Path) -> None:
 
     assert response.status_code in {200, 204}
     assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+
+class _FakeWandbProxy:
+    def __init__(self) -> None:
+        self.calls = {
+            "list_runs": 0,
+            "get_run_summary": 0,
+            "get_run_history": 0,
+        }
+
+    def list_runs(self, *, entity: str, project: str, limit: int) -> list[dict]:
+        self.calls["list_runs"] += 1
+        rows = [
+            {
+                "run_id": "wb-iter-002",
+                "name": "iter-002",
+                "state": "finished",
+                "url": f"https://wandb.ai/{entity}/{project}/runs/wb-iter-002",
+                "summary_preview": {
+                    "_step": 200,
+                    "return_mean": 17.5,
+                    "profit_mean": 110.0,
+                    "survival_rate": 1.0,
+                },
+            },
+            {
+                "run_id": "wb-iter-001",
+                "name": "iter-001",
+                "state": "finished",
+                "url": f"https://wandb.ai/{entity}/{project}/runs/wb-iter-001",
+                "summary_preview": {
+                    "_step": 100,
+                    "return_mean": 12.0,
+                    "profit_mean": 70.0,
+                    "survival_rate": 0.95,
+                },
+            },
+        ]
+        return rows[: int(limit)]
+
+    def get_run_summary(self, *, entity: str, project: str, run_id: str) -> dict:
+        self.calls["get_run_summary"] += 1
+        return {
+            "run_id": run_id,
+            "name": f"name-{run_id}",
+            "state": "finished",
+            "url": f"https://wandb.ai/{entity}/{project}/runs/{run_id}",
+            "summary": {
+                "window_id": 5,
+                "env_steps_total": 1200,
+                "reward_mean": 1.3,
+                "return_mean": 18.0,
+                "profit_mean": 115.0,
+                "survival_rate": 1.0,
+            },
+            "config": {
+                "seed": 7,
+            },
+        }
+
+    def get_run_history(
+        self,
+        *,
+        entity: str,
+        project: str,
+        run_id: str,
+        keys: list[str] | None,
+        max_points: int,
+    ) -> list[dict]:
+        self.calls["get_run_history"] += 1
+        del entity
+        del project
+        del run_id
+
+        rows = [
+            {
+                "_step": 100,
+                "window_id": 4,
+                "env_steps_total": 1000,
+                "reward_mean": 1.1,
+                "return_mean": 16.0,
+                "profit_mean": 95.0,
+                "survival_rate": 0.9,
+            },
+            {
+                "_step": 200,
+                "window_id": 5,
+                "env_steps_total": 1200,
+                "reward_mean": 1.3,
+                "return_mean": 18.0,
+                "profit_mean": 115.0,
+                "survival_rate": 1.0,
+            },
+        ]
+
+        if keys is None:
+            selected = rows
+        else:
+            selected = []
+            for row in rows:
+                selected.append({key: row[key] for key in keys if key in row})
+        return selected[: int(max_points)]
+
+
+class _FailingWandbProxy:
+    def list_runs(self, *, entity: str, project: str, limit: int) -> list[dict]:
+        del entity
+        del project
+        del limit
+        raise RuntimeError("W&B proxy unavailable in test")
+
+
+def test_wandb_proxy_endpoints(tmp_path: Path) -> None:
+    wandb_proxy = _FakeWandbProxy()
+    app = create_app(
+        runs_root=tmp_path,
+        wandb_proxy=wandb_proxy,
+        wandb_default_entity="team-astro",
+        wandb_default_project="asteroid-prospector",
+    )
+    client = TestClient(app)
+
+    latest_resp = client.get("/api/wandb/runs/latest", params={"limit": 2})
+    assert latest_resp.status_code == 200
+    latest_payload = latest_resp.json()
+    assert latest_payload["entity"] == "team-astro"
+    assert latest_payload["project"] == "asteroid-prospector"
+    assert latest_payload["count"] == 2
+    assert latest_payload["runs"][0]["run_id"] == "wb-iter-002"
+
+    summary_resp = client.get("/api/wandb/runs/wb-iter-002/summary")
+    assert summary_resp.status_code == 200
+    summary_payload = summary_resp.json()
+    assert summary_payload["run"]["summary"]["profit_mean"] == 115.0
+
+    history_resp = client.get(
+        "/api/wandb/runs/wb-iter-002/history",
+        params={"keys": "_step,return_mean,profit_mean", "max_points": 10},
+    )
+    assert history_resp.status_code == 200
+    history_payload = history_resp.json()
+    assert history_payload["count"] == 2
+    assert history_payload["rows"][0]["_step"] == 100
+    assert history_payload["rows"][1]["profit_mean"] == 115.0
+
+    view_resp = client.get(
+        "/api/wandb/runs/wb-iter-002/iteration-view",
+        params={"keys": "_step,window_id,return_mean,profit_mean,survival_rate"},
+    )
+    assert view_resp.status_code == 200
+    view_payload = view_resp.json()
+    assert view_payload["history"]["count"] == 2
+    assert view_payload["kpis"]["window_id"] == 5
+    assert view_payload["kpis"]["return_mean"] == 18.0
+    assert view_payload["kpis"]["profit_mean"] == 115.0
+
+    assert wandb_proxy.calls["list_runs"] == 1
+    assert wandb_proxy.calls["get_run_summary"] == 2
+    assert wandb_proxy.calls["get_run_history"] == 2
+
+
+def test_wandb_proxy_requires_scope_when_not_configured(tmp_path: Path) -> None:
+    app = create_app(runs_root=tmp_path, wandb_proxy=_FakeWandbProxy())
+    client = TestClient(app)
+
+    response = client.get("/api/wandb/runs/latest")
+    assert response.status_code == 400
+    assert "W&B entity/project not configured" in response.json()["detail"]
+
+
+def test_wandb_proxy_surfaces_unavailable_errors(tmp_path: Path) -> None:
+    app = create_app(
+        runs_root=tmp_path,
+        wandb_proxy=_FailingWandbProxy(),
+        wandb_default_entity="team-astro",
+        wandb_default_project="asteroid-prospector",
+    )
+    client = TestClient(app)
+
+    response = client.get("/api/wandb/runs/latest")
+    assert response.status_code == 503
+    assert "W&B proxy unavailable" in response.json()["detail"]

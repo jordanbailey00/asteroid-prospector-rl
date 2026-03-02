@@ -327,3 +327,12 @@ Use this file for non-trivial project decisions.
 - Decision: Treat `docs/BUILD_CHECKLIST.md` as canonical milestone taxonomy (`M7` baselines/benchmarking, `M8` performance/stability, `M9` throughput+W&B+Vercel), then align `README.md`, `docs/PROJECT_STATUS.md`, and agent-facing docs to that taxonomy. Rewrite corrupted handoff/hygiene docs into clean ASCII to remove ambiguity and redundant stale guidance.
 - Consequences: Current and remaining work is now explicit and non-conflicting across planning/status docs; future updates must keep milestone naming synchronized with the checklist to avoid roadmap drift.
 - Related commits/docs: `docs/BUILD_CHECKLIST.md`, `docs/PROJECT_STATUS.md`, `docs/AGENT_HANDOFF_BRIEF.md`, `docs/AGENT_HYGIENE_GUARDRAILS.md`, `README.md`, `CHANGELOG.md`
+
+### ADR-0036 - Serve M9 analytics through bounded, cache-backed backend W&B proxy endpoints
+
+- Date: 2026-03-02
+- Status: Accepted
+- Context: M9 requires iteration analytics in the frontend while keeping W&B credentials off the client and preventing dashboard regressions from unbounded history queries or repeated API calls.
+- Decision: Add backend W&B proxy routes (`/api/wandb/runs/latest`, `/summary`, `/history`, `/iteration-view`) with strict query bounds (`limit`, `max_points`, key-count caps), server-side scope resolution (`ABP_WANDB_ENTITY`/`ABP_WANDB_PROJECT` defaults with query overrides), and in-process TTL caching (default `30s`). Keep `WANDB_API_KEY` server-side only and never expose it to frontend clients.
+- Consequences: Analytics UI can query W&B safely via the backend, rate-limit pressure is reduced via TTL caching, and large/expensive history fetches are constrained by contract. Operators must configure W&B env vars on backend deployments.
+- Related commits/docs: `server/app.py`, `server/main.py`, `tests/test_server_api.py`, `frontend/lib/api.ts`, `frontend/lib/types.ts`, `frontend/components/analytics-dashboard.tsx`, `server/README.md`, `frontend/README.md`

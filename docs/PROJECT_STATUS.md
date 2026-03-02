@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-03-01
+Last updated: 2026-03-02
 Current focus: M9 execution (throughput evidence, W&B-backed analytics integration, Vercel deployment alignment)
 
 ## Current state
@@ -19,6 +19,12 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
   - HTTP frame pagination (`GET /api/runs/{run_id}/replays/{replay_id}/frames`),
   - websocket chunk stream (`WS /ws/runs/{run_id}/replays/{replay_id}/frames`).
 - Frontend routes are live for replay (`/`), play (`/play`), and analytics (`/analytics`).
+- Backend W&B proxy endpoints are now available for iteration analytics:
+  - `GET /api/wandb/runs/latest`
+  - `GET /api/wandb/runs/{wandb_run_id}/summary`
+  - `GET /api/wandb/runs/{wandb_run_id}/history`
+  - `GET /api/wandb/runs/{wandb_run_id}/iteration-view`
+- Analytics UI now includes W&B-backed last-10 iteration drilldown, KPI snapshot cards, and trend sparklines.
 - M6.5 manual verification artifacts remain captured:
   - `docs/M65_MANUAL_VERIFICATION.md`
   - `docs/verification/m65_sample_replay.jsonl`
@@ -38,12 +44,13 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 | M6.5 - Graphics + audio | Complete | File-backed Kenney asset wiring plus validation checks |
 | M7 - Baselines + benchmarking | Pending | Baseline bots and benchmark protocol automation are not complete yet |
 | M8 - Performance + stability hardening | Complete | Replay transport tuning, benchmark/stability runners, native batch runtime path |
-| M9 - Throughput + W&B dashboard + Vercel alignment | In Progress | Throughput matrix/floor artifacts are in place; W&B proxy + analytics/deployment work remains |
+| M9 - Throughput + W&B dashboard + Vercel alignment | In Progress | Throughput matrix/floor artifacts plus W&B proxy + analytics drilldown are in place; deployment alignment remains |
 
-## Latest recorded validation health (2026-03-01)
+## Latest recorded validation health (2026-03-02)
 
 - `python -m pytest -q` -> 80 passed, 2 skipped.
 - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
+- `python -m pytest -q tests/test_server_api.py` -> 12 passed.
 - `npm --prefix frontend run lint` -> pass.
 - `npm --prefix frontend run build` -> pass (`/`, `/play`, `/analytics`).
 - `python tools/run_parity.py --seeds 2 --steps 512 --native-library engine_core/build/abp_core.dll` -> 12/12 cases passed.
@@ -51,16 +58,12 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 ## Next work (ordered)
 
-1. Implement backend W&B proxy endpoints (runs, summary, history, iteration-scoped views) with bounded queries and cache TTL.
-2. Extend frontend analytics UI to show:
-   - selected iteration metrics,
-   - full historical trend,
-   - last-10 iteration dropdown drilldown,
-   - KPI snapshot cards.
-3. Complete deployment path:
+1. Complete deployment path:
    - frontend on Vercel,
    - backend on websocket-capable host,
    - production CORS/env/secret wiring.
+2. Add deployment smoke checks for replay websocket transport and W&B proxy analytics routes.
+3. Harden W&B proxy operations with production runbooks (auth/config failure diagnostics and cache tuning guidance).
 4. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
 5. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
 

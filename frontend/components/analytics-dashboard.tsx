@@ -1,10 +1,25 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
-import { backendBaseUrl, getMetricsWindows, getRun, listReplays, listRuns } from "@/lib/api";
+import {
+  backendBaseUrl,
+  getMetricsWindows,
+  getRun,
+  getWandbIterationView,
+  listReplays,
+  listRuns,
+  listWandbLatestRuns,
+} from "@/lib/api";
 import { formatNumber, formatTimestamp, toNumericSeries } from "@/lib/format";
-import { ReplayEntry, RunDetailResponse, RunSummary, WindowMetric } from "@/lib/types";
+import {
+  ReplayEntry,
+  RunDetailResponse,
+  RunSummary,
+  WandbIterationViewResponse,
+  WandbRunLite,
+  WindowMetric,
+} from "@/lib/types";
 
 import { Sparkline } from "@/components/sparkline";
 
@@ -14,6 +29,11 @@ type TimelineRow = {
   hasBest: boolean;
   milestoneTags: string[];
 };
+
+function asFiniteNumber(value: unknown): number | undefined {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : undefined;
+}
 
 function renderLinks(detail: RunDetailResponse | null) {
   if (!detail) {
@@ -76,6 +96,10 @@ function buildReplayTimeline(entries: ReplayEntry[]): TimelineRow[] {
   return Array.from(byWindow.values()).sort((a, b) => b.windowId - a.windowId);
 }
 
+function latestWandbValue(kpis: Record<string, unknown>, key: string): number | undefined {
+  return asFiniteNumber(kpis[key]);
+}
+
 export function AnalyticsDashboard() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [selectedRunId, setSelectedRunId] = useState("");
@@ -91,6 +115,12 @@ export function AnalyticsDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [wandbRuns, setWandbRuns] = useState<WandbRunLite[]>([]);
+  const [selectedWandbRunId, setSelectedWandbRunId] = useState("");
+  const [wandbIterationView, setWandbIterationView] = useState<WandbIterationViewResponse | null>(null);
+  const [wandbLoading, setWandbLoading] = useState(false);
+  const [wandbError, setWandbError] = useState<string | null>(null);
+
   useEffect(() => {
     listRuns(100)
       .then((payload) => {
@@ -101,6 +131,26 @@ export function AnalyticsDashboard() {
       })
       .catch((err: Error) => setError(err.message));
   }, [selectedRunId]);
+
+  useEffect(() => {
+    listWandbLatestRuns({ limit: 10 })
+      .then((payload) => {
+        setWandbRuns(payload.runs);
+        setWandbError(null);
+        setSelectedWandbRunId((current) => {
+          if (current !== "") {
+            return current;
+          }
+          const first = payload.runs[0];
+          return first ? first.run_id : "";
+        });
+      })
+      .catch((err: Error) => {
+        setWandbRuns([]);
+        setWandbIterationView(null);
+        setWandbError(err.message);
+      });
+  }, []);
 
   useEffect(() => {
     if (!selectedRunId) {
@@ -146,6 +196,36 @@ export function AnalyticsDashboard() {
       })
       .catch((err: Error) => setError(err.message));
   }, [compareRunId]);
+
+  useEffect(() => {
+    if (!selectedWandbRunId) {
+      setWandbIterationView(null);
+      return;
+    }
+
+    setWandbLoading(true);
+    getWandbIterationView(selectedWandbRunId, {
+      keys: [
+        "_step",
+        "window_id",
+        "env_steps_total",
+        "reward_mean",
+        "return_mean",
+        "profit_mean",
+        "survival_rate",
+      ],
+      maxPoints: 1000,
+    })
+      .then((payload) => {
+        setWandbIterationView(payload);
+        setWandbError(null);
+      })
+      .catch((err: Error) => {
+        setWandbIterationView(null);
+        setWandbError(err.message);
+      })
+      .finally(() => setWandbLoading(false));
+  }, [selectedWandbRunId]);
 
   const rewardTrend = useMemo(
     () => toNumericSeries(metrics as Array<Record<string, unknown>>, "reward_mean"),
@@ -197,9 +277,27 @@ export function AnalyticsDashboard() {
     [compareMetrics],
   );
 
+  const wandbHistoryRows = useMemo(
+    () => (wandbIterationView ? wandbIterationView.history.rows : []),
+    [wandbIterationView],
+  );
+  const wandbReturnTrend = useMemo(
+    () => toNumericSeries(wandbHistoryRows, "return_mean"),
+    [wandbHistoryRows],
+  );
+  const wandbProfitTrend = useMemo(
+    () => toNumericSeries(wandbHistoryRows, "profit_mean"),
+    [wandbHistoryRows],
+  );
+  const wandbSurvivalTrend = useMemo(
+    () => toNumericSeries(wandbHistoryRows, "survival_rate"),
+    [wandbHistoryRows],
+  );
+
   const timeline = useMemo(() => buildReplayTimeline(replays), [replays]);
   const latestWindow = metrics[metrics.length - 1] ?? null;
   const recentRows = metrics.slice(Math.max(metrics.length - 10, 0)).reverse();
+  const wandbKpis = wandbIterationView?.kpis ?? {};
 
   return (
     <section className="stack">
@@ -240,7 +338,68 @@ export function AnalyticsDashboard() {
         {error ? <p className="notice error">{error}</p> : null}
       </article>
 
+      <article className="card stack">
+        <h3>W&B Iteration Drilldown</h3>
+        <div className="metric-grid">
+          <label>
+            Last 10 Iterations
+            <select
+              value={selectedWandbRunId}
+              onChange={(event) => setSelectedWandbRunId(event.target.value)}
+              disabled={wandbRuns.length === 0}
+            >
+              {wandbRuns.length === 0 ? <option value="">No iterations</option> : null}
+              {wandbRuns.map((run) => (
+                <option key={run.run_id} value={run.run_id}>
+                  {run.run_id}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="metric-chip">
+            Selected
+            <strong>{selectedWandbRunId || "none"}</strong>
+            {wandbIterationView?.run?.url ? (
+              <a className="external" href={String(wandbIterationView.run.url)} target="_blank" rel="noreferrer">
+                Open W&B Run
+              </a>
+            ) : null}
+          </div>
+        </div>
+        {wandbLoading ? <p className="muted">Loading W&B iteration view...</p> : null}
+        {wandbError ? <p className="notice error">{wandbError}</p> : null}
+      </article>
+
       <div className="data-board">
+        <article className="card full">
+          <h3>Iteration KPI Snapshot</h3>
+          {wandbIterationView ? (
+            <div className="metric-grid">
+              <div className="metric-chip">
+                Return Mean
+                <strong>{formatNumber(latestWandbValue(wandbKpis, "return_mean"))}</strong>
+                <Sparkline values={wandbReturnTrend} stroke="#db3e00" />
+              </div>
+              <div className="metric-chip">
+                Profit Mean
+                <strong>{formatNumber(latestWandbValue(wandbKpis, "profit_mean"))}</strong>
+                <Sparkline values={wandbProfitTrend} stroke="#1f8a70" />
+              </div>
+              <div className="metric-chip">
+                Survival Rate
+                <strong>{formatNumber(latestWandbValue(wandbKpis, "survival_rate"), 3)}</strong>
+                <Sparkline values={wandbSurvivalTrend} stroke="#13547a" />
+              </div>
+              <div className="metric-chip">
+                Env Steps Total
+                <strong>{formatNumber(latestWandbValue(wandbKpis, "env_steps_total"), 0)}</strong>
+              </div>
+            </div>
+          ) : (
+            <p className="muted">W&B iteration data unavailable.</p>
+          )}
+        </article>
+
         <article className="card">
           <h3>Primary Trends</h3>
           <div className="metric-grid">

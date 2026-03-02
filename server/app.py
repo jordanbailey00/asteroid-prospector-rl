@@ -3,9 +3,12 @@ from __future__ import annotations
 import asyncio
 import gzip
 import json
+import math
 import random
 import sys
 import threading
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,6 +30,16 @@ DEFAULT_CORS_ORIGINS = (
 )
 DEFAULT_CORS_ORIGIN_REGEX = r"https://.*\.vercel\.app"
 N_ACTIONS = 69
+DEFAULT_WANDB_CACHE_TTL_SECONDS = 30.0
+DEFAULT_WANDB_HISTORY_KEYS = (
+    "_step",
+    "window_id",
+    "env_steps_total",
+    "reward_mean",
+    "return_mean",
+    "profit_mean",
+    "survival_rate",
+)
 
 
 def now_iso() -> str:
@@ -142,6 +155,267 @@ def _resolve_replay_file_path(*, run_dir: Path, entry: dict[str, Any]) -> tuple[
 
 def _obs_to_list(obs: Any) -> list[float]:
     return [float(value) for value in np.asarray(obs, dtype=np.float32).tolist()]
+
+
+def _parse_wandb_history_keys(value: str | None) -> list[str] | None:
+    keys = _parse_csv_arg(value)
+    if keys is None:
+        return None
+    if len(keys) > 64:
+        raise HTTPException(status_code=400, detail="W&B history keys must contain at most 64 keys")
+    return keys
+
+
+def _extract_iteration_kpis(
+    *,
+    summary: dict[str, Any],
+    history_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    latest_row = history_rows[-1] if history_rows else {}
+    keys = (
+        "window_id",
+        "env_steps_total",
+        "reward_mean",
+        "return_mean",
+        "profit_mean",
+        "survival_rate",
+    )
+
+    kpis: dict[str, Any] = {}
+    for key in keys:
+        if key in latest_row:
+            kpis[key] = latest_row[key]
+            continue
+        if key in summary:
+            kpis[key] = summary[key]
+
+    if "_step" in latest_row:
+        kpis["step"] = latest_row["_step"]
+    return kpis
+
+
+@dataclass(frozen=True)
+class _WandbCacheEntry:
+    expires_at: float
+    payload: Any
+
+
+class _WandbProxyClient:
+    def __init__(
+        self,
+        *,
+        api_key: str | None,
+        cache_ttl_seconds: float = DEFAULT_WANDB_CACHE_TTL_SECONDS,
+    ) -> None:
+        self._cache_ttl_seconds = max(0.0, float(cache_ttl_seconds))
+        self._cache_lock = threading.Lock()
+        self._cache: dict[str, _WandbCacheEntry] = {}
+        self._api: Any | None = None
+        self._unavailable_reason: str | None = None
+
+        try:
+            import wandb  # type: ignore
+        except ImportError:
+            self._unavailable_reason = (
+                "W&B proxy is unavailable because the 'wandb' package is not installed."
+            )
+            return
+
+        kwargs: dict[str, Any] = {}
+        if isinstance(api_key, str) and api_key.strip() != "":
+            kwargs["api_key"] = api_key.strip()
+
+        try:
+            self._api = wandb.Api(**kwargs)
+        except Exception as exc:  # pragma: no cover - depends on local wandb install/runtime
+            self._api = None
+            self._unavailable_reason = f"W&B proxy initialization failed: {type(exc).__name__}: {exc}"
+
+    def _api_or_raise(self) -> Any:
+        if self._api is None:
+            detail = self._unavailable_reason or "W&B proxy is unavailable."
+            raise RuntimeError(detail)
+        return self._api
+
+    def _cache_get(self, key: str) -> Any | None:
+        if self._cache_ttl_seconds <= 0.0:
+            return None
+
+        now = time.monotonic()
+        with self._cache_lock:
+            entry = self._cache.get(key)
+            if entry is None:
+                return None
+            if entry.expires_at <= now:
+                self._cache.pop(key, None)
+                return None
+            return entry.payload
+
+    def _cache_set(self, key: str, payload: Any) -> None:
+        if self._cache_ttl_seconds <= 0.0:
+            return
+        with self._cache_lock:
+            self._cache[key] = _WandbCacheEntry(
+                expires_at=time.monotonic() + self._cache_ttl_seconds,
+                payload=payload,
+            )
+
+    def _json_safe(self, value: Any, *, depth: int = 0) -> Any:
+        if depth >= 5:
+            return str(value)
+        if value is None or isinstance(value, (bool, int, str)):
+            return value
+        if isinstance(value, float):
+            return value if math.isfinite(value) else None
+        if isinstance(value, dict):
+            out: dict[str, Any] = {}
+            for idx, (key, child) in enumerate(value.items()):
+                if idx >= 256:
+                    break
+                out[str(key)] = self._json_safe(child, depth=depth + 1)
+            return out
+        if isinstance(value, (list, tuple, set)):
+            return [self._json_safe(child, depth=depth + 1) for child in list(value)[:512]]
+        return str(value)
+
+    def _summary_payload(self, summary: Any) -> dict[str, Any]:
+        raw: Any = summary
+        if hasattr(summary, "_json_dict"):
+            raw = getattr(summary, "_json_dict")
+        if hasattr(raw, "items"):
+            return self._json_safe(dict(raw), depth=0)
+        return {}
+
+    def _serialize_run_lite(self, run: Any) -> dict[str, Any]:
+        summary = self._summary_payload(getattr(run, "summary", {}))
+        summary_preview: dict[str, Any] = {}
+        for key in DEFAULT_WANDB_HISTORY_KEYS:
+            if key in summary:
+                summary_preview[key] = summary[key]
+        if "windows_emitted" in summary:
+            summary_preview["windows_emitted"] = summary["windows_emitted"]
+        if "episodes_total" in summary:
+            summary_preview["episodes_total"] = summary["episodes_total"]
+
+        return {
+            "run_id": str(getattr(run, "id", "")),
+            "name": self._json_safe(getattr(run, "name", None)),
+            "state": self._json_safe(getattr(run, "state", None)),
+            "url": self._json_safe(getattr(run, "url", None)),
+            "created_at": self._json_safe(getattr(run, "created_at", None)),
+            "updated_at": self._json_safe(getattr(run, "heartbeat_at", None)),
+            "summary_preview": summary_preview,
+        }
+
+    def list_runs(self, *, entity: str, project: str, limit: int) -> list[dict[str, Any]]:
+        cache_key = json.dumps(
+            {
+                "op": "list_runs",
+                "entity": entity,
+                "project": project,
+                "limit": int(limit),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return cached
+
+        api = self._api_or_raise()
+        path = f"{entity}/{project}"
+        rows: list[dict[str, Any]] = []
+        for idx, run in enumerate(
+            api.runs(path=path, per_page=min(max(limit, 1), 100), order="-created_at")
+        ):
+            if idx >= limit:
+                break
+            rows.append(self._serialize_run_lite(run))
+
+        self._cache_set(cache_key, rows)
+        return rows
+
+    def get_run_summary(self, *, entity: str, project: str, run_id: str) -> dict[str, Any]:
+        cache_key = json.dumps(
+            {
+                "op": "run_summary",
+                "entity": entity,
+                "project": project,
+                "run_id": run_id,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return cached
+
+        api = self._api_or_raise()
+        run = api.run(path=f"{entity}/{project}/{run_id}")
+        summary = self._summary_payload(getattr(run, "summary", {}))
+        payload = {
+            "run_id": str(getattr(run, "id", run_id)),
+            "name": self._json_safe(getattr(run, "name", None)),
+            "state": self._json_safe(getattr(run, "state", None)),
+            "url": self._json_safe(getattr(run, "url", None)),
+            "created_at": self._json_safe(getattr(run, "created_at", None)),
+            "updated_at": self._json_safe(getattr(run, "heartbeat_at", None)),
+            "config": self._json_safe(dict(getattr(run, "config", {}) or {})),
+            "summary": summary,
+        }
+
+        self._cache_set(cache_key, payload)
+        return payload
+
+    def get_run_history(
+        self,
+        *,
+        entity: str,
+        project: str,
+        run_id: str,
+        keys: list[str] | None,
+        max_points: int,
+    ) -> list[dict[str, Any]]:
+        cache_key = json.dumps(
+            {
+                "op": "run_history",
+                "entity": entity,
+                "project": project,
+                "run_id": run_id,
+                "keys": keys or [],
+                "max_points": int(max_points),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return cached
+
+        api = self._api_or_raise()
+        run = api.run(path=f"{entity}/{project}/{run_id}")
+        scan_kwargs: dict[str, Any] = {
+            "page_size": min(max(1, int(max_points)), 1000),
+        }
+        if keys is not None and len(keys) > 0:
+            scan_kwargs["keys"] = list(keys)
+
+        rows: list[dict[str, Any]] = []
+        for idx, row in enumerate(run.scan_history(**scan_kwargs)):
+            if idx >= max_points:
+                break
+            if not isinstance(row, dict):
+                continue
+
+            clean_row: dict[str, Any] = {}
+            for key, value in row.items():
+                if not isinstance(key, str):
+                    continue
+                clean_row[key] = self._json_safe(value)
+            rows.append(clean_row)
+
+        self._cache_set(cache_key, rows)
+        return rows
 
 
 class CreatePlaySessionRequest(BaseModel):
@@ -262,10 +536,33 @@ def create_app(
     runs_root: Path = Path("runs"),
     cors_allow_origins: list[str] | None = None,
     cors_allow_origin_regex: str | None = None,
+    wandb_proxy: Any | None = None,
+    wandb_default_entity: str | None = None,
+    wandb_default_project: str | None = None,
+    wandb_api_key: str | None = None,
+    wandb_cache_ttl_seconds: float = DEFAULT_WANDB_CACHE_TTL_SECONDS,
 ) -> FastAPI:
     app = FastAPI(title="Asteroid Prospector API", version="0.2.0")
     app.state.runs_root = runs_root
     app.state.play_sessions = _PlaySessionStore()
+    app.state.wandb_proxy = (
+        wandb_proxy
+        if wandb_proxy is not None
+        else _WandbProxyClient(
+            api_key=wandb_api_key,
+            cache_ttl_seconds=wandb_cache_ttl_seconds,
+        )
+    )
+    app.state.wandb_default_entity = (
+        wandb_default_entity.strip()
+        if isinstance(wandb_default_entity, str) and wandb_default_entity.strip() != ""
+        else None
+    )
+    app.state.wandb_default_project = (
+        wandb_default_project.strip()
+        if isinstance(wandb_default_project, str) and wandb_default_project.strip() != ""
+        else None
+    )
 
     origins = (
         list(cors_allow_origins) if cors_allow_origins is not None else list(DEFAULT_CORS_ORIGINS)
@@ -297,9 +594,163 @@ def create_app(
         index_payload = load_replay_index(path=index_path, run_id=run_id)
         return index_path, index_payload
 
+    def _resolve_wandb_scope(
+        *,
+        entity: str | None,
+        project: str | None,
+    ) -> tuple[str, str]:
+        resolved_entity = (
+            entity.strip() if isinstance(entity, str) and entity.strip() != "" else None
+        ) or app.state.wandb_default_entity
+        resolved_project = (
+            project.strip() if isinstance(project, str) and project.strip() != "" else None
+        ) or app.state.wandb_default_project
+
+        if resolved_entity is None or resolved_project is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "W&B entity/project not configured. Provide ?entity=...&project=... "
+                    "or configure ABP_WANDB_ENTITY and ABP_WANDB_PROJECT."
+                ),
+            )
+        return str(resolved_entity), str(resolved_project)
+
+    def _call_wandb_proxy(call: Callable[[], Any]) -> Any:
+        proxy = app.state.wandb_proxy
+        if proxy is None:
+            raise HTTPException(status_code=503, detail="W&B proxy is unavailable.")
+        try:
+            return call()
+        except HTTPException:
+            raise
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"W&B proxy request failed: {type(exc).__name__}: {exc}",
+            ) from exc
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/wandb/runs/latest")
+    def wandb_list_latest_runs(
+        limit: int = Query(default=10, ge=1, le=50),
+        entity: str | None = Query(default=None),
+        project: str | None = Query(default=None),
+    ) -> dict[str, Any]:
+        resolved_entity, resolved_project = _resolve_wandb_scope(entity=entity, project=project)
+        runs = _call_wandb_proxy(
+            lambda: app.state.wandb_proxy.list_runs(
+                entity=resolved_entity,
+                project=resolved_project,
+                limit=int(limit),
+            )
+        )
+        return {
+            "entity": resolved_entity,
+            "project": resolved_project,
+            "count": len(runs),
+            "runs": runs,
+        }
+
+    @app.get("/api/wandb/runs/{wandb_run_id}/summary")
+    def wandb_get_run_summary(
+        wandb_run_id: str,
+        entity: str | None = Query(default=None),
+        project: str | None = Query(default=None),
+    ) -> dict[str, Any]:
+        resolved_entity, resolved_project = _resolve_wandb_scope(entity=entity, project=project)
+        payload = _call_wandb_proxy(
+            lambda: app.state.wandb_proxy.get_run_summary(
+                entity=resolved_entity,
+                project=resolved_project,
+                run_id=wandb_run_id,
+            )
+        )
+        return {
+            "entity": resolved_entity,
+            "project": resolved_project,
+            "run": payload,
+        }
+
+    @app.get("/api/wandb/runs/{wandb_run_id}/history")
+    def wandb_get_run_history(
+        wandb_run_id: str,
+        keys: str | None = Query(default=None),
+        max_points: int = Query(default=1000, ge=1, le=5000),
+        entity: str | None = Query(default=None),
+        project: str | None = Query(default=None),
+    ) -> dict[str, Any]:
+        resolved_entity, resolved_project = _resolve_wandb_scope(entity=entity, project=project)
+        history_keys = _parse_wandb_history_keys(keys)
+        rows = _call_wandb_proxy(
+            lambda: app.state.wandb_proxy.get_run_history(
+                entity=resolved_entity,
+                project=resolved_project,
+                run_id=wandb_run_id,
+                keys=history_keys,
+                max_points=int(max_points),
+            )
+        )
+        return {
+            "entity": resolved_entity,
+            "project": resolved_project,
+            "run_id": wandb_run_id,
+            "keys": history_keys,
+            "count": len(rows),
+            "rows": rows,
+        }
+
+    @app.get("/api/wandb/runs/{wandb_run_id}/iteration-view")
+    def wandb_get_iteration_view(
+        wandb_run_id: str,
+        keys: str | None = Query(default=None),
+        max_points: int = Query(default=1000, ge=1, le=5000),
+        entity: str | None = Query(default=None),
+        project: str | None = Query(default=None),
+    ) -> dict[str, Any]:
+        resolved_entity, resolved_project = _resolve_wandb_scope(entity=entity, project=project)
+        history_keys = _parse_wandb_history_keys(keys)
+        if history_keys is None:
+            history_keys = list(DEFAULT_WANDB_HISTORY_KEYS)
+
+        run_payload = _call_wandb_proxy(
+            lambda: app.state.wandb_proxy.get_run_summary(
+                entity=resolved_entity,
+                project=resolved_project,
+                run_id=wandb_run_id,
+            )
+        )
+        history_rows = _call_wandb_proxy(
+            lambda: app.state.wandb_proxy.get_run_history(
+                entity=resolved_entity,
+                project=resolved_project,
+                run_id=wandb_run_id,
+                keys=history_keys,
+                max_points=int(max_points),
+            )
+        )
+        run_summary = run_payload.get("summary", {})
+        if not isinstance(run_summary, dict):
+            run_summary = {}
+
+        return {
+            "entity": resolved_entity,
+            "project": resolved_project,
+            "run": run_payload,
+            "history": {
+                "keys": history_keys,
+                "count": len(history_rows),
+                "rows": history_rows,
+            },
+            "kpis": _extract_iteration_kpis(summary=run_summary, history_rows=history_rows),
+        }
 
     @app.get("/api/runs")
     def list_runs(limit: int = Query(default=50, ge=1, le=500)) -> dict[str, Any]:

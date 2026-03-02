@@ -11,6 +11,10 @@ import {
   ReplayListResponse,
   RunDetailResponse,
   RunsResponse,
+  WandbIterationViewResponse,
+  WandbLatestRunsResponse,
+  WandbRunHistoryResponse,
+  WandbRunSummaryResponse,
 } from "@/lib/types";
 
 function trimTrailingSlash(value: string): string {
@@ -289,6 +293,74 @@ export async function getMetricsWindows(
     limit: options?.limit ?? 500,
     order: options?.order ?? "desc",
   });
+}
+
+export async function listWandbLatestRuns(options?: {
+  limit?: number;
+  entity?: string;
+  project?: string;
+}): Promise<WandbLatestRunsResponse> {
+  return requestJson<WandbLatestRunsResponse>("/api/wandb/runs/latest", undefined, {
+    limit: options?.limit ?? 10,
+    entity: options?.entity,
+    project: options?.project,
+  });
+}
+
+export async function getWandbRunSummary(
+  runId: string,
+  options?: { entity?: string; project?: string },
+): Promise<WandbRunSummaryResponse> {
+  return requestJson<WandbRunSummaryResponse>(
+    `/api/wandb/runs/${encodeURIComponent(runId)}/summary`,
+    undefined,
+    {
+      entity: options?.entity,
+      project: options?.project,
+    },
+  );
+}
+
+export async function getWandbRunHistory(
+  runId: string,
+  options?: {
+    keys?: string[];
+    maxPoints?: number;
+    entity?: string;
+    project?: string;
+  },
+): Promise<WandbRunHistoryResponse> {
+  return requestJson<WandbRunHistoryResponse>(
+    `/api/wandb/runs/${encodeURIComponent(runId)}/history`,
+    undefined,
+    {
+      keys: options?.keys?.join(","),
+      max_points: options?.maxPoints ?? 1000,
+      entity: options?.entity,
+      project: options?.project,
+    },
+  );
+}
+
+export async function getWandbIterationView(
+  runId: string,
+  options?: {
+    keys?: string[];
+    maxPoints?: number;
+    entity?: string;
+    project?: string;
+  },
+): Promise<WandbIterationViewResponse> {
+  return requestJson<WandbIterationViewResponse>(
+    `/api/wandb/runs/${encodeURIComponent(runId)}/iteration-view`,
+    undefined,
+    {
+      keys: options?.keys?.join(","),
+      max_points: options?.maxPoints ?? 1000,
+      entity: options?.entity,
+      project: options?.project,
+    },
+  );
 }
 
 export async function createPlaySession(

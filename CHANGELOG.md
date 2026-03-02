@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added M9 W&B proxy API surface in backend: GET /api/wandb/runs/latest, GET /api/wandb/runs/{wandb_run_id}/summary, GET /api/wandb/runs/{wandb_run_id}/history, and GET /api/wandb/runs/{wandb_run_id}/iteration-view.
+- Added backend W&B scope/env wiring and cache controls (ABP_WANDB_ENTITY, ABP_WANDB_PROJECT, WANDB_API_KEY, ABP_WANDB_CACHE_TTL_SECONDS) with bounded query guards for limit, max_points, and history key counts.
+- Added server API regression coverage for W&B proxy routes using injected fake/unavailable proxy clients (tests/test_server_api.py).
+- Added frontend W&B analytics client/types and analytics page integration for last-10 iteration drilldown, iteration KPI cards, and W&B-backed trend sparklines.
 - Added Linux PPO throughput matrix artifact `artifacts/throughput/throughput-matrix-ppo-20260301-m9p2d.json` (16 `puffer_ppo` candidates across `num_envs/num_workers/rollout/minibatches`) with published best candidate/floor summary.
 - Added load-aware native probe behavior for PPO `auto` env selection so invalid native library loads (for example cross-OS `.dll` in Linux) fall back to reference instead of failing matrix runs.
 - Added platform-aware native library discovery in `default_native_library_path()` to prefer `.so`/`.dylib`/`.dll` by runtime OS.
