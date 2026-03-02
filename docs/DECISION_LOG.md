@@ -354,3 +354,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add `.github/workflows/m9-deployment-smoke.yml` as a `workflow_dispatch` job that executes `tools/smoke_m9_deployment.py` with operator-provided endpoint inputs and uploads JSON smoke artifacts. Keep it manual-triggered (not scheduled) because endpoint URLs and release timing are environment-dependent.
 - Consequences: Deployment smoke checks can be executed consistently from CI with artifact traceability and without embedding environment-specific URLs in repository code.
 - Related commits/docs: `.github/workflows/m9-deployment-smoke.yml`, `tools/smoke_m9_deployment.py`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0039 - Add W&B proxy diagnostics endpoint with cache telemetry and operator guidance
+
+- Date: 2026-03-02
+- Status: Accepted
+- Context: After wiring W&B analytics routes, production hardening still needed faster triage for auth/scope/cache issues and clear guidance on cache TTL tuning without inspecting server internals.
+- Decision: Add `GET /api/wandb/status` to expose backend-side W&B proxy diagnostics (`available`, `reason`, configured default scope, and cache telemetry counters including `ttl_seconds`, `hits`, `misses`, `expired`, `sets`). Also return operator notes that flag missing scope defaults, disabled/low cache TTL, and unavailable proxy state.
+- Consequences: Operators can quickly validate W&B integration health and tune `ABP_WANDB_CACHE_TTL_SECONDS` with explicit API feedback before/after deployment smoke runs.
+- Related commits/docs: `server/app.py`, `tests/test_server_api.py`, `server/README.md`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`

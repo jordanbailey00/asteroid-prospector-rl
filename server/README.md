@@ -34,6 +34,7 @@ python -m uvicorn server.main:app --reload --port 8000
 ## Implemented endpoints
 
 - `GET /health`
+- `GET /api/wandb/status`
 - `GET /api/wandb/runs/latest`
 - `GET /api/wandb/runs/{wandb_run_id}/summary`
 - `GET /api/wandb/runs/{wandb_run_id}/history`
@@ -66,6 +67,7 @@ W&B proxy query controls:
 - `/api/wandb/runs/{wandb_run_id}/history`: optional `keys` CSV and `max_points` (1..5000)
 - `/api/wandb/runs/{wandb_run_id}/iteration-view`: optional `keys` CSV and `max_points` (1..5000)
 - If `entity`/`project` query args are omitted, server defaults from `ABP_WANDB_ENTITY` + `ABP_WANDB_PROJECT`.
+- `/api/wandb/status` returns proxy availability, cache diagnostics, and tuning notes.
 
 Replay frame pagination (`/frames`):
 - `offset`
@@ -74,6 +76,7 @@ Replay frame pagination (`/frames`):
 Notes:
 - Play sessions are process-local, ephemeral, and in-memory.
 - Replay frame delivery supports both HTTP pagination and websocket chunked streaming (`offset`, `limit`, `batch_size`).
+- Use `/api/wandb/status` to diagnose W&B auth/scope/cache issues before release smoke checks.
 - Websocket replay stream tuning query params: `max_chunk_bytes` (default `262144`) and `yield_every_batches` (default `8`) for chunk size/backpressure tuning under large artifacts.
 ## Deployment smoke check
 

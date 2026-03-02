@@ -23,7 +23,9 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
   - `GET /api/wandb/runs/latest`
   - `GET /api/wandb/runs/{wandb_run_id}/summary`
   - `GET /api/wandb/runs/{wandb_run_id}/history`
+  - `GET /api/wandb/status`
   - `GET /api/wandb/runs/{wandb_run_id}/iteration-view`
+- W&B diagnostics endpoint now exposes proxy availability + cache telemetry counters for ops tuning (`ttl_seconds`, hits/misses/expired/sets).
 - Analytics UI now includes W&B-backed last-10 iteration drilldown, KPI snapshot cards, and trend sparklines.
 - Deployment runbook and smoke tooling are now in-repo:
   - `docs/M9_DEPLOYMENT_RUNBOOK.md`
@@ -51,9 +53,9 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 ## Latest recorded validation health (2026-03-02)
 
-- `python -m pytest -q` -> 93 passed, 2 skipped.
+- `python -m pytest -q` -> 95 passed, 2 skipped.
 - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
-- `python -m pytest -q tests/test_server_api.py` -> 12 passed.
+- `python -m pytest -q tests/test_server_api.py` -> 14 passed.
 - `python -m pytest -q tests/test_smoke_m9_deployment.py` -> 4 passed.
 - `npm --prefix frontend run lint` -> pass.
 - `npm --prefix frontend run build` -> pass (`/`, `/play`, `/analytics`).
@@ -69,7 +71,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 2. Run deployment smoke checks against production endpoints and publish artifact evidence:
    - local: `tools/smoke_m9_deployment.py`
    - CI/manual: `.github/workflows/m9-deployment-smoke.yml`
-3. Harden W&B proxy operations (auth/config failure diagnostics and cache tuning guidance) based on production telemetry.
+3. Use production telemetry plus `/api/wandb/status` diagnostics to tune W&B cache TTL/auth config guidance for hosted environments.
 4. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
 5. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
 
@@ -88,6 +90,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
+| 2026-03-02 | `4bf31ac` | feat | Add manual GitHub Actions workflow for M9 deployment smoke checks |
 | 2026-03-01 | `9dbdedc` | feat | Publish Linux PPO throughput matrix and harden native auto probe behavior |
 | 2026-03-01 | `c1fef2a` | feat | Add matrix-driven throughput floor gate |
 | 2026-03-01 | `f96e3b5` | docs | Standardize build checklist milestone identifiers |

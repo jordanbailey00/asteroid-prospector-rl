@@ -507,6 +507,22 @@ class _FailingWandbProxy:
         raise RuntimeError("W&B proxy unavailable in test")
 
 
+class _DiagnosticWandbProxy:
+    def diagnostics(self) -> dict:
+        return {
+            "available": False,
+            "reason": "simulated diagnostic outage",
+            "cache": {
+                "ttl_seconds": 0.0,
+                "entries": 0,
+                "hits": 0,
+                "misses": 0,
+                "expired": 0,
+                "sets": 0,
+            },
+        }
+
+
 def test_wandb_proxy_endpoints(tmp_path: Path) -> None:
     wandb_proxy = _FakeWandbProxy()
     app = create_app(
@@ -554,6 +570,47 @@ def test_wandb_proxy_endpoints(tmp_path: Path) -> None:
     assert wandb_proxy.calls["list_runs"] == 1
     assert wandb_proxy.calls["get_run_summary"] == 2
     assert wandb_proxy.calls["get_run_history"] == 2
+
+
+def test_wandb_status_endpoint_with_diagnostics(tmp_path: Path) -> None:
+    app = create_app(runs_root=tmp_path, wandb_proxy=_DiagnosticWandbProxy())
+    client = TestClient(app)
+
+    response = client.get("/api/wandb/status")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["available"] is False
+    assert payload["reason"] == "simulated diagnostic outage"
+    assert payload["defaults"]["entity"] is None
+    assert payload["defaults"]["project"] is None
+    assert payload["cache"]["ttl_seconds"] == 0.0
+
+    notes = payload["notes"]
+    assert any("ABP_WANDB_ENTITY" in note for note in notes)
+    assert any("cache is disabled" in note for note in notes)
+    assert any("WANDB_API_KEY" in note for note in notes)
+
+
+def test_wandb_status_endpoint_without_diagnostics(tmp_path: Path) -> None:
+    app = create_app(
+        runs_root=tmp_path,
+        wandb_proxy=_FakeWandbProxy(),
+        wandb_default_entity="team-astro",
+        wandb_default_project="asteroid-prospector",
+    )
+    client = TestClient(app)
+
+    response = client.get("/api/wandb/status")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["available"] is True
+    assert payload["reason"] is None
+    assert payload["cache"] is None
+    assert payload["defaults"]["entity"] == "team-astro"
+    assert payload["defaults"]["project"] == "asteroid-prospector"
+    assert payload["notes"] == []
 
 
 def test_wandb_proxy_requires_scope_when_not_configured(tmp_path: Path) -> None:

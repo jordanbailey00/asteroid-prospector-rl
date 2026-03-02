@@ -75,6 +75,7 @@ Notes:
   - frontend routes (`/`, `/play`, `/analytics`),
   - W&B proxy latest-runs endpoint.
 - Exit code is non-zero when any check fails.
+- Check `GET /api/wandb/status` for auth/config/cache diagnostics before retrying failed W&B smoke checks.
 
 ## 5) GitHub Actions manual smoke run
 
@@ -102,3 +103,4 @@ Consider deployment successful only when:
 1. `tools/smoke_m9_deployment.py` exits `0`.
 2. Frontend `/analytics` loads W&B-backed data without client-side secrets.
 3. Replay websocket route is reachable from frontend origin.
+4. `GET /api/wandb/status` reports `available=true` and no cache/scope warnings requiring operator action.

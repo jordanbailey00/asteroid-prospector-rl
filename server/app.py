@@ -194,10 +194,44 @@ def _extract_iteration_kpis(
     return kpis
 
 
+def _wandb_ops_notes(
+    *,
+    cache_ttl_seconds: float | None,
+    defaults_configured: bool,
+    available: bool,
+) -> list[str]:
+    notes: list[str] = []
+    if not defaults_configured:
+        notes.append(
+            "Set ABP_WANDB_ENTITY and ABP_WANDB_PROJECT (or pass query overrides) to avoid scope errors."
+        )
+    if cache_ttl_seconds is not None:
+        if cache_ttl_seconds <= 0.0:
+            notes.append(
+                "W&B proxy cache is disabled (ABP_WANDB_CACHE_TTL_SECONDS<=0); this increases rate-limit risk."
+            )
+        elif cache_ttl_seconds < 10.0:
+            notes.append(
+                "W&B proxy cache TTL is low (<10s); increase ABP_WANDB_CACHE_TTL_SECONDS if rate limits appear."
+            )
+    if not available:
+        notes.append(
+            "W&B proxy is unavailable; verify WANDB_API_KEY and backend outbound connectivity."
+        )
+    return notes
+
+
 @dataclass(frozen=True)
 class _WandbCacheEntry:
     expires_at: float
     payload: Any
+
+
+@dataclass(frozen=True)
+class _WandbProxyStatus:
+    available: bool
+    reason: str | None
+    cache: dict[str, Any] | None
 
 
 class _WandbProxyClient:
@@ -212,6 +246,10 @@ class _WandbProxyClient:
         self._cache: dict[str, _WandbCacheEntry] = {}
         self._api: Any | None = None
         self._unavailable_reason: str | None = None
+        self._cache_hits = 0
+        self._cache_misses = 0
+        self._cache_expired = 0
+        self._cache_sets = 0
 
         try:
             import wandb  # type: ignore
@@ -245,10 +283,14 @@ class _WandbProxyClient:
         with self._cache_lock:
             entry = self._cache.get(key)
             if entry is None:
+                self._cache_misses += 1
                 return None
             if entry.expires_at <= now:
                 self._cache.pop(key, None)
+                self._cache_expired += 1
+                self._cache_misses += 1
                 return None
+            self._cache_hits += 1
             return entry.payload
 
     def _cache_set(self, key: str, payload: Any) -> None:
@@ -259,6 +301,23 @@ class _WandbProxyClient:
                 expires_at=time.monotonic() + self._cache_ttl_seconds,
                 payload=payload,
             )
+            self._cache_sets += 1
+
+    def diagnostics(self) -> _WandbProxyStatus:
+        with self._cache_lock:
+            cache_payload = {
+                "ttl_seconds": float(self._cache_ttl_seconds),
+                "entries": len(self._cache),
+                "hits": int(self._cache_hits),
+                "misses": int(self._cache_misses),
+                "expired": int(self._cache_expired),
+                "sets": int(self._cache_sets),
+            }
+        return _WandbProxyStatus(
+            available=self._api is not None,
+            reason=self._unavailable_reason,
+            cache=cache_payload,
+        )
 
     def _json_safe(self, value: Any, *, depth: int = 0) -> Any:
         if depth >= 5:
@@ -634,9 +693,74 @@ def create_app(
                 detail=f"W&B proxy request failed: {type(exc).__name__}: {exc}",
             ) from exc
 
+    def _wandb_proxy_diagnostics() -> dict[str, Any]:
+        proxy = app.state.wandb_proxy
+        if proxy is None:
+            return {
+                "available": False,
+                "reason": "W&B proxy is unavailable.",
+                "cache": None,
+            }
+
+        diagnostics_fn = getattr(proxy, "diagnostics", None)
+        if callable(diagnostics_fn):
+            payload = diagnostics_fn()
+            if isinstance(payload, _WandbProxyStatus):
+                return {
+                    "available": bool(payload.available),
+                    "reason": payload.reason,
+                    "cache": payload.cache,
+                }
+            if isinstance(payload, dict):
+                return {
+                    "available": bool(payload.get("available", True)),
+                    "reason": payload.get("reason"),
+                    "cache": payload.get("cache"),
+                }
+
+        return {
+            "available": True,
+            "reason": None,
+            "cache": None,
+        }
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/wandb/status")
+    def wandb_status() -> dict[str, Any]:
+        diagnostics = _wandb_proxy_diagnostics()
+        available = bool(diagnostics.get("available", True))
+        cache_payload = diagnostics.get("cache")
+
+        cache_ttl_seconds: float | None = None
+        if isinstance(cache_payload, dict):
+            raw_ttl = cache_payload.get("ttl_seconds")
+            if isinstance(raw_ttl, (int, float)):
+                cache_ttl_seconds = float(raw_ttl)
+
+        defaults_configured = (
+            app.state.wandb_default_entity is not None
+            and app.state.wandb_default_project is not None
+        )
+        notes = _wandb_ops_notes(
+            cache_ttl_seconds=cache_ttl_seconds,
+            defaults_configured=defaults_configured,
+            available=available,
+        )
+
+        reason = diagnostics.get("reason")
+        return {
+            "available": available,
+            "reason": reason if isinstance(reason, str) and reason.strip() != "" else None,
+            "defaults": {
+                "entity": app.state.wandb_default_entity,
+                "project": app.state.wandb_default_project,
+            },
+            "cache": cache_payload if isinstance(cache_payload, dict) else None,
+            "notes": notes,
+        }
 
     @app.get("/api/wandb/runs/latest")
     def wandb_list_latest_runs(
