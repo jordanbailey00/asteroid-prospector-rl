@@ -68,8 +68,8 @@ def _validate_config(cfg: PpoConfig) -> None:
 
 def _probe_native_core_availability() -> tuple[bool, str | None]:
     try:
-        from asteroid_prospector.native_core import default_native_library_path
         from asteroid_prospector import NativeCoreConfig, NativeProspectorCore
+        from asteroid_prospector.native_core import default_native_library_path
     except Exception as exc:
         return False, f"import_error:{type(exc).__name__}: {exc}"
 
@@ -122,7 +122,7 @@ def _coerce_info_value(value: Any, index: int) -> Any:
             item = value[index]
             return item.item() if isinstance(item, np.generic) else item
         return None
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         if index < len(value):
             item = value[index]
             return item.item() if isinstance(item, np.generic) else item
@@ -137,7 +137,7 @@ def _info_for_env(infos: Any, index: int) -> dict[str, Any]:
             row[key] = _coerce_info_value(value, index)
         return row
 
-    if isinstance(infos, (list, tuple)) and index < len(infos):
+    if isinstance(infos, list | tuple) and index < len(infos):
         value = infos[index]
         if isinstance(value, dict):
             return value

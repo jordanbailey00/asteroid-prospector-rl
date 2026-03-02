@@ -15,8 +15,8 @@ function Invoke-Step {
     }
 }
 
-Invoke-Step -Label "Black (check)" -Command { python -m black --check python tests tools }
-Invoke-Step -Label "Ruff (lint)" -Command { python -m ruff check python tests tools }
+Invoke-Step -Label "Black (check)" -Command { python -m black --check python training replay server tests tools }
+Invoke-Step -Label "Ruff (lint)" -Command { python -m ruff check python training replay server tests tools }
 
 $clangTargets = Get-ChildItem -Path engine_core -Recurse -File | Where-Object {
     $_.Extension -in ".c", ".h"

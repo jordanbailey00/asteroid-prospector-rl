@@ -390,3 +390,12 @@ Use this file for non-trivial project decisions.
 - Decision: Extend `tools/smoke_m9_deployment.py` to validate W&B run detail endpoints (`/summary`, `/history`, `/iteration-view`) for the latest discoverable W&B run and execute a second `/api/wandb/status` check after those calls.
 - Consequences: Release smoke artifacts now provide stronger evidence that the full analytics proxy surface is operational and that post-call status diagnostics remain clean in strict mode.
 - Related commits/docs: `tools/smoke_m9_deployment.py`, `tests/test_smoke_m9_deployment.py`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `server/README.md`, `frontend/README.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0043 - Expand Python quality gates to include server/training/replay paths and align CI test dependencies
+
+- Date: 2026-03-02
+- Status: Accepted
+- Context: Lint/format gates covered only `python/tests/tools`, allowing style drift in `server/` and `training/` while default CI `pytest -q` runs relied on API/testing dependencies that were not explicitly installed in the CI setup step.
+- Decision: Update local check script, pre-commit hook file scopes, and CI black/ruff commands to include `python`, `training`, `replay`, `server`, `tests`, and `tools`. Expand CI pip installs to include dependencies needed by default test runs (`fastapi`, `pydantic`, `starlette`, `httpx`, `hypothesis`, `requests`) in addition to existing lint/test packages.
+- Consequences: Quality gates now catch Python lint/format drift across core runtime and API paths before merge; CI test setup is closer to actual repo test requirements and less prone to dependency-related false failures.
+- Related commits/docs: `tools/run_checks.ps1`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml`, `server/app.py`, `training/puffer_backend.py`, `docs/PROJECT_STATUS.md`, `docs/DECISION_LOG.md`, `CHANGELOG.md`

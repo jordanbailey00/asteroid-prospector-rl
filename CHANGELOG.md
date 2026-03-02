@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Expanded Python quality gates to cover `server/`, `training/`, and `replay/` in local checks, pre-commit, and CI; CI now installs the API/test runtime dependencies required by default pytest runs.
+- Cleaned lint debt in W&B diagnostics and native-probe helper code paths (`server/app.py`, `training/puffer_backend.py`).
 - Added manual GitHub Actions deployment smoke workflow `.github/workflows/m9-deployment-smoke.yml` to run `tools/smoke_m9_deployment.py` against configured backend/frontend URLs and upload JSON smoke artifacts.
 - Added `/api/wandb/status` diagnostics endpoint with proxy availability, cache telemetry (`ttl_seconds`, hits/misses/expired/sets), and operational notes for scope/auth/cache tuning.
 - Extended `tools/smoke_m9_deployment.py` to check `GET /api/wandb/status` and support `--require-clean-wandb-status` strict mode, with matching CI workflow input (`require_clean_wandb_status`).

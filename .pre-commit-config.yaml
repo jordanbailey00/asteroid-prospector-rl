@@ -11,16 +11,16 @@ repos:
     rev: 24.10.0
     hooks:
       - id: black
-        files: ^(python|tests|tools)/.*\.py$
+        files: ^(python|training|replay|server|tests|tools)/.*\.py$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.6
     hooks:
       - id: ruff
         args: [--fix]
-        files: ^(python|tests|tools)/.*\.py$
+        files: ^(python|training|replay|server|tests|tools)/.*\.py$
       - id: ruff-format
-        files: ^(python|tests|tools)/.*\.py$
+        files: ^(python|training|replay|server|tests|tools)/.*\.py$
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v17.0.6

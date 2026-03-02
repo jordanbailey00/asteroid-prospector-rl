@@ -27,6 +27,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
   - `GET /api/wandb/runs/{wandb_run_id}/iteration-view`
 - W&B diagnostics endpoint now exposes proxy availability + cache telemetry for ops tuning (`ttl_seconds`, hits/misses/expired/sets, `hit_rate`) plus per-operation telemetry (`calls`, `errors`, `latency_ms_avg`, `latency_ms_total`).
 - Analytics UI now includes W&B-backed last-10 iteration drilldown, KPI snapshot cards, and trend sparklines.
+- Python quality gates now cover `python/`, `training/`, `replay/`, `server/`, `tests/`, and `tools/` in local checks, pre-commit, and CI.
 - Deployment runbook and smoke tooling are now in-repo:
   - `docs/M9_DEPLOYMENT_RUNBOOK.md`
   - `tools/smoke_m9_deployment.py`
@@ -91,6 +92,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
+| 2026-03-02 | `8d1e7d4` | docs | Align MVP roadmap and acceptance references with current repo state |
 | 2026-03-02 | `d394e3a` | feat | Expand M9 smoke checks across W&B analytics routes |
 | 2026-03-02 | `eb5bb73` | feat | Add W&B operation telemetry diagnostics to status endpoint |
 | 2026-03-02 | `6816b10` | feat | Gate M9 deployment smoke checks on W&B status endpoint |

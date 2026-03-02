@@ -20,7 +20,7 @@ jobs:
       - name: Install tooling
         run: |
           python -m pip install --upgrade pip
-          pip install numpy pytest black ruff
+          pip install numpy pytest black ruff fastapi pydantic starlette httpx hypothesis requests
 
       - name: Install clang-format
         run: |
@@ -28,10 +28,10 @@ jobs:
           sudo apt-get install -y clang-format
 
       - name: Black
-        run: black --check python tests tools
+        run: black --check python training replay server tests tools
 
       - name: Ruff
-        run: ruff check python tests tools
+        run: ruff check python training replay server tests tools
 
       - name: clang-format
         run: |

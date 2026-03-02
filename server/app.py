@@ -202,7 +202,6 @@ def _coerce_int(value: Any) -> int | None:
     return None
 
 
-
 def _wandb_ops_notes(
     *,
     cache_ttl_seconds: float | None,
@@ -214,17 +213,20 @@ def _wandb_ops_notes(
     notes: list[str] = []
     if not defaults_configured:
         notes.append(
-            "Set ABP_WANDB_ENTITY and ABP_WANDB_PROJECT (or pass query overrides) to avoid scope errors."
+            "Set ABP_WANDB_ENTITY and ABP_WANDB_PROJECT "
+            "(or pass query overrides) to avoid scope errors."
         )
 
     if cache_ttl_seconds is not None:
         if cache_ttl_seconds <= 0.0:
             notes.append(
-                "W&B proxy cache is disabled (ABP_WANDB_CACHE_TTL_SECONDS<=0); this increases rate-limit risk."
+                "W&B proxy cache is disabled "
+                "(ABP_WANDB_CACHE_TTL_SECONDS<=0); this increases rate-limit risk."
             )
         elif cache_ttl_seconds < 10.0:
             notes.append(
-                "W&B proxy cache TTL is low (<10s); increase ABP_WANDB_CACHE_TTL_SECONDS if rate limits appear."
+                "W&B proxy cache TTL is low (<10s); "
+                "increase ABP_WANDB_CACHE_TTL_SECONDS if rate limits appear."
             )
 
     if isinstance(cache_payload, dict):
@@ -235,8 +237,8 @@ def _wandb_ops_notes(
             hit_ratio = float(hits) / float(total)
             if hit_ratio < 0.2:
                 notes.append(
-                    "W&B cache hit ratio is low (<20% over >=20 lookups); increase ABP_WANDB_CACHE_TTL_SECONDS "
-                    "or reduce dashboard query churn."
+                    "W&B cache hit ratio is low (<20% over >=20 lookups); "
+                    "increase ABP_WANDB_CACHE_TTL_SECONDS or reduce dashboard query churn."
                 )
 
     if isinstance(operations_payload, dict):
@@ -290,11 +292,25 @@ class _WandbProxyClient:
         self._cache_expired = 0
         self._cache_sets = 0
         self._op_stats: dict[str, dict[str, float | int]] = {
-            "list_runs": {"calls": 0, "errors": 0, "latency_ms_total": 0.0, "latency_ms_avg": 0.0},
-            "run_summary": {"calls": 0, "errors": 0, "latency_ms_total": 0.0, "latency_ms_avg": 0.0},
-            "run_history": {"calls": 0, "errors": 0, "latency_ms_total": 0.0, "latency_ms_avg": 0.0},
+            "list_runs": {
+                "calls": 0,
+                "errors": 0,
+                "latency_ms_total": 0.0,
+                "latency_ms_avg": 0.0,
+            },
+            "run_summary": {
+                "calls": 0,
+                "errors": 0,
+                "latency_ms_total": 0.0,
+                "latency_ms_avg": 0.0,
+            },
+            "run_history": {
+                "calls": 0,
+                "errors": 0,
+                "latency_ms_total": 0.0,
+                "latency_ms_avg": 0.0,
+            },
         }
-
         try:
             import wandb  # type: ignore
         except ImportError:
@@ -311,7 +327,9 @@ class _WandbProxyClient:
             self._api = wandb.Api(**kwargs)
         except Exception as exc:  # pragma: no cover - depends on local wandb install/runtime
             self._api = None
-            self._unavailable_reason = f"W&B proxy initialization failed: {type(exc).__name__}: {exc}"
+            self._unavailable_reason = (
+                f"W&B proxy initialization failed: {type(exc).__name__}: {exc}"
+            )
 
     def _api_or_raise(self) -> Any:
         if self._api is None:
@@ -372,9 +390,7 @@ class _WandbProxyClient:
                 "expired": int(self._cache_expired),
                 "sets": int(self._cache_sets),
                 "hit_rate": (
-                    float(self._cache_hits) / float(lookups_total)
-                    if lookups_total > 0
-                    else None
+                    float(self._cache_hits) / float(lookups_total) if lookups_total > 0 else None
                 ),
             }
             operations_payload = {
@@ -396,7 +412,7 @@ class _WandbProxyClient:
     def _json_safe(self, value: Any, *, depth: int = 0) -> Any:
         if depth >= 5:
             return str(value)
-        if value is None or isinstance(value, (bool, int, str)):
+        if value is None or isinstance(value, bool | int | str):
             return value
         if isinstance(value, float):
             return value if math.isfinite(value) else None
@@ -407,14 +423,14 @@ class _WandbProxyClient:
                     break
                 out[str(key)] = self._json_safe(child, depth=depth + 1)
             return out
-        if isinstance(value, (list, tuple, set)):
+        if isinstance(value, list | tuple | set):
             return [self._json_safe(child, depth=depth + 1) for child in list(value)[:512]]
         return str(value)
 
     def _summary_payload(self, summary: Any) -> dict[str, Any]:
         raw: Any = summary
         if hasattr(summary, "_json_dict"):
-            raw = getattr(summary, "_json_dict")
+            raw = summary._json_dict
         if hasattr(raw, "items"):
             return self._json_safe(dict(raw), depth=0)
         return {}
@@ -848,7 +864,7 @@ def create_app(
         cache_ttl_seconds: float | None = None
         if isinstance(cache_payload, dict):
             raw_ttl = cache_payload.get("ttl_seconds")
-            if isinstance(raw_ttl, (int, float)):
+            if isinstance(raw_ttl, int | float):
                 cache_ttl_seconds = float(raw_ttl)
 
         defaults_configured = (
