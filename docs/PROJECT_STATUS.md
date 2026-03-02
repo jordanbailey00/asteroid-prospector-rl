@@ -25,6 +25,9 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
   - `GET /api/wandb/runs/{wandb_run_id}/history`
   - `GET /api/wandb/runs/{wandb_run_id}/iteration-view`
 - Analytics UI now includes W&B-backed last-10 iteration drilldown, KPI snapshot cards, and trend sparklines.
+- Deployment runbook and smoke tooling are now in-repo:
+  - `docs/M9_DEPLOYMENT_RUNBOOK.md`
+  - `tools/smoke_m9_deployment.py`
 - M6.5 manual verification artifacts remain captured:
   - `docs/M65_MANUAL_VERIFICATION.md`
   - `docs/verification/m65_sample_replay.jsonl`
@@ -48,9 +51,10 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 ## Latest recorded validation health (2026-03-02)
 
-- `python -m pytest -q` -> 80 passed, 2 skipped.
+- `python -m pytest -q` -> 93 passed, 2 skipped.
 - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
 - `python -m pytest -q tests/test_server_api.py` -> 12 passed.
+- `python -m pytest -q tests/test_smoke_m9_deployment.py` -> 4 passed.
 - `npm --prefix frontend run lint` -> pass.
 - `npm --prefix frontend run build` -> pass (`/`, `/play`, `/analytics`).
 - `python tools/run_parity.py --seeds 2 --steps 512 --native-library engine_core/build/abp_core.dll` -> 12/12 cases passed.
@@ -58,12 +62,12 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 ## Next work (ordered)
 
-1. Complete deployment path:
+1. Complete live deployment path:
    - frontend on Vercel,
    - backend on websocket-capable host,
    - production CORS/env/secret wiring.
-2. Add deployment smoke checks for replay websocket transport and W&B proxy analytics routes.
-3. Harden W&B proxy operations with production runbooks (auth/config failure diagnostics and cache tuning guidance).
+2. Run `tools/smoke_m9_deployment.py` against production endpoints and publish the smoke artifact.
+3. Harden W&B proxy operations (auth/config failure diagnostics and cache tuning guidance) based on production telemetry.
 4. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
 5. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
 

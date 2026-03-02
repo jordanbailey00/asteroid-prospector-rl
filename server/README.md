@@ -75,3 +75,17 @@ Notes:
 - Play sessions are process-local, ephemeral, and in-memory.
 - Replay frame delivery supports both HTTP pagination and websocket chunked streaming (`offset`, `limit`, `batch_size`).
 - Websocket replay stream tuning query params: `max_chunk_bytes` (default `262144`) and `yield_every_batches` (default `8`) for chunk size/backpressure tuning under large artifacts.
+## Deployment smoke check
+
+After deploying backend + frontend, run:
+
+```powershell
+python tools/smoke_m9_deployment.py \
+  --backend-http-base "https://<backend-host>" \
+  --backend-ws-base "wss://<backend-host>" \
+  --frontend-base "https://<vercel-domain>" \
+  --wandb-entity "<wandb-entity>" \
+  --wandb-project "<wandb-project>"
+```
+
+See `docs/M9_DEPLOYMENT_RUNBOOK.md` for full procedure.

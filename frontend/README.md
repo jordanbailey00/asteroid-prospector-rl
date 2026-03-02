@@ -74,3 +74,16 @@ These checks ensure:
 - Replay playback supports selectable transport: HTTP frame pagination (`/frames`) or websocket chunked stream (`/ws/.../frames`).
 - Audio cues are file-backed from `/assets/audio/...`; synth fallback is only used when browser playback is blocked or a cue intentionally has no files.
 - Vercel deployment should point `NEXT_PUBLIC_BACKEND_HTTP_BASE` to your hosted FastAPI origin.
+## Deployment smoke check
+
+After Vercel deploy, validate end-to-end routing and replay websocket transport:
+
+```powershell
+python tools/smoke_m9_deployment.py \
+  --backend-http-base "https://<backend-host>" \
+  --frontend-base "https://<vercel-domain>" \
+  --wandb-entity "<wandb-entity>" \
+  --wandb-project "<wandb-project>"
+```
+
+For the full release checklist, use `docs/M9_DEPLOYMENT_RUNBOOK.md`.

@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added deployment smoke runner `tools/smoke_m9_deployment.py` for split-hosting checks (backend health, replay HTTP frames, replay websocket stream, frontend routes, and W&B proxy latest-runs endpoint).
+- Added `tests/test_smoke_m9_deployment.py` coverage for deployment smoke helper URL/base derivation utilities.
+- Added deployment runbook `docs/M9_DEPLOYMENT_RUNBOOK.md` and linked smoke-check usage in server/frontend README docs.
 - Added M9 W&B proxy API surface in backend: GET /api/wandb/runs/latest, GET /api/wandb/runs/{wandb_run_id}/summary, GET /api/wandb/runs/{wandb_run_id}/history, and GET /api/wandb/runs/{wandb_run_id}/iteration-view.
 - Added backend W&B scope/env wiring and cache controls (ABP_WANDB_ENTITY, ABP_WANDB_PROJECT, WANDB_API_KEY, ABP_WANDB_CACHE_TTL_SECONDS) with bounded query guards for limit, max_points, and history key counts.
 - Added server API regression coverage for W&B proxy routes using injected fake/unavailable proxy clients (tests/test_server_api.py).

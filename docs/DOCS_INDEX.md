@@ -61,6 +61,8 @@ Read top to bottom.
     - Architecture/process decisions with consequences.
 19. `M65_MANUAL_VERIFICATION.md`
     - Final M6.5 replay/play checklist evidence and sampled replay trace.
+20. `M9_DEPLOYMENT_RUNBOOK.md`
+    - Production deployment wiring and smoke-check procedure for M9.
 
 ## Notes
 

@@ -336,3 +336,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add backend W&B proxy routes (`/api/wandb/runs/latest`, `/summary`, `/history`, `/iteration-view`) with strict query bounds (`limit`, `max_points`, key-count caps), server-side scope resolution (`ABP_WANDB_ENTITY`/`ABP_WANDB_PROJECT` defaults with query overrides), and in-process TTL caching (default `30s`). Keep `WANDB_API_KEY` server-side only and never expose it to frontend clients.
 - Consequences: Analytics UI can query W&B safely via the backend, rate-limit pressure is reduced via TTL caching, and large/expensive history fetches are constrained by contract. Operators must configure W&B env vars on backend deployments.
 - Related commits/docs: `server/app.py`, `server/main.py`, `tests/test_server_api.py`, `frontend/lib/api.ts`, `frontend/lib/types.ts`, `frontend/components/analytics-dashboard.tsx`, `server/README.md`, `frontend/README.md`
+
+### ADR-0037 - Standardize M9 deployment validation with a scriptable split-host smoke runner
+
+- Date: 2026-03-02
+- Status: Accepted
+- Context: M9.3 requires validating Vercel frontend + external websocket-capable backend connectivity, but manual checks are error-prone and inconsistent across environments.
+- Decision: Add `tools/smoke_m9_deployment.py` as the canonical post-deploy smoke command. The runner validates backend health/catalog, replay HTTP frame fetch, replay websocket streaming, frontend route availability (`/`, `/play`, `/analytics`), and W&B proxy latest-runs access. Keep it dependency-light by using `requests` plus a small built-in websocket handshake/frame reader instead of adding new websocket client packages.
+- Consequences: Deployment verification is now reproducible and automatable in CI/release steps, with one command and machine-readable artifact output. Operators can gate release promotion on smoke exit code and saved report JSON.
+- Related commits/docs: `tools/smoke_m9_deployment.py`, `tests/test_smoke_m9_deployment.py`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `server/README.md`, `frontend/README.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
