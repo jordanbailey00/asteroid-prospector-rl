@@ -74,8 +74,9 @@ Notes:
   - backend `/health`, runs catalog, replay HTTP frames,
   - replay websocket stream route,
   - frontend routes (`/`, `/play`, `/analytics`),
-  - W&B proxy status endpoint (`/api/wandb/status`),
-  - W&B proxy latest-runs endpoint.
+  - W&B proxy status endpoint (`/api/wandb/status`) before and after W&B checks,
+  - W&B proxy latest-runs endpoint,
+  - W&B run detail endpoints (`/summary`, `/history`, `/iteration-view`) using the latest discoverable run.
 - Exit code is non-zero when any check fails.
 - Check `GET /api/wandb/status` for auth/config/cache/operation diagnostics before retrying failed W&B smoke checks.
 

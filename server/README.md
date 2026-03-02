@@ -92,6 +92,6 @@ python tools/smoke_m9_deployment.py \
   --require-clean-wandb-status
 ```
 
-See `docs/M9_DEPLOYMENT_RUNBOOK.md` for full procedure. Use `--require-clean-wandb-status` for release gating when W&B status notes must be empty.
+See `docs/M9_DEPLOYMENT_RUNBOOK.md` for full procedure. Smoke checks now validate W&B latest + summary + history + iteration-view endpoints and run a post-operation `/api/wandb/status` gate. Use `--require-clean-wandb-status` for release gating when W&B status notes must be empty.
 
 Manual CI run: `.github/workflows/m9-deployment-smoke.yml` (workflow_dispatch).

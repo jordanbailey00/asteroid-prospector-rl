@@ -86,6 +86,6 @@ python tools/smoke_m9_deployment.py \
   --wandb-project "<wandb-project>"
 ```
 
-For the full release checklist, use `docs/M9_DEPLOYMENT_RUNBOOK.md`.
+For the full release checklist, use `docs/M9_DEPLOYMENT_RUNBOOK.md`. Deployment smoke now verifies W&B latest + summary + history + iteration-view proxy paths plus a post-operation W&B status gate.
 
 Manual CI run: `.github/workflows/m9-deployment-smoke.yml` (workflow_dispatch).

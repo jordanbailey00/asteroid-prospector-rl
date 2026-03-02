@@ -386,18 +386,124 @@ def run_smoke(cfg: SmokeConfig) -> dict[str, Any]:
                 detail="Skipped W&B proxy check (--skip-wandb).",
             )
         )
+        results.append(
+            SmokeCheckResult(
+                name="wandb-run-summary",
+                ok=True,
+                elapsed_ms=0.0,
+                detail="Skipped W&B run summary check (--skip-wandb).",
+            )
+        )
+        results.append(
+            SmokeCheckResult(
+                name="wandb-run-history",
+                ok=True,
+                elapsed_ms=0.0,
+                detail="Skipped W&B run history check (--skip-wandb).",
+            )
+        )
+        results.append(
+            SmokeCheckResult(
+                name="wandb-iteration-view",
+                ok=True,
+                elapsed_ms=0.0,
+                detail="Skipped W&B iteration view check (--skip-wandb).",
+            )
+        )
+        results.append(
+            SmokeCheckResult(
+                name="wandb-status-post",
+                ok=True,
+                elapsed_ms=0.0,
+                detail="Skipped post-operation W&B status check (--skip-wandb).",
+            )
+        )
     else:
         _record_check(
             name="wandb-status",
             results=results,
             fn=lambda: _check_wandb_status(session=session, cfg=cfg),
         )
-        _record_check(
-            name="wandb-latest-runs",
-            results=results,
-            fn=lambda: _check_wandb_latest(session=session, cfg=cfg),
-        )
+        wandb_run_id: str | None = None
+        latest_start = time.perf_counter()
+        try:
+            latest_detail, wandb_run_id = _check_wandb_latest(session=session, cfg=cfg)
+            results.append(
+                SmokeCheckResult(
+                    name="wandb-latest-runs",
+                    ok=True,
+                    elapsed_ms=(time.perf_counter() - latest_start) * 1000.0,
+                    detail=latest_detail,
+                )
+            )
+        except Exception as exc:
+            results.append(
+                SmokeCheckResult(
+                    name="wandb-latest-runs",
+                    ok=False,
+                    elapsed_ms=(time.perf_counter() - latest_start) * 1000.0,
+                    detail=f"{type(exc).__name__}: {exc}",
+                )
+            )
 
+        if wandb_run_id is None:
+            results.append(
+                SmokeCheckResult(
+                    name="wandb-run-summary",
+                    ok=True,
+                    elapsed_ms=0.0,
+                    detail=(
+                        "Skipped W&B run summary check because "
+                        "`/api/wandb/runs/latest` returned no run_id."
+                    ),
+                )
+            )
+            results.append(
+                SmokeCheckResult(
+                    name="wandb-run-history",
+                    ok=True,
+                    elapsed_ms=0.0,
+                    detail=(
+                        "Skipped W&B run history check because "
+                        "`/api/wandb/runs/latest` returned no run_id."
+                    ),
+                )
+            )
+            results.append(
+                SmokeCheckResult(
+                    name="wandb-iteration-view",
+                    ok=True,
+                    elapsed_ms=0.0,
+                    detail=(
+                        "Skipped W&B iteration view check because "
+                        "`/api/wandb/runs/latest` returned no run_id."
+                    ),
+                )
+            )
+        else:
+            _record_check(
+                name="wandb-run-summary",
+                results=results,
+                fn=lambda: _check_wandb_run_summary(session=session, cfg=cfg, run_id=wandb_run_id),
+            )
+            _record_check(
+                name="wandb-run-history",
+                results=results,
+                fn=lambda: _check_wandb_run_history(session=session, cfg=cfg, run_id=wandb_run_id),
+            )
+            _record_check(
+                name="wandb-iteration-view",
+                results=results,
+                fn=lambda: _check_wandb_iteration_view(
+                    session=session, cfg=cfg, run_id=wandb_run_id
+                ),
+            )
+
+        _record_check(
+            name="wandb-status-post",
+            results=results,
+            fn=lambda: _check_wandb_status(session=session, cfg=cfg),
+        )
     pass_count = sum(1 for row in results if row.ok)
     fail_count = len(results) - pass_count
     report = {
@@ -515,12 +621,23 @@ def _check_frontend_route(*, session: requests.Session, cfg: SmokeConfig, path: 
     return f"Frontend route {path} returned status=200"
 
 
-def _check_wandb_latest(*, session: requests.Session, cfg: SmokeConfig) -> str:
-    query: dict[str, str | int] = {"limit": 1}
+def _wandb_scope_query(
+    cfg: SmokeConfig,
+    *,
+    limit: int | None = None,
+) -> dict[str, str | int]:
+    query: dict[str, str | int] = {}
+    if limit is not None:
+        query["limit"] = int(limit)
     if cfg.wandb_entity is not None:
         query["entity"] = cfg.wandb_entity
     if cfg.wandb_project is not None:
         query["project"] = cfg.wandb_project
+    return query
+
+
+def _check_wandb_latest(*, session: requests.Session, cfg: SmokeConfig) -> tuple[str, str | None]:
+    query = _wandb_scope_query(cfg, limit=1)
 
     url = _build_url(cfg.backend_http_base, "/api/wandb/runs/latest", query)
     status_code, payload = _http_json(session=session, url=url, timeout_seconds=cfg.timeout_seconds)
@@ -532,7 +649,107 @@ def _check_wandb_latest(*, session: requests.Session, cfg: SmokeConfig) -> str:
     rows = payload.get("runs", [])
     if not isinstance(rows, list):
         raise RuntimeError(f"Unexpected W&B latest runs payload: {rows!r}")
-    return f"W&B latest endpoint returned {len(rows)} rows"
+
+    selected_run_id: str | None = None
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        run_id_raw = row.get("run_id")
+        if isinstance(run_id_raw, str) and run_id_raw.strip() != "":
+            selected_run_id = run_id_raw.strip()
+            break
+
+    detail = f"W&B latest endpoint returned {len(rows)} rows"
+    if selected_run_id is not None:
+        detail += f" (first run_id={selected_run_id})"
+    return detail, selected_run_id
+
+
+def _check_wandb_run_summary(
+    *,
+    session: requests.Session,
+    cfg: SmokeConfig,
+    run_id: str,
+) -> str:
+    query = _wandb_scope_query(cfg)
+    url = _build_url(
+        cfg.backend_http_base,
+        f"/api/wandb/runs/{quote(run_id, safe='')}/summary",
+        query if len(query) > 0 else None,
+    )
+    status_code, payload = _http_json(session=session, url=url, timeout_seconds=cfg.timeout_seconds)
+    if status_code != 200:
+        raise RuntimeError(f"Expected 200, got {status_code}: {payload!r}")
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Unexpected W&B summary payload: {payload!r}")
+
+    run_payload = payload.get("run")
+    if not isinstance(run_payload, dict):
+        raise RuntimeError(f"Unexpected W&B summary.run payload: {run_payload!r}")
+
+    resolved_run_id = run_payload.get("run_id")
+    if not isinstance(resolved_run_id, str) or resolved_run_id.strip() == "":
+        raise RuntimeError(f"W&B summary payload missing run_id: {run_payload!r}")
+    return f"W&B summary endpoint returned run_id={resolved_run_id.strip()}"
+
+
+def _check_wandb_run_history(
+    *,
+    session: requests.Session,
+    cfg: SmokeConfig,
+    run_id: str,
+) -> str:
+    query = _wandb_scope_query(cfg)
+    query["keys"] = "_step,window_id,env_steps_total,return_mean,profit_mean,survival_rate"
+    query["max_points"] = 64
+    url = _build_url(
+        cfg.backend_http_base,
+        f"/api/wandb/runs/{quote(run_id, safe='')}/history",
+        query,
+    )
+    status_code, payload = _http_json(session=session, url=url, timeout_seconds=cfg.timeout_seconds)
+    if status_code != 200:
+        raise RuntimeError(f"Expected 200, got {status_code}: {payload!r}")
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Unexpected W&B history payload: {payload!r}")
+
+    rows = payload.get("rows", [])
+    if not isinstance(rows, list):
+        raise RuntimeError(f"Unexpected W&B history rows payload: {rows!r}")
+    return f"W&B history endpoint returned {len(rows)} rows"
+
+
+def _check_wandb_iteration_view(
+    *,
+    session: requests.Session,
+    cfg: SmokeConfig,
+    run_id: str,
+) -> str:
+    query = _wandb_scope_query(cfg)
+    query["keys"] = "_step,window_id,env_steps_total,return_mean,profit_mean,survival_rate"
+    query["max_points"] = 64
+    url = _build_url(
+        cfg.backend_http_base,
+        f"/api/wandb/runs/{quote(run_id, safe='')}/iteration-view",
+        query,
+    )
+    status_code, payload = _http_json(session=session, url=url, timeout_seconds=cfg.timeout_seconds)
+    if status_code != 200:
+        raise RuntimeError(f"Expected 200, got {status_code}: {payload!r}")
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Unexpected W&B iteration-view payload: {payload!r}")
+
+    history_payload = payload.get("history")
+    if not isinstance(history_payload, dict):
+        raise RuntimeError(f"Unexpected W&B iteration-view history payload: {history_payload!r}")
+    rows = history_payload.get("rows", [])
+    if not isinstance(rows, list):
+        raise RuntimeError(f"Unexpected W&B iteration-view history rows payload: {rows!r}")
+
+    kpis = payload.get("kpis", {})
+    if not isinstance(kpis, dict):
+        raise RuntimeError(f"Unexpected W&B iteration-view kpis payload: {kpis!r}")
+    return f"W&B iteration-view endpoint returned history_rows={len(rows)}"
 
 
 def _parse_wandb_status_payload(

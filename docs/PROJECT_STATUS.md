@@ -30,7 +30,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 - Deployment runbook and smoke tooling are now in-repo:
   - `docs/M9_DEPLOYMENT_RUNBOOK.md`
   - `tools/smoke_m9_deployment.py`
-  - `.github/workflows/m9-deployment-smoke.yml` supports strict W&B status gating (`require_clean_wandb_status`).
+  - `.github/workflows/m9-deployment-smoke.yml` supports strict W&B status gating (`require_clean_wandb_status`) with W&B run-detail coverage (`latest`, `summary`, `history`, `iteration-view`) and post-operation status checks.
 - M6.5 manual verification artifacts remain captured:
   - `docs/M65_MANUAL_VERIFICATION.md`
   - `docs/verification/m65_sample_replay.jsonl`
@@ -54,10 +54,10 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 ## Latest recorded validation health (2026-03-02)
 
-- `python -m pytest -q` -> 99 passed, 2 skipped.
+- `python -m pytest -q` -> 103 passed, 2 skipped.
 - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
 - `python -m pytest -q tests/test_server_api.py` -> 15 passed.
-- `python -m pytest -q tests/test_smoke_m9_deployment.py` -> 7 passed.
+- `python -m pytest -q tests/test_smoke_m9_deployment.py` -> 11 passed.
 - `npm --prefix frontend run lint` -> pass.
 - `npm --prefix frontend run build` -> pass (`/`, `/play`, `/analytics`).
 - `python tools/run_parity.py --seeds 2 --steps 512 --native-library engine_core/build/abp_core.dll` -> 12/12 cases passed.
@@ -72,7 +72,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 2. Run deployment smoke checks against production endpoints and publish artifact evidence:
    - local: `tools/smoke_m9_deployment.py` (use `--require-clean-wandb-status` for release gates)
    - CI/manual: `.github/workflows/m9-deployment-smoke.yml` (`require_clean_wandb_status=true` for release gates)
-3. Execute strict W&B status gates in production and tune cache TTL + failing-operation remediation guidance from observed status telemetry.
+3. Execute strict W&B status gates in production with expanded W&B run-detail smoke coverage, then tune cache TTL + failing-operation remediation guidance from observed status telemetry.
 4. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
 5. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
 
@@ -91,6 +91,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
+| 2026-03-02 | `eb5bb73` | feat | Add W&B operation telemetry diagnostics to status endpoint |
 | 2026-03-02 | `6816b10` | feat | Gate M9 deployment smoke checks on W&B status endpoint |
 | 2026-03-02 | `140eadf` | feat | Add W&B proxy diagnostics endpoint with cache telemetry and ops guidance |
 | 2026-03-02 | `4bf31ac` | feat | Add manual GitHub Actions workflow for M9 deployment smoke checks |

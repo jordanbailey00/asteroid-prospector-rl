@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 - Added manual GitHub Actions deployment smoke workflow `.github/workflows/m9-deployment-smoke.yml` to run `tools/smoke_m9_deployment.py` against configured backend/frontend URLs and upload JSON smoke artifacts.
 - Added `/api/wandb/status` diagnostics endpoint with proxy availability, cache telemetry (`ttl_seconds`, hits/misses/expired/sets), and operational notes for scope/auth/cache tuning.
 - Extended `tools/smoke_m9_deployment.py` to check `GET /api/wandb/status` and support `--require-clean-wandb-status` strict mode, with matching CI workflow input (`require_clean_wandb_status`).
+- Extended `tools/smoke_m9_deployment.py` to validate W&B run detail routes (`/summary`, `/history`, `/iteration-view`) from the latest discoverable run and to execute a post-operation `/api/wandb/status` gate.
 - Enhanced `/api/wandb/status` diagnostics with cache `hit_rate` and per-operation telemetry (`calls`, `errors`, `latency_ms_avg`, `latency_ms_total`) plus dynamic guidance for low cache hit ratio and operation errors.
 - Added deployment smoke runner `tools/smoke_m9_deployment.py` for split-hosting checks (backend health, replay HTTP frames, replay websocket stream, frontend routes, and W&B proxy latest-runs endpoint).
 - Added `tests/test_smoke_m9_deployment.py` coverage for deployment smoke helper URL/base derivation utilities.

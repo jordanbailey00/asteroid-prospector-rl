@@ -381,3 +381,12 @@ Use this file for non-trivial project decisions.
 - Decision: Extend W&B proxy diagnostics to include operation telemetry (`calls`, `errors`, `latency_ms_total`, `latency_ms_avg`) for `list_runs`, `run_summary`, and `run_history`, plus cache `hit_rate`. Update `/api/wandb/status` notes to flag low cache hit ratio and operation error patterns in addition to existing auth/scope checks.
 - Consequences: Operators can tune cache TTL and triage failing W&B routes directly from status output without backend log scraping.
 - Related commits/docs: `server/app.py`, `tests/test_server_api.py`, `server/README.md`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0042 - Expand deployment smoke coverage to include W&B run detail routes and post-operation status gating
+
+- Date: 2026-03-02
+- Status: Accepted
+- Context: M9 deployment smoke checks initially validated W&B status and latest-runs only, which could miss regressions in summary/history/iteration analytics routes or operation-level status notes that appear only after traffic exercises proxy operations.
+- Decision: Extend `tools/smoke_m9_deployment.py` to validate W&B run detail endpoints (`/summary`, `/history`, `/iteration-view`) for the latest discoverable W&B run and execute a second `/api/wandb/status` check after those calls.
+- Consequences: Release smoke artifacts now provide stronger evidence that the full analytics proxy surface is operational and that post-call status diagnostics remain clean in strict mode.
+- Related commits/docs: `tools/smoke_m9_deployment.py`, `tests/test_smoke_m9_deployment.py`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `server/README.md`, `frontend/README.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
