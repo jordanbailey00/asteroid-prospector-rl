@@ -89,3 +89,5 @@ python tools/smoke_m9_deployment.py \
 ```
 
 See `docs/M9_DEPLOYMENT_RUNBOOK.md` for full procedure.
+
+Manual CI run: `.github/workflows/m9-deployment-smoke.yml` (workflow_dispatch).

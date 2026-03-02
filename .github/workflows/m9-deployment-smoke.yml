@@ -1,0 +1,117 @@
+name: m9-deployment-smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_http_base:
+        description: "Backend HTTPS base URL (for example https://api.example.com)"
+        required: true
+        type: string
+      backend_ws_base:
+        description: "Backend WSS base URL override (optional)"
+        required: false
+        type: string
+      frontend_base:
+        description: "Frontend base URL (for example https://app.vercel.app)"
+        required: true
+        type: string
+      run_id:
+        description: "Optional run_id for replay smoke"
+        required: false
+        type: string
+      replay_id:
+        description: "Optional replay_id for replay smoke"
+        required: false
+        type: string
+      allow_empty_runs:
+        description: "Allow pass if no run/replay is discoverable"
+        required: false
+        default: false
+        type: boolean
+      skip_wandb:
+        description: "Skip W&B proxy endpoint smoke checks"
+        required: false
+        default: false
+        type: boolean
+      wandb_entity:
+        description: "Optional W&B entity override"
+        required: false
+        type: string
+      wandb_project:
+        description: "Optional W&B project override"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install smoke dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Run M9 deployment smoke checks
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p artifacts/deploy
+
+          CMD=(
+            python tools/smoke_m9_deployment.py
+            --backend-http-base "${{ inputs.backend_http_base }}"
+            --frontend-base "${{ inputs.frontend_base }}"
+            --output-path "artifacts/deploy/m9-smoke-${{ github.run_id }}.json"
+          )
+
+          if [ -n "${{ inputs.backend_ws_base }}" ]; then
+            CMD+=(--backend-ws-base "${{ inputs.backend_ws_base }}")
+          fi
+
+          if [ -n "${{ inputs.run_id }}" ]; then
+            CMD+=(--run-id "${{ inputs.run_id }}")
+          fi
+
+          if [ -n "${{ inputs.replay_id }}" ]; then
+            CMD+=(--replay-id "${{ inputs.replay_id }}")
+          fi
+
+          if [ "${{ inputs.allow_empty_runs }}" = "true" ]; then
+            CMD+=(--allow-empty-runs)
+          fi
+
+          if [ "${{ inputs.skip_wandb }}" = "true" ]; then
+            CMD+=(--skip-wandb)
+          fi
+
+          if [ -n "${{ inputs.wandb_entity }}" ]; then
+            CMD+=(--wandb-entity "${{ inputs.wandb_entity }}")
+          fi
+
+          if [ -n "${{ inputs.wandb_project }}" ]; then
+            CMD+=(--wandb-project "${{ inputs.wandb_project }}")
+          fi
+
+          "${CMD[@]}"
+
+      - name: Upload smoke artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m9-deployment-smoke-${{ github.run_id }}
+          path: artifacts/deploy/m9-smoke-${{ github.run_id }}.json
+          if-no-files-found: warn

@@ -76,7 +76,26 @@ Notes:
   - W&B proxy latest-runs endpoint.
 - Exit code is non-zero when any check fails.
 
-## 5) Release gate
+## 5) GitHub Actions manual smoke run
+
+Use workflow `.github/workflows/m9-deployment-smoke.yml` via **Actions -> m9-deployment-smoke -> Run workflow**.
+
+Provide at minimum:
+
+- `backend_http_base`
+- `frontend_base`
+
+Optional inputs:
+
+- `backend_ws_base`
+- `run_id` + `replay_id`
+- `allow_empty_runs`
+- `skip_wandb`
+- `wandb_entity`, `wandb_project`
+
+The workflow uploads `artifacts/deploy/m9-smoke-<run_id>.json` as an artifact.
+
+## 6) Release gate
 
 Consider deployment successful only when:
 

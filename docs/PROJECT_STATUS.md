@@ -66,7 +66,9 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
    - frontend on Vercel,
    - backend on websocket-capable host,
    - production CORS/env/secret wiring.
-2. Run `tools/smoke_m9_deployment.py` against production endpoints and publish the smoke artifact.
+2. Run deployment smoke checks against production endpoints and publish artifact evidence:
+   - local: `tools/smoke_m9_deployment.py`
+   - CI/manual: `.github/workflows/m9-deployment-smoke.yml`
 3. Harden W&B proxy operations (auth/config failure diagnostics and cache tuning guidance) based on production telemetry.
 4. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
 5. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.

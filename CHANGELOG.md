@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added manual GitHub Actions deployment smoke workflow `.github/workflows/m9-deployment-smoke.yml` to run `tools/smoke_m9_deployment.py` against configured backend/frontend URLs and upload JSON smoke artifacts.
 - Added deployment smoke runner `tools/smoke_m9_deployment.py` for split-hosting checks (backend health, replay HTTP frames, replay websocket stream, frontend routes, and W&B proxy latest-runs endpoint).
 - Added `tests/test_smoke_m9_deployment.py` coverage for deployment smoke helper URL/base derivation utilities.
 - Added deployment runbook `docs/M9_DEPLOYMENT_RUNBOOK.md` and linked smoke-check usage in server/frontend README docs.

@@ -87,3 +87,5 @@ python tools/smoke_m9_deployment.py \
 ```
 
 For the full release checklist, use `docs/M9_DEPLOYMENT_RUNBOOK.md`.
+
+Manual CI run: `.github/workflows/m9-deployment-smoke.yml` (workflow_dispatch).

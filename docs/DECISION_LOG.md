@@ -345,3 +345,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add `tools/smoke_m9_deployment.py` as the canonical post-deploy smoke command. The runner validates backend health/catalog, replay HTTP frame fetch, replay websocket streaming, frontend route availability (`/`, `/play`, `/analytics`), and W&B proxy latest-runs access. Keep it dependency-light by using `requests` plus a small built-in websocket handshake/frame reader instead of adding new websocket client packages.
 - Consequences: Deployment verification is now reproducible and automatable in CI/release steps, with one command and machine-readable artifact output. Operators can gate release promotion on smoke exit code and saved report JSON.
 - Related commits/docs: `tools/smoke_m9_deployment.py`, `tests/test_smoke_m9_deployment.py`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `server/README.md`, `frontend/README.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0038 - Use a manual GitHub Actions workflow as the canonical remote execution path for M9 deployment smoke checks
+
+- Date: 2026-03-02
+- Status: Accepted
+- Context: M9 deployment verification needs to run against real hosted endpoints after Vercel/backend release, but local-only smoke commands are not enough for repeatable release evidence.
+- Decision: Add `.github/workflows/m9-deployment-smoke.yml` as a `workflow_dispatch` job that executes `tools/smoke_m9_deployment.py` with operator-provided endpoint inputs and uploads JSON smoke artifacts. Keep it manual-triggered (not scheduled) because endpoint URLs and release timing are environment-dependent.
+- Consequences: Deployment smoke checks can be executed consistently from CI with artifact traceability and without embedding environment-specific URLs in repository code.
+- Related commits/docs: `.github/workflows/m9-deployment-smoke.yml`, `tools/smoke_m9_deployment.py`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
