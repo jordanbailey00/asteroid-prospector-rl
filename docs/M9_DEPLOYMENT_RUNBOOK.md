@@ -77,7 +77,7 @@ Notes:
   - W&B proxy status endpoint (`/api/wandb/status`),
   - W&B proxy latest-runs endpoint.
 - Exit code is non-zero when any check fails.
-- Check `GET /api/wandb/status` for auth/config/cache diagnostics before retrying failed W&B smoke checks.
+- Check `GET /api/wandb/status` for auth/config/cache/operation diagnostics before retrying failed W&B smoke checks.
 
 ## 5) GitHub Actions manual smoke run
 

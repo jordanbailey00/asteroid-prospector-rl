@@ -67,7 +67,7 @@ W&B proxy query controls:
 - `/api/wandb/runs/{wandb_run_id}/history`: optional `keys` CSV and `max_points` (1..5000)
 - `/api/wandb/runs/{wandb_run_id}/iteration-view`: optional `keys` CSV and `max_points` (1..5000)
 - If `entity`/`project` query args are omitted, server defaults from `ABP_WANDB_ENTITY` + `ABP_WANDB_PROJECT`.
-- `/api/wandb/status` returns proxy availability, cache diagnostics, and tuning notes.
+- `/api/wandb/status` returns proxy availability, cache diagnostics (`hit_rate` included), per-operation telemetry (`calls/errors/latency_ms_avg`), and tuning notes.
 
 Replay frame pagination (`/frames`):
 - `offset`

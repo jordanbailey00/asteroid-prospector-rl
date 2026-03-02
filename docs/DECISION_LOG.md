@@ -372,3 +372,12 @@ Use this file for non-trivial project decisions.
 - Decision: Extend `tools/smoke_m9_deployment.py` to validate `GET /api/wandb/status` and add `--require-clean-wandb-status` so release checks can fail when actionable notes are present. Mirror this in the manual CI workflow through `require_clean_wandb_status` input.
 - Consequences: Operators can choose non-strict checks for exploratory verification and strict checks for release promotion, while smoke artifacts now include explicit W&B status-gate evidence.
 - Related commits/docs: `tools/smoke_m9_deployment.py`, `tests/test_smoke_m9_deployment.py`, `.github/workflows/m9-deployment-smoke.yml`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0041 - Surface W&B operation telemetry in status diagnostics and use it for runtime guidance
+
+- Date: 2026-03-02
+- Status: Accepted
+- Context: Cache-only diagnostics were insufficient to tune production behavior when specific W&B operations were failing or slow, and status notes did not account for observed cache hit ratio.
+- Decision: Extend W&B proxy diagnostics to include operation telemetry (`calls`, `errors`, `latency_ms_total`, `latency_ms_avg`) for `list_runs`, `run_summary`, and `run_history`, plus cache `hit_rate`. Update `/api/wandb/status` notes to flag low cache hit ratio and operation error patterns in addition to existing auth/scope checks.
+- Consequences: Operators can tune cache TTL and triage failing W&B routes directly from status output without backend log scraping.
+- Related commits/docs: `server/app.py`, `tests/test_server_api.py`, `server/README.md`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`

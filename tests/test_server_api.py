@@ -515,10 +515,54 @@ class _DiagnosticWandbProxy:
             "cache": {
                 "ttl_seconds": 0.0,
                 "entries": 0,
-                "hits": 0,
-                "misses": 0,
+                "hits": 1,
+                "misses": 29,
                 "expired": 0,
                 "sets": 0,
+            },
+            "operations": {
+                "list_runs": {
+                    "calls": 10,
+                    "errors": 2,
+                    "latency_ms_total": 180.0,
+                    "latency_ms_avg": 18.0,
+                },
+                "run_summary": {
+                    "calls": 3,
+                    "errors": 0,
+                    "latency_ms_total": 48.0,
+                    "latency_ms_avg": 16.0,
+                },
+            },
+        }
+
+
+class _LowHitRateWandbProxy:
+    def diagnostics(self) -> dict:
+        return {
+            "available": True,
+            "reason": None,
+            "cache": {
+                "ttl_seconds": 30.0,
+                "entries": 2,
+                "hits": 2,
+                "misses": 38,
+                "expired": 1,
+                "sets": 40,
+            },
+            "operations": {
+                "list_runs": {
+                    "calls": 5,
+                    "errors": 1,
+                    "latency_ms_total": 100.0,
+                    "latency_ms_avg": 20.0,
+                },
+                "run_summary": {
+                    "calls": 4,
+                    "errors": 0,
+                    "latency_ms_total": 56.0,
+                    "latency_ms_avg": 14.0,
+                },
             },
         }
 
@@ -585,11 +629,37 @@ def test_wandb_status_endpoint_with_diagnostics(tmp_path: Path) -> None:
     assert payload["defaults"]["entity"] is None
     assert payload["defaults"]["project"] is None
     assert payload["cache"]["ttl_seconds"] == 0.0
+    assert payload["operations"]["list_runs"]["calls"] == 10
+    assert payload["operations"]["list_runs"]["errors"] == 2
 
     notes = payload["notes"]
     assert any("ABP_WANDB_ENTITY" in note for note in notes)
     assert any("cache is disabled" in note for note in notes)
+    assert any("hit ratio is low" in note for note in notes)
+    assert any("reported errors" in note for note in notes)
     assert any("WANDB_API_KEY" in note for note in notes)
+
+
+def test_wandb_status_endpoint_flags_low_hit_ratio_and_operation_errors(tmp_path: Path) -> None:
+    app = create_app(
+        runs_root=tmp_path,
+        wandb_proxy=_LowHitRateWandbProxy(),
+        wandb_default_entity="team-astro",
+        wandb_default_project="asteroid-prospector",
+    )
+    client = TestClient(app)
+
+    response = client.get("/api/wandb/status")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["available"] is True
+    assert payload["reason"] is None
+    assert payload["operations"]["list_runs"]["errors"] == 1
+
+    notes = payload["notes"]
+    assert any("hit ratio is low" in note for note in notes)
+    assert any("reported errors" in note for note in notes)
 
 
 def test_wandb_status_endpoint_without_diagnostics(tmp_path: Path) -> None:
@@ -608,6 +678,7 @@ def test_wandb_status_endpoint_without_diagnostics(tmp_path: Path) -> None:
     assert payload["available"] is True
     assert payload["reason"] is None
     assert payload["cache"] is None
+    assert payload["operations"] is None
     assert payload["defaults"]["entity"] == "team-astro"
     assert payload["defaults"]["project"] == "asteroid-prospector"
     assert payload["notes"] == []

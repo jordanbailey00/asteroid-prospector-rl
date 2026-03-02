@@ -194,17 +194,29 @@ def _extract_iteration_kpis(
     return kpis
 
 
+def _coerce_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    return None
+
+
+
 def _wandb_ops_notes(
     *,
     cache_ttl_seconds: float | None,
     defaults_configured: bool,
     available: bool,
+    cache_payload: dict[str, Any] | None,
+    operations_payload: dict[str, Any] | None,
 ) -> list[str]:
     notes: list[str] = []
     if not defaults_configured:
         notes.append(
             "Set ABP_WANDB_ENTITY and ABP_WANDB_PROJECT (or pass query overrides) to avoid scope errors."
         )
+
     if cache_ttl_seconds is not None:
         if cache_ttl_seconds <= 0.0:
             notes.append(
@@ -214,6 +226,32 @@ def _wandb_ops_notes(
             notes.append(
                 "W&B proxy cache TTL is low (<10s); increase ABP_WANDB_CACHE_TTL_SECONDS if rate limits appear."
             )
+
+    if isinstance(cache_payload, dict):
+        hits = _coerce_int(cache_payload.get("hits"))
+        misses = _coerce_int(cache_payload.get("misses"))
+        if hits is not None and misses is not None and (hits + misses) >= 20:
+            total = hits + misses
+            hit_ratio = float(hits) / float(total)
+            if hit_ratio < 0.2:
+                notes.append(
+                    "W&B cache hit ratio is low (<20% over >=20 lookups); increase ABP_WANDB_CACHE_TTL_SECONDS "
+                    "or reduce dashboard query churn."
+                )
+
+    if isinstance(operations_payload, dict):
+        failing_ops: list[str] = []
+        for op_name in sorted(operations_payload.keys()):
+            row = operations_payload.get(op_name)
+            if not isinstance(row, dict):
+                continue
+            calls = _coerce_int(row.get("calls")) or 0
+            errors = _coerce_int(row.get("errors")) or 0
+            if calls > 0 and errors > 0:
+                failing_ops.append(f"{op_name} ({errors}/{calls})")
+        if len(failing_ops) > 0:
+            notes.append("W&B proxy operations reported errors: " + ", ".join(failing_ops))
+
     if not available:
         notes.append(
             "W&B proxy is unavailable; verify WANDB_API_KEY and backend outbound connectivity."
@@ -232,6 +270,7 @@ class _WandbProxyStatus:
     available: bool
     reason: str | None
     cache: dict[str, Any] | None
+    operations: dict[str, Any] | None
 
 
 class _WandbProxyClient:
@@ -250,6 +289,11 @@ class _WandbProxyClient:
         self._cache_misses = 0
         self._cache_expired = 0
         self._cache_sets = 0
+        self._op_stats: dict[str, dict[str, float | int]] = {
+            "list_runs": {"calls": 0, "errors": 0, "latency_ms_total": 0.0, "latency_ms_avg": 0.0},
+            "run_summary": {"calls": 0, "errors": 0, "latency_ms_total": 0.0, "latency_ms_avg": 0.0},
+            "run_history": {"calls": 0, "errors": 0, "latency_ms_total": 0.0, "latency_ms_avg": 0.0},
+        }
 
         try:
             import wandb  # type: ignore
@@ -303,8 +347,23 @@ class _WandbProxyClient:
             )
             self._cache_sets += 1
 
+    def _record_operation(self, *, name: str, elapsed_ms: float, ok: bool) -> None:
+        with self._cache_lock:
+            row = self._op_stats.setdefault(
+                name,
+                {"calls": 0, "errors": 0, "latency_ms_total": 0.0, "latency_ms_avg": 0.0},
+            )
+            calls = int(row.get("calls", 0)) + 1
+            errors = int(row.get("errors", 0)) + (0 if ok else 1)
+            total = float(row.get("latency_ms_total", 0.0)) + float(elapsed_ms)
+            row["calls"] = calls
+            row["errors"] = errors
+            row["latency_ms_total"] = total
+            row["latency_ms_avg"] = total / float(calls) if calls > 0 else 0.0
+
     def diagnostics(self) -> _WandbProxyStatus:
         with self._cache_lock:
+            lookups_total = int(self._cache_hits + self._cache_misses)
             cache_payload = {
                 "ttl_seconds": float(self._cache_ttl_seconds),
                 "entries": len(self._cache),
@@ -312,11 +371,26 @@ class _WandbProxyClient:
                 "misses": int(self._cache_misses),
                 "expired": int(self._cache_expired),
                 "sets": int(self._cache_sets),
+                "hit_rate": (
+                    float(self._cache_hits) / float(lookups_total)
+                    if lookups_total > 0
+                    else None
+                ),
+            }
+            operations_payload = {
+                name: {
+                    "calls": int(values.get("calls", 0)),
+                    "errors": int(values.get("errors", 0)),
+                    "latency_ms_total": float(values.get("latency_ms_total", 0.0)),
+                    "latency_ms_avg": float(values.get("latency_ms_avg", 0.0)),
+                }
+                for name, values in self._op_stats.items()
             }
         return _WandbProxyStatus(
             available=self._api is not None,
             reason=self._unavailable_reason,
             cache=cache_payload,
+            operations=operations_payload,
         )
 
     def _json_safe(self, value: Any, *, depth: int = 0) -> Any:
@@ -367,64 +441,86 @@ class _WandbProxyClient:
         }
 
     def list_runs(self, *, entity: str, project: str, limit: int) -> list[dict[str, Any]]:
-        cache_key = json.dumps(
-            {
-                "op": "list_runs",
-                "entity": entity,
-                "project": project,
-                "limit": int(limit),
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        cached = self._cache_get(cache_key)
-        if cached is not None:
-            return cached
+        start = time.perf_counter()
+        ok = False
+        try:
+            cache_key = json.dumps(
+                {
+                    "op": "list_runs",
+                    "entity": entity,
+                    "project": project,
+                    "limit": int(limit),
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            cached = self._cache_get(cache_key)
+            if cached is not None:
+                ok = True
+                return cached
 
-        api = self._api_or_raise()
-        path = f"{entity}/{project}"
-        rows: list[dict[str, Any]] = []
-        for idx, run in enumerate(
-            api.runs(path=path, per_page=min(max(limit, 1), 100), order="-created_at")
-        ):
-            if idx >= limit:
-                break
-            rows.append(self._serialize_run_lite(run))
+            api = self._api_or_raise()
+            path = f"{entity}/{project}"
+            rows: list[dict[str, Any]] = []
+            for idx, run in enumerate(
+                api.runs(path=path, per_page=min(max(limit, 1), 100), order="-created_at")
+            ):
+                if idx >= limit:
+                    break
+                rows.append(self._serialize_run_lite(run))
 
-        self._cache_set(cache_key, rows)
-        return rows
+            self._cache_set(cache_key, rows)
+            ok = True
+            return rows
+        finally:
+            self._record_operation(
+                name="list_runs",
+                elapsed_ms=(time.perf_counter() - start) * 1000.0,
+                ok=ok,
+            )
 
     def get_run_summary(self, *, entity: str, project: str, run_id: str) -> dict[str, Any]:
-        cache_key = json.dumps(
-            {
-                "op": "run_summary",
-                "entity": entity,
-                "project": project,
-                "run_id": run_id,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        cached = self._cache_get(cache_key)
-        if cached is not None:
-            return cached
+        start = time.perf_counter()
+        ok = False
+        try:
+            cache_key = json.dumps(
+                {
+                    "op": "run_summary",
+                    "entity": entity,
+                    "project": project,
+                    "run_id": run_id,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            cached = self._cache_get(cache_key)
+            if cached is not None:
+                ok = True
+                return cached
 
-        api = self._api_or_raise()
-        run = api.run(path=f"{entity}/{project}/{run_id}")
-        summary = self._summary_payload(getattr(run, "summary", {}))
-        payload = {
-            "run_id": str(getattr(run, "id", run_id)),
-            "name": self._json_safe(getattr(run, "name", None)),
-            "state": self._json_safe(getattr(run, "state", None)),
-            "url": self._json_safe(getattr(run, "url", None)),
-            "created_at": self._json_safe(getattr(run, "created_at", None)),
-            "updated_at": self._json_safe(getattr(run, "heartbeat_at", None)),
-            "config": self._json_safe(dict(getattr(run, "config", {}) or {})),
-            "summary": summary,
-        }
+            api = self._api_or_raise()
+            run = api.run(path=f"{entity}/{project}/{run_id}")
+            summary = self._summary_payload(getattr(run, "summary", {}))
+            payload = {
+                "run_id": str(getattr(run, "id", run_id)),
+                "name": self._json_safe(getattr(run, "name", None)),
+                "state": self._json_safe(getattr(run, "state", None)),
+                "url": self._json_safe(getattr(run, "url", None)),
+                "created_at": self._json_safe(getattr(run, "created_at", None)),
+                "updated_at": self._json_safe(getattr(run, "heartbeat_at", None)),
+                "config": self._json_safe(dict(getattr(run, "config", {}) or {})),
+                "summary": summary,
+            }
 
-        self._cache_set(cache_key, payload)
-        return payload
+            self._cache_set(cache_key, payload)
+            ok = True
+            return payload
+        finally:
+            self._record_operation(
+                name="run_summary",
+                elapsed_ms=(time.perf_counter() - start) * 1000.0,
+                ok=ok,
+            )
 
     def get_run_history(
         self,
@@ -435,46 +531,57 @@ class _WandbProxyClient:
         keys: list[str] | None,
         max_points: int,
     ) -> list[dict[str, Any]]:
-        cache_key = json.dumps(
-            {
-                "op": "run_history",
-                "entity": entity,
-                "project": project,
-                "run_id": run_id,
-                "keys": keys or [],
-                "max_points": int(max_points),
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        cached = self._cache_get(cache_key)
-        if cached is not None:
-            return cached
+        start = time.perf_counter()
+        ok = False
+        try:
+            cache_key = json.dumps(
+                {
+                    "op": "run_history",
+                    "entity": entity,
+                    "project": project,
+                    "run_id": run_id,
+                    "keys": keys or [],
+                    "max_points": int(max_points),
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            cached = self._cache_get(cache_key)
+            if cached is not None:
+                ok = True
+                return cached
 
-        api = self._api_or_raise()
-        run = api.run(path=f"{entity}/{project}/{run_id}")
-        scan_kwargs: dict[str, Any] = {
-            "page_size": min(max(1, int(max_points)), 1000),
-        }
-        if keys is not None and len(keys) > 0:
-            scan_kwargs["keys"] = list(keys)
+            api = self._api_or_raise()
+            run = api.run(path=f"{entity}/{project}/{run_id}")
+            scan_kwargs: dict[str, Any] = {
+                "page_size": min(max(1, int(max_points)), 1000),
+            }
+            if keys is not None and len(keys) > 0:
+                scan_kwargs["keys"] = list(keys)
 
-        rows: list[dict[str, Any]] = []
-        for idx, row in enumerate(run.scan_history(**scan_kwargs)):
-            if idx >= max_points:
-                break
-            if not isinstance(row, dict):
-                continue
-
-            clean_row: dict[str, Any] = {}
-            for key, value in row.items():
-                if not isinstance(key, str):
+            rows: list[dict[str, Any]] = []
+            for idx, row in enumerate(run.scan_history(**scan_kwargs)):
+                if idx >= max_points:
+                    break
+                if not isinstance(row, dict):
                     continue
-                clean_row[key] = self._json_safe(value)
-            rows.append(clean_row)
 
-        self._cache_set(cache_key, rows)
-        return rows
+                clean_row: dict[str, Any] = {}
+                for key, value in row.items():
+                    if not isinstance(key, str):
+                        continue
+                    clean_row[key] = self._json_safe(value)
+                rows.append(clean_row)
+
+            self._cache_set(cache_key, rows)
+            ok = True
+            return rows
+        finally:
+            self._record_operation(
+                name="run_history",
+                elapsed_ms=(time.perf_counter() - start) * 1000.0,
+                ok=ok,
+            )
 
 
 class CreatePlaySessionRequest(BaseModel):
@@ -700,6 +807,7 @@ def create_app(
                 "available": False,
                 "reason": "W&B proxy is unavailable.",
                 "cache": None,
+                "operations": None,
             }
 
         diagnostics_fn = getattr(proxy, "diagnostics", None)
@@ -710,18 +818,21 @@ def create_app(
                     "available": bool(payload.available),
                     "reason": payload.reason,
                     "cache": payload.cache,
+                    "operations": payload.operations,
                 }
             if isinstance(payload, dict):
                 return {
                     "available": bool(payload.get("available", True)),
                     "reason": payload.get("reason"),
                     "cache": payload.get("cache"),
+                    "operations": payload.get("operations"),
                 }
 
         return {
             "available": True,
             "reason": None,
             "cache": None,
+            "operations": None,
         }
 
     @app.get("/health")
@@ -744,10 +855,16 @@ def create_app(
             app.state.wandb_default_entity is not None
             and app.state.wandb_default_project is not None
         )
+        operations_payload = diagnostics.get("operations")
+
         notes = _wandb_ops_notes(
             cache_ttl_seconds=cache_ttl_seconds,
             defaults_configured=defaults_configured,
             available=available,
+            cache_payload=cache_payload if isinstance(cache_payload, dict) else None,
+            operations_payload=(
+                operations_payload if isinstance(operations_payload, dict) else None
+            ),
         )
 
         reason = diagnostics.get("reason")
@@ -759,6 +876,7 @@ def create_app(
                 "project": app.state.wandb_default_project,
             },
             "cache": cache_payload if isinstance(cache_payload, dict) else None,
+            "operations": operations_payload if isinstance(operations_payload, dict) else None,
             "notes": notes,
         }
 
