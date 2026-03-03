@@ -63,6 +63,8 @@ Read top to bottom.
     - Final M6.5 replay/play checklist evidence and sampled replay trace.
 20. `M9_DEPLOYMENT_RUNBOOK.md`
     - Production deployment wiring and smoke-check procedure for M9.
+21. `M9_DEPLOYMENT_EVIDENCE_20260303.md`
+    - Captured live endpoint values and smoke artifacts for the 2026-03-03 M9 deployment dry run.
 
 ## Notes
 

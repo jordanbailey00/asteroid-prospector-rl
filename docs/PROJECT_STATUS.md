@@ -36,6 +36,10 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
   - `server/.env.production.example`
   - `frontend/.env.production.example`
   - `docs/M9_DEPLOYMENT_EXECUTION_CHECKLIST.md`
+- Live split-host deployment is now active for M9.3 dry-run validation:
+  - backend: `https://abp-backend-production.up.railway.app` (`wss://abp-backend-production.up.railway.app`)
+  - frontend: `https://frontend-nine-sandy-47.vercel.app`
+  - evidence: `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md` + `artifacts/deploy/m9-smoke-live-20260303.json`
 - M6.5 manual verification artifacts remain captured:
   - `docs/M65_MANUAL_VERIFICATION.md`
   - `docs/verification/m65_sample_replay.jsonl`
@@ -57,12 +61,12 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 | M8 - Performance + stability hardening | Complete | Replay transport tuning, benchmark/stability runners, native batch runtime path |
 | M9 - Throughput + W&B dashboard + Vercel alignment | In Progress | Throughput matrix/floor artifacts plus W&B proxy + analytics drilldown are in place; deployment alignment remains |
 
-## Latest recorded validation health (2026-03-02)
+## Latest recorded validation health (2026-03-03)
 
 - `python -m pytest -q` -> 103 passed, 2 skipped.
 - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
 - `python -m pytest -q tests/test_server_api.py` -> 15 passed.
-- `python -m pytest -q tests/test_smoke_m9_deployment.py` -> 11 passed.
+- `python -m pytest -q tests/test_smoke_m9_deployment.py` -> 12 passed.
 - `npm --prefix frontend run lint` -> pass.
 - `npm --prefix frontend run build` -> pass (`/`, `/play`, `/analytics`).
 - `python tools/run_parity.py --seeds 2 --steps 512 --native-library engine_core/build/abp_core.dll` -> 12/12 cases passed.
@@ -70,22 +74,23 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 ## Next work (ordered)
 
-1. Fill production values and execute live deployment cutover using M9 templates:
-   - backend env template: `server/.env.production.example`
-   - frontend env template: `frontend/.env.production.example`
-   - operator checklist: `docs/M9_DEPLOYMENT_EXECUTION_CHECKLIST.md`
-2. Run deployment smoke checks against production endpoints and publish artifact evidence:
-   - local: `tools/smoke_m9_deployment.py` (use `--require-clean-wandb-status` for release gates)
-   - CI/manual: `.github/workflows/m9-deployment-smoke.yml` (`require_clean_wandb_status=true` for release gates)
-3. Execute strict W&B status gates in production with expanded W&B run-detail smoke coverage, then tune cache TTL + failing-operation remediation guidance from observed status telemetry.
+1. Configure production W&B backend credentials/scope and execute strict W&B smoke gates:
+   - set `WANDB_API_KEY` on backend host
+   - set `ABP_WANDB_ENTITY` + verify `ABP_WANDB_PROJECT`
+   - rerun smoke without `--skip-wandb` and with `--require-clean-wandb-status`
+2. Publish production run artifacts into backend `ABP_RUNS_ROOT` and rerun smoke without `--allow-empty-runs`.
+3. Keep deployment evidence current per release cut:
+   - `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`
+   - local smoke artifact under `artifacts/deploy/`
+   - manual CI run artifact from `.github/workflows/m9-deployment-smoke.yml`
 4. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
 5. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
 
 ## Active risks and blockers
 
 - 100,000 steps/sec remains aspirational; current measured trainer throughput is far below target and requires further bottleneck reduction.
-- W&B API latency/rate limits can degrade analytics UX without backend caching and bounded history windows.
-- Split frontend/backend hosting (Vercel + external API) can fail from CORS/WS configuration drift.
+- W&B proxy remains unavailable in production until `WANDB_API_KEY` + scope env are configured on backend host.
+- Split frontend/backend hosting (Vercel + external API) is now live, but remains sensitive to env/CORS drift across redeploys.
 - M7 baseline bots/benchmark automation remains a functional gap for comparative performance reporting.
 
 ## Decision pointers
@@ -96,6 +101,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
+| 2026-03-03 | `ceddf8a` | fix | Unblock M9 deployment smoke serialization, add Railway backend bootstrap, and upgrade frontend Next.js for Vercel security gates |
 | 2026-03-02 | `8d1e7d4` | docs | Align MVP roadmap and acceptance references with current repo state |
 | 2026-03-02 | `d394e3a` | feat | Expand M9 smoke checks across W&B analytics routes |
 | 2026-03-02 | `eb5bb73` | feat | Add W&B operation telemetry diagnostics to status endpoint |

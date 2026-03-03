@@ -18,7 +18,8 @@ import {
 } from "@/lib/types";
 
 function trimTrailingSlash(value: string): string {
-  return value.replace(/\/$/, "");
+  const trimmed = value.trim();
+  return trimmed.replace(/\/+$/, "");
 }
 
 function deriveWsBase(httpBase: string): string {
