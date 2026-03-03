@@ -405,8 +405,8 @@ Use this file for non-trivial project decisions.
 - Date: 2026-03-03
 - Status: Accepted
 - Context: Product direction now requires a clearer player-facing website where Replay/Play/Analytics are easy to use and free of training-ops complexity, while preserving the existing RL architecture where learning happens in the non-pixel simulation state space.
-- Decision: Treat the public frontend as a read-only observer/player surface (`/`, `/play`, `/analytics`) with no training mutation controls. Keep RL training on the non-pixel environment contracts and use pixel rendering strictly as a presentation layer for replay and human play. Introduce a separate private local dashboard for operator workflows (training launch/tune/monitor controls).
-- Consequences: Public UX can be simplified for end users without exposing ops complexity or secrets; operator controls move to a local-only tool boundary. Upcoming frontend work must prioritize large gameplay viewport, explicit pilot guidance, and analytics completeness while avoiding training-control interactions in public routes.
+- Decision: Treat the public frontend as a read-only observer/player surface (`/`, `/play`, `/analytics`) with no training mutation controls. Keep RL training on the non-pixel environment contracts and use pixel rendering strictly as a presentation layer for replay and human play. Keep operator training workflows in private tooling outside public routes.
+- Consequences: Public UX can be simplified for end users without exposing ops complexity or secrets; operator controls remain outside public routes. Upcoming frontend work must prioritize large gameplay viewport, explicit pilot guidance, and analytics completeness while avoiding training-control interactions in public routes.
 - Related commits/docs: `docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`, `docs/PROJECT_STATUS.md`, `docs/BUILD_CHECKLIST.md`, `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`, `frontend/README.md`
 
 ### ADR-0045 - Standardize public Replay/Play on a viewport-first shell with collapsed advanced controls
@@ -418,11 +418,21 @@ Use this file for non-trivial project decisions.
 - Consequences: Replay and Play now prioritize legibility and user orientation while still preserving operator diagnostics in expandable sections. Public routes remain observer/player focused and avoid exposing training mutation workflows.
 - Related commits/docs: `frontend/app/globals.css`, `frontend/components/replay-dashboard.tsx`, `frontend/components/play-console.tsx`, `docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
 
-### ADR-0046 - Implement M9.5 as a standalone localhost-only ops console with subprocess training control
+### ADR-0046 - Implement M9.5 as a standalone localhost-only ops console with subprocess training control (superseded)
 
 - Date: 2026-03-03
-- Status: Accepted
+- Status: Superseded
 - Context: Public routes must remain observer/player/analytics only, while operators still need practical controls for launching, tuning, and monitoring training workflows on their local machine.
 - Decision: Add a separate `ops_console/` FastAPI app bound to localhost by default (`ops_console.main`) with profile-based launch plans for `training/train_puffer.py`, explicit runtime selection (`host_python` or `docker_trainer`), start/stop controls, log tailing, and run artifact telemetry from `runs/`.
 - Consequences: Training mutation workflows are now isolated from public deployment paths, while operators retain direct local control over experiment execution and diagnostics.
 - Related commits/docs: `ops_console/app.py`, `ops_console/main.py`, `ops_console/README.md`, `tests/test_ops_console_api.py`, `README.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+
+### ADR-0047 - Decommission bespoke ops console and standardize M9.5 on PufferLib-native operator tooling
+
+- Date: 2026-03-03
+- Status: Accepted
+- Context: The custom in-repo `ops_console/` dashboard duplicated training-operations capabilities already available through PufferLib + W&B workflows, created additional maintenance surface, and diverged from the requirement to use provider-recommended tooling for training management.
+- Decision: Remove the bespoke `ops_console/` service and test suite. Redefine M9.5 as an operator workflow based on `training/train_puffer.py` CLI execution, PufferLib terminal dashboard output for live progress, W&B for persisted telemetry/artifacts, and Constellation when enabled.
+- Consequences: Training management no longer depends on custom dashboard code, public routes remain read-only observer/player/analytics surfaces, and docs/checklists now point operators to PufferLib-native tooling.
+- Related commits/docs: `README.md`, `training/README.md`, `frontend/README.md`, `docs/BUILD_CHECKLIST.md`, `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`, `docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml`, `tools/run_checks.ps1`

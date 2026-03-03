@@ -12,7 +12,7 @@ Public product boundary:
 
 - Public routes are for observing replay, playing the game, and viewing analytics.
 - Public routes must not expose training mutation controls.
-- Training control/experiment tuning belongs in a separate private local dashboard.
+- Training/experiment control is handled outside public routes via operator tooling (PufferLib CLI/terminal dashboard, W&B, optional Constellation).
 
 ## Backend contract
 
@@ -82,7 +82,7 @@ These checks ensure:
 - Vercel deployment should point `NEXT_PUBLIC_BACKEND_HTTP_BASE` to your hosted FastAPI origin.
 - Current UX realignment plan and gap matrix: `docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`.
 - RL training remains non-pixel simulation; pixel rendering is a presentation layer for replay and human play.
-- Local operator controls now live in ops_console/ (python -m ops_console.main) and are intentionally outside public frontend routes.
+
 ## Deployment smoke check
 
 After Vercel deploy, validate end-to-end routing and replay websocket transport:

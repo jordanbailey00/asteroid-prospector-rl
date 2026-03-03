@@ -40,7 +40,7 @@ Read top to bottom.
 11. `frontend/asteroid_belt_prospector_frontend_spec_wandb.md`
     - Replay/player/analytics frontend requirements.
 12. `PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`
-    - Gap analysis and phased redesign plan for Replay/Play/Analytics plus private local ops console.
+    - Gap analysis and phased redesign plan for Replay/Play/Analytics plus operator-tooling boundary.
 
 ## 6) Graphics and audio
 
@@ -67,8 +67,6 @@ Read top to bottom.
     - Production deployment wiring and smoke-check procedure for M9.
 22. `M9_DEPLOYMENT_EVIDENCE_20260303.md`
     - Captured live endpoint values and smoke artifacts for the 2026-03-03 M9 deployment dry run.
-23. `../ops_console/README.md`
-    - Local-only training ops dashboard usage and controls.
 
 ## Notes
 

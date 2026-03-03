@@ -12,7 +12,7 @@ Realign the public web experience so users can:
 2. Play the game as a human pilot with obvious controls and guidance.
 3. Review full training analytics without touching training controls.
 
-At the same time, move all training-control capabilities to a private local dashboard for operator use only.
+At the same time, keep all training-control capabilities in private operator tooling (not in public routes).
 
 ## Product boundary (public vs private)
 
@@ -23,12 +23,12 @@ Public website (Vercel-hosted):
 - `/analytics`: training analytics and run history only.
 - No controls for launching, tuning, or mutating training jobs.
 
-Private local dashboard (operator-only):
+Private operator tooling (local/secure):
 
-- Run/stop training jobs.
-- Edit training specs and hyperparameters.
-- Monitor throughput, logs, checkpoints, and replay generation.
-- Remains local to the operator machine; not deployed to public hosting.
+- Launch/stop training jobs through trainer CLI workflows.
+- Manage experiment settings through run configs/CLI flags.
+- Monitor throughput/logs/artifacts through PufferLib terminal dashboard output, W&B, and optional Constellation.
+- Stays outside public web routing and client bundles.
 
 ## Requirement mapping and gap analysis
 
@@ -40,7 +40,7 @@ Private local dashboard (operator-only):
 | Analytics tab should show full training analytics/data | Many metrics shown, but data catalog is not exhaustive or clearly segmented by source | Missing explicit completeness contract and run-config lineage surface | `frontend/components/analytics-dashboard.tsx`, `frontend/lib/types.ts`, `frontend/lib/api.ts` |
 | RL is trained in non-pixel env; pixel is presentation/replay layer | Architecture already follows this technically, but messaging is implicit | Needs explicit documentation and UX copy to avoid user confusion | `docs/RL spec/*`, `training/*`, `frontend/components/sector-view.tsx` |
 | No training customization controls on public site | Public site currently exposes replay/play tuning controls, but no true training controls | Need stricter "public observer/player only" IA and copy | `frontend/components/replay-dashboard.tsx`, `frontend/components/play-console.tsx`, `frontend/README.md` |
-| Separate private local training dashboard | No dedicated local dashboard exists today | New local-only operator interface required | new `ops_console/` workstream + training orchestration docs |
+| Private operator workflow should use recommended tooling | Bespoke `ops_console/` prototype was introduced for local ops | Remove bespoke dashboard and standardize on PufferLib CLI/terminal + W&B + optional Constellation | `README.md`, `training/README.md`, `docs/BUILD_CHECKLIST.md`, `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`, `docs/DECISION_LOG.md` |
 
 Assumption used for conflicting wording in request (left vs right side dashboard):
 
@@ -81,16 +81,14 @@ Assumption used for conflicting wording in request (left vs right side dashboard
 - Add consistency checks for missing/empty metrics and explicit stale-data states.
 - Keep analytics read-only; no training mutation controls.
 
-### Workstream E - Private local operator dashboard
+### Workstream E - Operator tooling alignment (no bespoke dashboard)
 
-- Add a local-only operator dashboard (initially simple) for training management.
-- Proposed minimum feature set:
-  - run profile selection and launch,
-  - stop/resume controls,
-  - live log tail,
-  - throughput + window metrics stream,
-  - checkpoint/replay artifact listing.
-- Keep deployment mode local-only (`localhost`), with no public routing.
+- Remove the custom `ops_console/` implementation path.
+- Document CLI-first operator workflows through `training/train_puffer.py`.
+- Standardize training monitoring on:
+  - PufferLib terminal dashboard output,
+  - W&B metrics/artifacts,
+  - Constellation when enabled.
 
 ## Dependencies and impacted areas
 
@@ -116,15 +114,15 @@ Training/runtime:
 
 Operational tooling:
 
-- New local operator dashboard will depend on training scripts (`training/train_puffer.py`, profiling/bench tools) and run artifacts under `runs/`.
+- Operator workflows run through trainer CLI plus W&B/Constellation; no custom local dashboard service is required.
 
 ## Documentation updates required (this plan)
 
-- `docs/DECISION_LOG.md`: public-vs-private product boundary decision.
+- `docs/DECISION_LOG.md`: record decommission of bespoke ops dashboard in favor of PufferLib-native tooling.
 - `docs/PROJECT_STATUS.md`: update current focus and next-work order.
-- `docs/BUILD_CHECKLIST.md`: add M9 sub-chunks for public UX and private ops console.
-- `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`: include UX realignment and private dashboard as active priority workstreams.
-- `frontend/README.md`: document public read-only/product behavior and local operator split.
+- `docs/BUILD_CHECKLIST.md`: redefine M9.5 as PufferLib-native ops workflow.
+- `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`: align workstream E to PufferLib tooling.
+- `frontend/README.md`: document public read-only boundary and operator tooling split.
 
 ## Acceptance criteria
 
@@ -136,10 +134,10 @@ Public website:
 - Analytics page exposes complete documented metric catalog for a selected run/iteration.
 - No training mutation controls are available in public routes.
 
-Private dashboard:
+Operator workflow:
 
-- Local dashboard can launch/stop training and expose active training telemetry.
-- Dashboard is local-only and not wired into public deployment.
+- No bespoke in-repo local dashboard is required for training management.
+- Training launch/mutation/monitoring is covered by CLI + W&B + optional Constellation.
 
 ## Validation plan
 

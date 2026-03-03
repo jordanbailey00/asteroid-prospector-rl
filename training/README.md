@@ -32,6 +32,20 @@ Run short PPO training in container:
 docker compose -f infra/docker-compose.yml run --rm -T trainer python training/train_puffer.py --trainer-backend puffer_ppo --total-env-steps 2000 --window-env-steps 500 --ppo-num-envs 8 --ppo-num-workers 4 --ppo-rollout-steps 128 --ppo-num-minibatches 4 --ppo-update-epochs 4 --ppo-env-impl auto --wandb-mode disabled
 ```
 
+
+## Operator workflow (PufferLib-native)
+
+- Use `training/train_puffer.py` as the canonical training-control path (no bespoke dashboard service).
+- Use PufferLib terminal output for live progress during active runs.
+- Use W&B (`--wandb-mode online`) for persistent metrics, artifacts, and comparisons.
+- Use Constellation when enabled in your runtime environment for additional live orchestration visibility.
+
+Example online run:
+
+```powershell
+docker compose -f infra/docker-compose.yml run --rm -T trainer python training/train_puffer.py --trainer-backend puffer_ppo --total-env-steps 20000 --window-env-steps 2000 --ppo-num-envs 8 --ppo-num-workers 4 --wandb-mode online --wandb-project asteroid-prospector
+```
+
 ## Random backend (host or container)
 
 ```powershell

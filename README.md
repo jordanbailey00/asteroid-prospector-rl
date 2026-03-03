@@ -32,7 +32,7 @@ Published trainer base image:
 - Frontend pages for replay (`/`), play (`/play`), and analytics (`/analytics`) using backend APIs.
 - Kenney asset-backed presentation and audio manifests with validation tests.
 - Throughput profiling, matrix calibration, and floor-gate tooling under `tools/` and `artifacts/throughput/`.
-- Local-only training operations dashboard under `ops_console/` for operator launch/tune/monitor workflows.
+- Operator workflow aligned to PufferLib-native tooling (trainer CLI/terminal dashboards, W&B, optional Constellation) instead of a custom in-repo dashboard.
 
 ## Immediate Next Work
 
@@ -62,10 +62,10 @@ docker compose -f infra/docker-compose.yml build --progress=plain trainer
 docker compose -f infra/docker-compose.yml run --rm -T trainer python training/train_puffer.py --trainer-backend puffer_ppo --total-env-steps 300 --window-env-steps 100 --checkpoint-every-windows 1 --ppo-num-envs 4 --ppo-num-workers 2 --ppo-rollout-steps 32 --ppo-num-minibatches 2 --ppo-update-epochs 1 --wandb-mode disabled
 ```
 
-4. Launch the private local training-ops dashboard:
+4. Run an operator training session with W&B enabled (PufferLib terminal dashboard + W&B-backed monitoring):
 
 ```powershell
-python -m ops_console.main
+docker compose -f infra/docker-compose.yml run --rm -T trainer python training/train_puffer.py --trainer-backend puffer_ppo --total-env-steps 5000 --window-env-steps 1000 --ppo-num-envs 8 --ppo-num-workers 4 --wandb-mode online --wandb-project asteroid-prospector
 ```
 
 ## Repository Layout
@@ -76,7 +76,6 @@ python -m ops_console.main
 - `replay/` replay schema and index helpers
 - `server/` FastAPI API layer
 - `frontend/` Next.js web app
-- `ops_console/` local-only training operations dashboard
 - `infra/` Docker trainer runtime
 - `tools/` profiling, parity, checklist, and benchmark tooling
 - `tests/` contract/parity/runtime/API/frontend tests

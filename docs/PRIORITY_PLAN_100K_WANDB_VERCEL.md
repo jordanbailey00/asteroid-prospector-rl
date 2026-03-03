@@ -11,7 +11,7 @@ This plan covers the following priorities:
 2. W&B-backed analytics integration into the website for current iteration, full historical trend, and last-10 iteration drilldown.
 3. Frontend hosting on Vercel.
 4. Public UX realignment for Replay/Play/Analytics so gameplay is viewport-first and beginner-readable.
-5. Private local dashboard for training operations (launch/tune/monitor) outside the public website.
+5. PufferLib-native operator tooling for training operations (CLI/terminal dashboard + W&B + Constellation) outside the public website.
 
 Detailed runtime performance plan: `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
 
@@ -56,7 +56,7 @@ Detailed runtime performance plan: `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
 ### Product boundary and operations tooling
 
 - Public website routes (`/`, `/play`, `/analytics`) remain observer/player only.
-- Training launch/tuning/ops controls move to a private local dashboard that is not deployed to Vercel.
+- Training launch/tuning/ops controls use PufferLib-native tooling and are not deployed to Vercel client routes.
 - Pixel rendering remains presentation-only; training remains on non-pixel RL state space.
 
 ### Hosting and deployment
@@ -215,22 +215,24 @@ Detailed runtime performance plan: `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
 - Replay and Play viewport occupies most of desktop screen real estate.
 - Critical pilot metrics remain visible in compact side HUD throughout gameplay.
 
-## Workstream E: Private local training-ops dashboard
+## Workstream E: PufferLib-native operator tooling
 
-### E1. Local-only operator dashboard scaffold
+### E1. Decommission bespoke dashboard path
 
-- Create local-only dashboard path for training job control.
-- Keep deployment target local machine only (`localhost`).
+- Remove the in-repo custom training dashboard code and docs references.
+- Keep training control workflows out of public frontend routes.
 
-### E2. Operator controls and telemetry
+### E2. Standardize operator workflow on PufferLib + W&B
 
-- Provide controls to launch/stop/tune training runs.
-- Surface live logs, throughput, checkpoint/replay artifact state, and run metadata updates.
+- Use trainer CLI commands (`training/train_puffer.py`) as the canonical launch path.
+- Use PufferLib terminal dashboard output for live progress during runs.
+- Use W&B for persistent run metrics, artifacts, and comparison.
+- Use Constellation when enabled for live orchestration visibility.
 
 ### E3. Acceptance criteria
 
-- Training and experiment mutation controls are available locally for operator workflows.
-- No training mutation controls are exposed on public web routes.
+- No bespoke in-repo dashboard remains for training management.
+- Training and experiment mutation controls are run through operator tooling (CLI/terminal + W&B/Constellation), not public web routes.
 
 ## Ordered execution checklist
 
@@ -244,7 +246,7 @@ Detailed runtime performance plan: `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
 8. Execute Replay/Play public UX realignment (shared shell, large viewport, compact side HUD).
 9. Add explicit human pilot onboarding and grouped action controls.
 10. Remove or collapse operator-facing controls from public routes.
-11. Implement local-only private training-ops dashboard.
+11. Decommission bespoke dashboard path and standardize on PufferLib-native operator tooling.
 12. Validate public/private boundary (no training mutation from public website).
 13. Deploy frontend to Vercel and backend to websocket-capable host with production CORS/env.
 14. Run production smoke checks and publish deployment runbook.
