@@ -28,10 +28,10 @@ jobs:
           sudo apt-get install -y clang-format
 
       - name: Black
-        run: black --check python training replay server tests tools
+        run: black --check python training replay server ops_console tests tools
 
       - name: Ruff
-        run: ruff check python training replay server tests tools
+        run: ruff check python training replay server ops_console tests tools
 
       - name: clang-format
         run: |

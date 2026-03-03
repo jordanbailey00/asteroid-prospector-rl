@@ -417,3 +417,12 @@ Use this file for non-trivial project decisions.
 - Decision: Use a shared viewport-first shell for `/` and `/play` with a large primary sector viewport, compact right-side gameplay HUD rail, and advanced replay/session knobs moved behind collapsible panels. For `/play`, present all 69 actions grouped by gameplay intent and add explicit quick-loop onboarding plus hotkey hints.
 - Consequences: Replay and Play now prioritize legibility and user orientation while still preserving operator diagnostics in expandable sections. Public routes remain observer/player focused and avoid exposing training mutation workflows.
 - Related commits/docs: `frontend/app/globals.css`, `frontend/components/replay-dashboard.tsx`, `frontend/components/play-console.tsx`, `docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0046 - Implement M9.5 as a standalone localhost-only ops console with subprocess training control
+
+- Date: 2026-03-03
+- Status: Accepted
+- Context: Public routes must remain observer/player/analytics only, while operators still need practical controls for launching, tuning, and monitoring training workflows on their local machine.
+- Decision: Add a separate `ops_console/` FastAPI app bound to localhost by default (`ops_console.main`) with profile-based launch plans for `training/train_puffer.py`, explicit runtime selection (`host_python` or `docker_trainer`), start/stop controls, log tailing, and run artifact telemetry from `runs/`.
+- Consequences: Training mutation workflows are now isolated from public deployment paths, while operators retain direct local control over experiment execution and diagnostics.
+- Related commits/docs: `ops_console/app.py`, `ops_console/main.py`, `ops_console/README.md`, `tests/test_ops_console_api.py`, `README.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`

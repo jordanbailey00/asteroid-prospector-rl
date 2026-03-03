@@ -6,9 +6,9 @@ Asteroid Prospector RL is an end-to-end reinforcement learning project for a det
 - FastAPI replay/play APIs (HTTP + websocket replay transport),
 - and a Next.js frontend for replay, play, and analytics.
 
-## Current Status (2026-03-02)
+## Current Status (2026-03-03)
 
-- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M8`.
+- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M8`, `M9.4`, `M9.5`.
 - Active milestone: `M9` (throughput program + W&B analytics integration + Vercel alignment).
 - Remaining milestone: `M7` baseline bots + benchmark automation.
 
@@ -32,11 +32,12 @@ Published trainer base image:
 - Frontend pages for replay (`/`), play (`/play`), and analytics (`/analytics`) using backend APIs.
 - Kenney asset-backed presentation and audio manifests with validation tests.
 - Throughput profiling, matrix calibration, and floor-gate tooling under `tools/` and `artifacts/throughput/`.
+- Local-only training operations dashboard under `ops_console/` for operator launch/tune/monitor workflows.
 
 ## Immediate Next Work
 
-1. Complete live deployment path (Vercel frontend + websocket-capable backend) with production env/CORS/secret wiring.
-2. Run strict M9 deployment smoke checks against production endpoints and publish artifacts.
+1. Complete analytics completeness contract work for `/analytics` (coverage table, lineage fields, stale/missing-data states).
+2. Harden production replay websocket stability (`/ws/runs/.../frames`) to eliminate intermittent EOF failures.
 3. Implement baseline bots (greedy miner, cautious scanner, market timer) for M7.
 4. Automate PPO-vs-baseline benchmark reporting and publish reproducible summaries.
 
@@ -61,6 +62,12 @@ docker compose -f infra/docker-compose.yml build --progress=plain trainer
 docker compose -f infra/docker-compose.yml run --rm -T trainer python training/train_puffer.py --trainer-backend puffer_ppo --total-env-steps 300 --window-env-steps 100 --checkpoint-every-windows 1 --ppo-num-envs 4 --ppo-num-workers 2 --ppo-rollout-steps 32 --ppo-num-minibatches 2 --ppo-update-epochs 1 --wandb-mode disabled
 ```
 
+4. Launch the private local training-ops dashboard:
+
+```powershell
+python -m ops_console.main
+```
+
 ## Repository Layout
 
 - `engine_core/` native C simulation core
@@ -69,6 +76,7 @@ docker compose -f infra/docker-compose.yml run --rm -T trainer python training/t
 - `replay/` replay schema and index helpers
 - `server/` FastAPI API layer
 - `frontend/` Next.js web app
+- `ops_console/` local-only training operations dashboard
 - `infra/` Docker trainer runtime
 - `tools/` profiling, parity, checklist, and benchmark tooling
 - `tests/` contract/parity/runtime/API/frontend tests

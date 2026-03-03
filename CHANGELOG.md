@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Implemented M9.5 private local training-ops dashboard as a standalone localhost app with profile-based launch/stop controls, runtime selection (`host_python`/`docker_trainer`), live log tailing, and recent run/checkpoint/replay telemetry (`ops_console/app.py`, `ops_console/main.py`, `ops_console/README.md`, `tests/test_ops_console_api.py`).
 - Implemented M9.4 public Replay/Play UX realignment: viewport-first gameplay shell, larger responsive sector canvas, compact right-side HUD rails, collapsed advanced replay/session controls, replay JSON hidden behind expandable panel, grouped Play action deck (all 69 actions), and explicit "How To Play" onboarding with hotkey hints (`frontend/app/globals.css`, `frontend/components/replay-dashboard.tsx`, `frontend/components/play-console.tsx`).
 - Added public UX realignment planning docs and roadmap updates for Replay/Play/Analytics plus private local training-ops dashboard split (`docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`, `docs/PROJECT_STATUS.md`, `docs/BUILD_CHECKLIST.md`, `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`, `docs/DECISION_LOG.md`, `docs/DOCS_INDEX.md`, `frontend/README.md`).
 - Activated production W&B proxy credentials/scope (`WANDB_API_KEY`, `ABP_WANDB_ENTITY=jordanbaileypmp-georgia-institute-of-technology`, `ABP_WANDB_PROJECT=asteroid-prospector`) and captured strict smoke pass artifact `artifacts/deploy/m9-smoke-strict-20260303-post-wandb-attempt1.json`.

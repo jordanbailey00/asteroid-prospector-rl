@@ -67,6 +67,8 @@ Read top to bottom.
     - Production deployment wiring and smoke-check procedure for M9.
 22. `M9_DEPLOYMENT_EVIDENCE_20260303.md`
     - Captured live endpoint values and smoke artifacts for the 2026-03-03 M9 deployment dry run.
+23. `../ops_console/README.md`
+    - Local-only training ops dashboard usage and controls.
 
 ## Notes
 
