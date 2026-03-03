@@ -5,6 +5,7 @@ import gzip
 import json
 import math
 import random
+import re
 import sys
 import threading
 import time
@@ -40,6 +41,45 @@ DEFAULT_WANDB_HISTORY_KEYS = (
     "profit_mean",
     "survival_rate",
 )
+ANALYTICS_METADATA_REQUIRED_FIELDS = (
+    "run_id",
+    "status",
+    "trainer_backend",
+    "updated_at",
+    "metrics_windows_path",
+    "replay_index_path",
+)
+ANALYTICS_WINDOW_REQUIRED_FIELDS = (
+    "window_id",
+    "env_steps_total",
+    "reward_mean",
+    "return_mean",
+    "profit_mean",
+    "survival_rate",
+    "overheat_ticks_mean",
+    "pirate_encounters_mean",
+    "value_lost_to_pirates_mean",
+    "mining_ticks_mean",
+    "scan_count_mean",
+)
+ANALYTICS_REPLAY_REQUIRED_FIELDS = (
+    "replay_id",
+    "window_id",
+    "replay_path",
+    "checkpoint_path",
+    "tags",
+    "created_at",
+)
+ANALYTICS_WANDB_SUMMARY_REQUIRED_FIELDS = (
+    "window_id",
+    "env_steps_total",
+    "reward_mean",
+    "return_mean",
+    "profit_mean",
+    "survival_rate",
+)
+ANALYTICS_STATUS_PRIORITY = ("error", "missing", "stale", "ok")
+WANDB_RUN_URL_RE = re.compile(r"/runs/([^/?#]+)")
 
 
 def now_iso() -> str:
@@ -200,6 +240,79 @@ def _coerce_int(value: Any) -> int | None:
     if isinstance(value, int):
         return value
     return None
+
+
+def _value_present(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return value.strip() != ""
+    return True
+
+
+def _clean_str(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text if text != "" else None
+
+
+def _parse_iso_datetime(value: Any) -> datetime | None:
+    text = _clean_str(value)
+    if text is None:
+        return None
+    normalized = text[:-1] + "+00:00" if text.endswith("Z") else text
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def _path_mtime_iso(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    return datetime.fromtimestamp(path.stat().st_mtime, tz=UTC).isoformat()
+
+
+def _is_stale(*, updated_at: Any, now_utc: datetime, stale_after_seconds: int) -> bool:
+    parsed = _parse_iso_datetime(updated_at)
+    if parsed is None:
+        return False
+    return (now_utc - parsed).total_seconds() > float(stale_after_seconds)
+
+
+def _coverage_status(
+    *, error: str | None, missing_fields: list[str], empty: bool, stale: bool
+) -> str:
+    if error is not None:
+        return "error"
+    if empty or len(missing_fields) > 0:
+        return "missing"
+    if stale:
+        return "stale"
+    return "ok"
+
+
+def _extract_wandb_run_id(*, metadata: dict[str, Any], run_id_override: str | None) -> str | None:
+    override = _clean_str(run_id_override)
+    if override is not None:
+        return override
+
+    from_metadata = _clean_str(metadata.get("wandb_run_id"))
+    if from_metadata is not None:
+        return from_metadata
+
+    wandb_url = _clean_str(metadata.get("wandb_run_url"))
+    if wandb_url is None:
+        return None
+
+    match = WANDB_RUN_URL_RE.search(wandb_url)
+    if match is None:
+        return None
+    return _clean_str(match.group(1))
 
 
 def _wandb_ops_notes(
@@ -1121,6 +1234,322 @@ def create_app(
             "count": len(visible),
             "total": len(rows),
             "windows": visible,
+        }
+
+    @app.get("/api/runs/{run_id}/analytics/completeness")
+    def get_run_analytics_completeness(
+        run_id: str,
+        stale_after_seconds: int = Query(default=21600, ge=60, le=604800),
+        wandb_run_id: str | None = Query(default=None),
+        wandb_entity: str | None = Query(default=None),
+        wandb_project: str | None = Query(default=None),
+        wandb_history_max_points: int = Query(default=1000, ge=1, le=5000),
+    ) -> dict[str, Any]:
+        run_dir = _resolve_run_dir(run_id)
+        metadata_path = run_dir / "run_metadata.json"
+        metadata = _load_run_metadata(run_dir)
+        if metadata is None:
+            raise HTTPException(status_code=404, detail=f"run metadata not found: {run_id}")
+
+        now_utc = datetime.now(UTC)
+        metrics_path = _resolve_metrics_windows_path(run_dir=run_dir, metadata=metadata)
+        metrics_path_rel = _as_relative_posix(metrics_path, start=run_dir)
+        replay_index_path = _resolve_replay_index_path(run_dir=run_dir, metadata=metadata)
+        replay_index_path_rel = _as_relative_posix(replay_index_path, start=run_dir)
+
+        coverage: list[dict[str, Any]] = []
+
+        def _append_coverage(
+            *,
+            key: str,
+            label: str,
+            observed_count: int,
+            required_fields: tuple[str, ...],
+            missing_fields: list[str],
+            source: str,
+            source_path: str | None,
+            source_updated_at: str | None,
+            notes: list[str],
+            error: str | None = None,
+            empty: bool = False,
+        ) -> None:
+            stale = _is_stale(
+                updated_at=source_updated_at,
+                now_utc=now_utc,
+                stale_after_seconds=int(stale_after_seconds),
+            )
+            status = _coverage_status(
+                error=error,
+                missing_fields=missing_fields,
+                empty=empty,
+                stale=stale,
+            )
+            row_notes = list(notes)
+            if error is not None:
+                row_notes.append(error)
+            if stale and source_updated_at is not None:
+                row_notes.append(
+                    f"source is older than stale threshold ({int(stale_after_seconds)}s)"
+                )
+
+            coverage.append(
+                {
+                    "key": key,
+                    "label": label,
+                    "status": status,
+                    "observed_count": int(observed_count),
+                    "required_fields": list(required_fields),
+                    "missing_fields": sorted(set(missing_fields)),
+                    "lineage": {
+                        "source": source,
+                        "path": source_path,
+                        "updated_at": source_updated_at,
+                    },
+                    "notes": row_notes,
+                }
+            )
+
+        metadata_missing = [
+            field
+            for field in ANALYTICS_METADATA_REQUIRED_FIELDS
+            if not _value_present(metadata.get(field))
+        ]
+        metadata_updated_at = _clean_str(metadata.get("updated_at")) or _path_mtime_iso(
+            metadata_path
+        )
+        _append_coverage(
+            key="run_metadata",
+            label="Run Metadata",
+            observed_count=len(metadata),
+            required_fields=ANALYTICS_METADATA_REQUIRED_FIELDS,
+            missing_fields=metadata_missing,
+            source="run_metadata.json",
+            source_path="run_metadata.json",
+            source_updated_at=metadata_updated_at,
+            notes=[],
+            empty=False,
+        )
+
+        metric_rows: list[dict[str, Any]] = []
+        metrics_error: str | None = None
+        if metrics_path.exists():
+            try:
+                metric_rows = _load_jsonl_rows(metrics_path)
+            except HTTPException as exc:
+                metrics_error = f"{exc.status_code}: {exc.detail}"
+        latest_metric_row = metric_rows[-1] if len(metric_rows) > 0 else {}
+        metric_missing = [
+            field
+            for field in ANALYTICS_WINDOW_REQUIRED_FIELDS
+            if not _value_present(latest_metric_row.get(field))
+        ]
+        _append_coverage(
+            key="window_metrics",
+            label="Window Metrics",
+            observed_count=len(metric_rows),
+            required_fields=ANALYTICS_WINDOW_REQUIRED_FIELDS,
+            missing_fields=metric_missing,
+            source="metrics/windows.jsonl",
+            source_path=metrics_path_rel,
+            source_updated_at=_path_mtime_iso(metrics_path),
+            notes=[] if metrics_path.exists() else ["metrics windows file not found"],
+            error=metrics_error,
+            empty=(not metrics_path.exists()) or (len(metric_rows) == 0),
+        )
+
+        replay_entries: list[dict[str, Any]] = []
+        replay_updated_at: str | None = None
+        replay_error: str | None = None
+        if replay_index_path.exists():
+            try:
+                replay_payload = load_replay_index(path=replay_index_path, run_id=run_id)
+                replay_updated_at = _clean_str(replay_payload.get("updated_at")) or _path_mtime_iso(
+                    replay_index_path
+                )
+                maybe_entries = replay_payload.get("entries")
+                if isinstance(maybe_entries, list):
+                    replay_entries = [row for row in maybe_entries if isinstance(row, dict)]
+                else:
+                    replay_error = "500: Invalid replay index entries payload"
+            except HTTPException as exc:
+                replay_error = f"{exc.status_code}: {exc.detail}"
+        latest_replay = replay_entries[-1] if len(replay_entries) > 0 else {}
+        replay_missing = [
+            field
+            for field in ANALYTICS_REPLAY_REQUIRED_FIELDS
+            if not _value_present(latest_replay.get(field))
+        ]
+        _append_coverage(
+            key="replay_timeline",
+            label="Replay Timeline",
+            observed_count=len(replay_entries),
+            required_fields=ANALYTICS_REPLAY_REQUIRED_FIELDS,
+            missing_fields=replay_missing,
+            source="replay_index.json",
+            source_path=replay_index_path_rel,
+            source_updated_at=replay_updated_at or _path_mtime_iso(replay_index_path),
+            notes=[] if replay_index_path.exists() else ["replay index file not found"],
+            error=replay_error,
+            empty=(not replay_index_path.exists()) or (len(replay_entries) == 0),
+        )
+
+        resolved_wandb_run_id = _extract_wandb_run_id(
+            metadata=metadata,
+            run_id_override=wandb_run_id,
+        )
+        resolved_wandb_entity: str | None = None
+        resolved_wandb_project: str | None = None
+        wandb_scope_error: str | None = None
+
+        if resolved_wandb_run_id is not None:
+            try:
+                resolved_wandb_entity, resolved_wandb_project = _resolve_wandb_scope(
+                    entity=wandb_entity,
+                    project=wandb_project,
+                )
+            except HTTPException as exc:
+                if exc.status_code == 400:
+                    wandb_scope_error = str(exc.detail)
+                else:
+                    raise
+
+        summary_payload: dict[str, Any] | None = None
+        summary_error: str | None = None
+        if resolved_wandb_run_id is not None and wandb_scope_error is None:
+            try:
+                summary_payload = _call_wandb_proxy(
+                    lambda: app.state.wandb_proxy.get_run_summary(
+                        entity=str(resolved_wandb_entity),
+                        project=str(resolved_wandb_project),
+                        run_id=resolved_wandb_run_id,
+                    )
+                )
+            except HTTPException as exc:
+                summary_error = f"{exc.status_code}: {exc.detail}"
+
+        wandb_summary = (
+            summary_payload.get("summary", {}) if isinstance(summary_payload, dict) else {}
+        )
+        if not isinstance(wandb_summary, dict):
+            wandb_summary = {}
+        wandb_summary_missing = [
+            field
+            for field in ANALYTICS_WANDB_SUMMARY_REQUIRED_FIELDS
+            if not _value_present(wandb_summary.get(field))
+        ]
+        wandb_summary_notes: list[str] = []
+        if resolved_wandb_run_id is None:
+            wandb_summary_notes.append(
+                "W&B run id unavailable; pass wandb_run_id query param or populate "
+                "metadata.wandb_run_url"
+            )
+        if wandb_scope_error is not None:
+            wandb_summary_notes.append(wandb_scope_error)
+        _append_coverage(
+            key="wandb_summary",
+            label="W&B Summary",
+            observed_count=len(wandb_summary),
+            required_fields=ANALYTICS_WANDB_SUMMARY_REQUIRED_FIELDS,
+            missing_fields=wandb_summary_missing,
+            source="wandb.summary",
+            source_path="/api/wandb/runs/{wandb_run_id}/summary",
+            source_updated_at=(
+                _clean_str(summary_payload.get("updated_at"))
+                if isinstance(summary_payload, dict)
+                else None
+            ),
+            notes=wandb_summary_notes,
+            error=summary_error,
+            empty=(summary_payload is None),
+        )
+
+        history_rows: list[dict[str, Any]] = []
+        history_error: str | None = None
+        if resolved_wandb_run_id is not None and wandb_scope_error is None:
+            try:
+                history_rows = _call_wandb_proxy(
+                    lambda: app.state.wandb_proxy.get_run_history(
+                        entity=str(resolved_wandb_entity),
+                        project=str(resolved_wandb_project),
+                        run_id=resolved_wandb_run_id,
+                        keys=list(DEFAULT_WANDB_HISTORY_KEYS),
+                        max_points=int(wandb_history_max_points),
+                    )
+                )
+            except HTTPException as exc:
+                history_error = f"{exc.status_code}: {exc.detail}"
+
+        latest_history = history_rows[-1] if len(history_rows) > 0 else {}
+        history_missing = [
+            field
+            for field in DEFAULT_WANDB_HISTORY_KEYS
+            if not _value_present(latest_history.get(field))
+        ]
+        history_notes: list[str] = []
+        if resolved_wandb_run_id is None:
+            history_notes.append(
+                "W&B run id unavailable; pass wandb_run_id query param or populate "
+                "metadata.wandb_run_url"
+            )
+        if wandb_scope_error is not None:
+            history_notes.append(wandb_scope_error)
+        _append_coverage(
+            key="wandb_history",
+            label="W&B History",
+            observed_count=len(history_rows),
+            required_fields=tuple(DEFAULT_WANDB_HISTORY_KEYS),
+            missing_fields=history_missing,
+            source="wandb.history",
+            source_path="/api/wandb/runs/{wandb_run_id}/history",
+            source_updated_at=(
+                _clean_str(summary_payload.get("updated_at"))
+                if isinstance(summary_payload, dict)
+                else None
+            ),
+            notes=history_notes,
+            error=history_error,
+            empty=(len(history_rows) == 0),
+        )
+
+        status_counts = {status: 0 for status in ANALYTICS_STATUS_PRIORITY}
+        for row in coverage:
+            status = str(row.get("status", ""))
+            if status in status_counts:
+                status_counts[status] += 1
+
+        overall_status = "ok"
+        for candidate in ANALYTICS_STATUS_PRIORITY:
+            if status_counts.get(candidate, 0) > 0:
+                overall_status = candidate
+                break
+
+        run_context = {
+            "trainer_backend": metadata.get("trainer_backend"),
+            "status": metadata.get("status"),
+            "started_at": metadata.get("started_at"),
+            "updated_at": metadata.get("updated_at"),
+            "finished_at": metadata.get("finished_at"),
+            "run_config_path": metadata.get("config_path"),
+            "metrics_windows_path": metrics_path_rel,
+            "replay_index_path": replay_index_path_rel,
+            "wandb_run_url": metadata.get("wandb_run_url"),
+            "constellation_url": metadata.get("constellation_url"),
+        }
+
+        return {
+            "run_id": run_id,
+            "generated_at": now_utc.isoformat(),
+            "stale_after_seconds": int(stale_after_seconds),
+            "overall_status": overall_status,
+            "status_counts": status_counts,
+            "run_context": run_context,
+            "wandb_scope": {
+                "entity": resolved_wandb_entity,
+                "project": resolved_wandb_project,
+                "run_id": resolved_wandb_run_id,
+                "scope_error": wandb_scope_error,
+            },
+            "coverage": coverage,
         }
 
     @app.get("/api/runs/{run_id}/replays")

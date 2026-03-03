@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added run-scoped analytics completeness contract support: backend endpoint `GET /api/runs/{run_id}/analytics/completeness`, standardized source statuses (`ok|stale|missing|error`), frontend coverage table + lineage context cards on `/analytics`, and server API regression tests for complete/missing/error states.
 - Replaced the bespoke M9.5 `ops_console/` path with a PufferLib-native operator workflow (trainer CLI + terminal dashboard output, W&B persistence, optional Constellation visibility), and removed the custom dashboard code/tests from the repo.
 - Implemented M9.4 public Replay/Play UX realignment: viewport-first gameplay shell, larger responsive sector canvas, compact right-side HUD rails, collapsed advanced replay/session controls, replay JSON hidden behind expandable panel, grouped Play action deck (all 69 actions), and explicit "How To Play" onboarding with hotkey hints (`frontend/app/globals.css`, `frontend/components/replay-dashboard.tsx`, `frontend/components/play-console.tsx`).
 - Added public UX realignment planning docs and roadmap updates for Replay/Play/Analytics plus public/operator tooling split (`docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`, `docs/PROJECT_STATUS.md`, `docs/BUILD_CHECKLIST.md`, `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`, `docs/DECISION_LOG.md`, `docs/DOCS_INDEX.md`, `frontend/README.md`).

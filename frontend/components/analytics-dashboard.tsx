@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   backendBaseUrl,
+  getAnalyticsCompleteness,
   getMetricsWindows,
   getRun,
   getWandbIterationView,
@@ -13,6 +14,8 @@ import {
 } from "@/lib/api";
 import { formatNumber, formatTimestamp, toNumericSeries } from "@/lib/format";
 import {
+  AnalyticsCompletenessResponse,
+  AnalyticsCoverageRow,
   ReplayEntry,
   RunDetailResponse,
   RunSummary,
@@ -33,6 +36,32 @@ type TimelineRow = {
 function asFiniteNumber(value: unknown): number | undefined {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : undefined;
+}
+
+function coverageBadgeClass(status: string): string {
+  if (status === "ok") {
+    return "badge";
+  }
+  if (status === "stale") {
+    return "badge stale";
+  }
+  if (status === "missing") {
+    return "badge warn";
+  }
+  return "badge error";
+}
+
+function coverageSummaryMessage(status: string): string {
+  if (status === "ok") {
+    return "All required analytics sources are complete and current.";
+  }
+  if (status === "stale") {
+    return "Analytics sources are complete but stale against the configured freshness window.";
+  }
+  if (status === "missing") {
+    return "Some analytics sources or required fields are missing.";
+  }
+  return "One or more analytics sources returned errors.";
 }
 
 function renderLinks(detail: RunDetailResponse | null) {
@@ -100,6 +129,20 @@ function latestWandbValue(kpis: Record<string, unknown>, key: string): number | 
   return asFiniteNumber(kpis[key]);
 }
 
+function renderMissingFields(row: AnalyticsCoverageRow): string {
+  if (row.missing_fields.length === 0) {
+    return "none";
+  }
+  return row.missing_fields.join(", ");
+}
+
+function renderCoverageNotes(row: AnalyticsCoverageRow): string {
+  if (row.notes.length === 0) {
+    return "none";
+  }
+  return row.notes.join(" | ");
+}
+
 export function AnalyticsDashboard() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [selectedRunId, setSelectedRunId] = useState("");
@@ -120,6 +163,10 @@ export function AnalyticsDashboard() {
   const [wandbIterationView, setWandbIterationView] = useState<WandbIterationViewResponse | null>(null);
   const [wandbLoading, setWandbLoading] = useState(false);
   const [wandbError, setWandbError] = useState<string | null>(null);
+
+  const [completeness, setCompleteness] = useState<AnalyticsCompletenessResponse | null>(null);
+  const [completenessLoading, setCompletenessLoading] = useState(false);
+  const [completenessError, setCompletenessError] = useState<string | null>(null);
 
   useEffect(() => {
     listRuns(100)
@@ -227,6 +274,30 @@ export function AnalyticsDashboard() {
       .finally(() => setWandbLoading(false));
   }, [selectedWandbRunId]);
 
+  useEffect(() => {
+    if (!selectedRunId) {
+      setCompleteness(null);
+      setCompletenessError(null);
+      return;
+    }
+
+    setCompletenessLoading(true);
+    getAnalyticsCompleteness(selectedRunId, {
+      staleAfterSeconds: 21600,
+      wandbRunId: selectedWandbRunId || undefined,
+      wandbHistoryMaxPoints: 1000,
+    })
+      .then((payload) => {
+        setCompleteness(payload);
+        setCompletenessError(null);
+      })
+      .catch((err: Error) => {
+        setCompleteness(null);
+        setCompletenessError(err.message);
+      })
+      .finally(() => setCompletenessLoading(false));
+  }, [selectedRunId, selectedWandbRunId]);
+
   const rewardTrend = useMemo(
     () => toNumericSeries(metrics as Array<Record<string, unknown>>, "reward_mean"),
     [metrics],
@@ -298,6 +369,13 @@ export function AnalyticsDashboard() {
   const latestWindow = metrics[metrics.length - 1] ?? null;
   const recentRows = metrics.slice(Math.max(metrics.length - 10, 0)).reverse();
   const wandbKpis = wandbIterationView?.kpis ?? {};
+  const coverageRows = completeness?.coverage ?? [];
+  const coverageCounts = completeness?.status_counts ?? {
+    ok: 0,
+    stale: 0,
+    missing: 0,
+    error: 0,
+  };
 
   return (
     <section className="stack">
@@ -371,6 +449,111 @@ export function AnalyticsDashboard() {
       </article>
 
       <div className="data-board">
+        <article className="card full stack">
+          <h3>Analytics Coverage Contract</h3>
+          {completeness ? (
+            <>
+              <div className="list-inline">
+                <span className={coverageBadgeClass(completeness.overall_status)}>
+                  overall: {completeness.overall_status}
+                </span>
+                <span className="badge">ok {coverageCounts.ok}</span>
+                <span className="badge stale">stale {coverageCounts.stale}</span>
+                <span className="badge warn">missing {coverageCounts.missing}</span>
+                <span className="badge error">error {coverageCounts.error}</span>
+              </div>
+              {completeness.overall_status === "ok" ? (
+                <p className="muted">{coverageSummaryMessage(completeness.overall_status)}</p>
+              ) : (
+                <p className={`notice ${completeness.overall_status === "error" ? "error" : ""}`}>
+                  {coverageSummaryMessage(completeness.overall_status)}
+                </p>
+              )}
+              <div className="coverage-table-wrap">
+                <table className="coverage-table">
+                  <thead>
+                    <tr>
+                      <th>Source</th>
+                      <th>Status</th>
+                      <th>Observed</th>
+                      <th>Missing Fields</th>
+                      <th>Lineage</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {coverageRows.map((row) => (
+                      <tr key={row.key}>
+                        <td>
+                          <strong>{row.label}</strong>
+                          <div className="muted">{row.key}</div>
+                        </td>
+                        <td>
+                          <span className={coverageBadgeClass(row.status)}>{row.status}</span>
+                        </td>
+                        <td>{String(row.observed_count)}</td>
+                        <td>{renderMissingFields(row)}</td>
+                        <td>
+                          <div className="muted">{row.lineage.source}</div>
+                          <div className="mono-small">{row.lineage.path ?? "n/a"}</div>
+                          <div className="muted">{formatTimestamp(row.lineage.updated_at)}</div>
+                        </td>
+                        <td>{renderCoverageNotes(row)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <p className="muted">No completeness payload loaded.</p>
+          )}
+          {completenessLoading ? <p className="muted">Loading completeness contract...</p> : null}
+          {completenessError ? <p className="notice error">{completenessError}</p> : null}
+        </article>
+
+        <article className="card full stack">
+          <h3>Run Lineage and Training Context</h3>
+          {completeness ? (
+            <div className="metric-grid">
+              <dl className="kv">
+                <dt>Trainer Backend</dt>
+                <dd>{String(completeness.run_context.trainer_backend ?? "n/a")}</dd>
+                <dt>Run Status</dt>
+                <dd>{String(completeness.run_context.status ?? "n/a")}</dd>
+                <dt>Started</dt>
+                <dd>{formatTimestamp(completeness.run_context.started_at)}</dd>
+                <dt>Updated</dt>
+                <dd>{formatTimestamp(completeness.run_context.updated_at)}</dd>
+                <dt>Finished</dt>
+                <dd>{formatTimestamp(completeness.run_context.finished_at)}</dd>
+                <dt>Run Config Path</dt>
+                <dd>{String(completeness.run_context.run_config_path ?? "n/a")}</dd>
+                <dt>Metrics Path</dt>
+                <dd>{String(completeness.run_context.metrics_windows_path ?? "n/a")}</dd>
+                <dt>Replay Index Path</dt>
+                <dd>{String(completeness.run_context.replay_index_path ?? "n/a")}</dd>
+              </dl>
+              <dl className="kv">
+                <dt>W&B Entity</dt>
+                <dd>{String(completeness.wandb_scope.entity ?? "n/a")}</dd>
+                <dt>W&B Project</dt>
+                <dd>{String(completeness.wandb_scope.project ?? "n/a")}</dd>
+                <dt>W&B Run ID</dt>
+                <dd>{String(completeness.wandb_scope.run_id ?? "n/a")}</dd>
+                <dt>Scope Error</dt>
+                <dd>{String(completeness.wandb_scope.scope_error ?? "none")}</dd>
+                <dt>W&B URL</dt>
+                <dd>{String(completeness.run_context.wandb_run_url ?? "n/a")}</dd>
+                <dt>Constellation URL</dt>
+                <dd>{String(completeness.run_context.constellation_url ?? "n/a")}</dd>
+              </dl>
+            </div>
+          ) : (
+            <p className="muted">Lineage context unavailable.</p>
+          )}
+        </article>
+
         <article className="card full">
           <h3>Iteration KPI Snapshot</h3>
           {wandbIterationView ? (

@@ -436,3 +436,12 @@ Use this file for non-trivial project decisions.
 - Decision: Remove the bespoke `ops_console/` service and test suite. Redefine M9.5 as an operator workflow based on `training/train_puffer.py` CLI execution, PufferLib terminal dashboard output for live progress, W&B for persisted telemetry/artifacts, and Constellation when enabled.
 - Consequences: Training management no longer depends on custom dashboard code, public routes remain read-only observer/player/analytics surfaces, and docs/checklists now point operators to PufferLib-native tooling.
 - Related commits/docs: `README.md`, `training/README.md`, `frontend/README.md`, `docs/BUILD_CHECKLIST.md`, `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`, `docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml`, `tools/run_checks.ps1`
+
+### ADR-0048 - Codify analytics completeness contract with a run-scoped backend endpoint and explicit frontend coverage/lineage surface
+
+- Date: 2026-03-03
+- Status: Accepted
+- Context: Workstream D required `/analytics` to explicitly show metric-source coverage, lineage, and stale/missing/error states, but existing analytics rendering was spread across ad hoc cards without a canonical contract.
+- Decision: Add `GET /api/runs/{run_id}/analytics/completeness` to compute a canonical five-source coverage contract (`run_metadata`, `window_metrics`, `replay_timeline`, `wandb_summary`, `wandb_history`) with standardized statuses (`ok|stale|missing|error`), required-field checks, observed counts, lineage metadata, and run context/wandb scope payloads. Wire frontend analytics to consume this payload and render a dedicated coverage table plus lineage context card.
+- Consequences: Public analytics now has explicit completeness signaling and provenance visibility for each source, reducing ambiguity for users and operators. API/tests can enforce completeness behavior consistently, and stale/missing/error states are no longer implicit UI side effects.
+- Related commits/docs: `server/app.py`, `tests/test_server_api.py`, `frontend/lib/types.ts`, `frontend/lib/api.ts`, `frontend/components/analytics-dashboard.tsx`, `frontend/app/globals.css`, `server/README.md`, `frontend/README.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`

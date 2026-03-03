@@ -1,7 +1,7 @@
 # Project Status
 
 Last updated: 2026-03-03
-Current focus: M9 execution (analytics completeness contract, PufferLib-native ops alignment, and deployment hardening)
+Current focus: M9 execution (deployment hardening, replay websocket stability, and baseline automation)
 
 ## Current state
 
@@ -28,7 +28,9 @@ Current focus: M9 execution (analytics completeness contract, PufferLib-native o
   - `GET /api/wandb/status`
   - `GET /api/wandb/runs/{wandb_run_id}/iteration-view`
 - W&B diagnostics endpoint now exposes proxy availability + cache telemetry for ops tuning (`ttl_seconds`, hits/misses/expired/sets, `hit_rate`) plus per-operation telemetry (`calls`, `errors`, `latency_ms_avg`, `latency_ms_total`).
-- Analytics UI now includes W&B-backed last-10 iteration drilldown, KPI snapshot cards, and trend sparklines.
+- Run-scoped analytics completeness endpoint is now available for public dashboard contract checks:
+  - `GET /api/runs/{run_id}/analytics/completeness`
+- Analytics UI now includes W&B-backed last-10 iteration drilldown, KPI snapshot cards, trend sparklines, and an explicit completeness contract surface (coverage table + lineage + stale/missing/error signaling).
 - Python quality gates now cover `python/`, `training/`, `replay/`, `server/`, `tests/`, and `tools/` in local checks, pre-commit, and CI.
 - Deployment runbook and smoke tooling are now in-repo:
   - `docs/M9_DEPLOYMENT_RUNBOOK.md`
@@ -62,13 +64,13 @@ Current focus: M9 execution (analytics completeness contract, PufferLib-native o
 | M6.5 - Graphics + audio | Complete | File-backed Kenney asset wiring plus validation checks |
 | M7 - Baselines + benchmarking | Pending | Baseline bots and benchmark protocol automation are not complete yet |
 | M8 - Performance + stability hardening | Complete | Replay transport tuning, benchmark/stability runners, native batch runtime path |
-| M9 - Throughput + W&B dashboard + Vercel alignment | In Progress | Throughput matrix/floor artifacts and W&B proxy are in place; M9.4 Replay/Play UX is implemented and M9.5 is now aligned to PufferLib-native operator tooling, with analytics-completeness and deployment hardening remaining |
+| M9 - Throughput + W&B dashboard + Vercel alignment | In Progress | Throughput matrix/floor artifacts and W&B proxy are in place; M9.4 Replay/Play UX and analytics completeness contract are implemented, and M9.5 is aligned to PufferLib-native operator tooling, with deployment hardening + websocket stability follow-up remaining |
 
 ## Latest recorded validation health (2026-03-03)
 
 - `python -m pytest -q` -> 104 passed, 2 skipped.
 - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
-- `python -m pytest -q tests/test_server_api.py` -> 15 passed.
+- `python -m pytest -q tests/test_server_api.py` -> 18 passed.
 - `python -m pytest -q tests/test_smoke_m9_deployment.py` -> 12 passed.
 - `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260303-post-wandb-attempt1.json` -> pass (13/13) after backend W&B key + scope activation and production run-root seeding.
 
@@ -79,20 +81,16 @@ Current focus: M9 execution (analytics completeness contract, PufferLib-native o
 
 ## Next work (ordered)
 
-1. Complete `docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md` workstream D for `/analytics` completeness contract:
-   - publish explicit metric coverage table + lineage fields
-   - add stale/missing data states and completeness checks
-2. Investigate and harden production replay websocket stability (`/ws/runs/.../frames`) to eliminate intermittent EOF failures in strict smoke.
-3. Keep deployment evidence current per release cut:
+1. Investigate and harden production replay websocket stability (`/ws/runs/.../frames`) to eliminate intermittent EOF failures in strict smoke.
+2. Keep deployment evidence current per release cut:
    - `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`
    - local smoke artifact under `artifacts/deploy/`
    - manual CI run artifact from `.github/workflows/m9-deployment-smoke.yml`
-4. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
-5. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
+3. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
+4. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
 
 ## Active risks and blockers
 
-- Analytics completeness contract (coverage table + lineage and stale-data signaling) is not fully codified yet in the public dashboard.
 - 100,000 steps/sec remains aspirational; current measured trainer throughput is far below target and requires further bottleneck reduction.
 - W&B backend proxy now authenticates with production credentials and passes strict smoke checks under default scope.
 - Replay websocket streaming in production is intermittent (`/ws/runs/.../frames` sometimes closes with EOF before first payload), causing strict smoke instability.

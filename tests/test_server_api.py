@@ -75,9 +75,45 @@ def _make_run(tmp_path: Path, run_id: str, *, updated_at: str) -> None:
     _write_jsonl(
         run_dir / "metrics/windows.jsonl",
         [
-            {"window_id": 0, "env_steps_total": 40, "reward_mean": 1.0},
-            {"window_id": 1, "env_steps_total": 80, "reward_mean": 1.1},
-            {"window_id": 2, "env_steps_total": 120, "reward_mean": 1.2},
+            {
+                "window_id": 0,
+                "env_steps_total": 40,
+                "reward_mean": 1.0,
+                "return_mean": 2.0,
+                "profit_mean": 20.0,
+                "survival_rate": 0.9,
+                "overheat_ticks_mean": 0.1,
+                "pirate_encounters_mean": 0.2,
+                "value_lost_to_pirates_mean": 1.0,
+                "mining_ticks_mean": 3.0,
+                "scan_count_mean": 1.0,
+            },
+            {
+                "window_id": 1,
+                "env_steps_total": 80,
+                "reward_mean": 1.1,
+                "return_mean": 2.2,
+                "profit_mean": 25.0,
+                "survival_rate": 0.95,
+                "overheat_ticks_mean": 0.08,
+                "pirate_encounters_mean": 0.15,
+                "value_lost_to_pirates_mean": 0.8,
+                "mining_ticks_mean": 3.2,
+                "scan_count_mean": 1.2,
+            },
+            {
+                "window_id": 2,
+                "env_steps_total": 120,
+                "reward_mean": 1.2,
+                "return_mean": 2.4,
+                "profit_mean": 30.0,
+                "survival_rate": 1.0,
+                "overheat_ticks_mean": 0.05,
+                "pirate_encounters_mean": 0.1,
+                "value_lost_to_pirates_mean": 0.6,
+                "mining_ticks_mean": 3.5,
+                "scan_count_mean": 1.3,
+            },
         ],
     )
 
@@ -133,6 +169,114 @@ def test_run_metrics_windows_endpoint(tmp_path: Path) -> None:
     assert asc_resp.status_code == 200
     asc_payload = asc_resp.json()
     assert [row["window_id"] for row in asc_payload["windows"]] == [0, 1]
+
+
+def test_run_analytics_completeness_endpoint_reports_ok_coverage(tmp_path: Path) -> None:
+    run_id = "run-complete"
+    _make_run(tmp_path, run_id, updated_at="2026-03-03T01:00:00+00:00")
+
+    app = create_app(
+        runs_root=tmp_path,
+        wandb_proxy=_FakeWandbProxy(),
+        wandb_default_entity="team-astro",
+        wandb_default_project="asteroid-prospector",
+    )
+    client = TestClient(app)
+
+    response = client.get(
+        f"/api/runs/{run_id}/analytics/completeness",
+        params={
+            "wandb_run_id": "wb-iter-002",
+            "stale_after_seconds": 604800,
+        },
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["overall_status"] == "ok"
+    assert payload["status_counts"]["ok"] == 5
+
+    coverage = {row["key"]: row for row in payload["coverage"]}
+    assert coverage["run_metadata"]["status"] == "ok"
+    assert coverage["window_metrics"]["status"] == "ok"
+    assert coverage["replay_timeline"]["status"] == "ok"
+    assert coverage["wandb_summary"]["status"] == "ok"
+    assert coverage["wandb_history"]["status"] == "ok"
+
+
+def test_run_analytics_completeness_endpoint_missing_and_stale_states(tmp_path: Path) -> None:
+    run_id = "run-gappy"
+    run_dir = tmp_path / run_id
+
+    _write_json(
+        run_dir / "run_metadata.json",
+        {
+            "run_id": run_id,
+            "status": "completed",
+            "trainer_backend": "random",
+            "updated_at": "2000-01-01T00:00:00+00:00",
+            "metrics_windows_path": "metrics/missing.jsonl",
+            "replay_index_path": "replay_index.json",
+            "started_at": "2000-01-01T00:00:00+00:00",
+            "finished_at": "2000-01-01T00:01:00+00:00",
+        },
+    )
+    _write_json(
+        run_dir / "replay_index.json",
+        {
+            "schema_version": 1,
+            "run_id": run_id,
+            "updated_at": "2000-01-01T00:00:00+00:00",
+            "entries": [],
+        },
+    )
+
+    app = create_app(runs_root=tmp_path, wandb_proxy=_FakeWandbProxy())
+    client = TestClient(app)
+
+    response = client.get(
+        f"/api/runs/{run_id}/analytics/completeness",
+        params={"stale_after_seconds": 60},
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["overall_status"] == "missing"
+
+    coverage = {row["key"]: row for row in payload["coverage"]}
+    assert coverage["run_metadata"]["status"] == "stale"
+    assert coverage["window_metrics"]["status"] == "missing"
+    assert coverage["replay_timeline"]["status"] == "missing"
+    assert coverage["wandb_summary"]["status"] == "missing"
+    assert coverage["wandb_history"]["status"] == "missing"
+
+
+def test_run_analytics_completeness_endpoint_wandb_error_state(tmp_path: Path) -> None:
+    run_id = "run-wandb-error"
+    _make_run(tmp_path, run_id, updated_at="2026-03-03T02:00:00+00:00")
+
+    run_dir = tmp_path / run_id
+    metadata = json.loads((run_dir / "run_metadata.json").read_text(encoding="utf-8"))
+    metadata["wandb_run_url"] = "https://wandb.ai/team-astro/asteroid-prospector/runs/wb-iter-002"
+    _write_json(run_dir / "run_metadata.json", metadata)
+
+    app = create_app(
+        runs_root=tmp_path,
+        wandb_proxy=_FailingWandbProxy(),
+        wandb_default_entity="team-astro",
+        wandb_default_project="asteroid-prospector",
+    )
+    client = TestClient(app)
+
+    response = client.get(f"/api/runs/{run_id}/analytics/completeness")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["overall_status"] == "error"
+
+    coverage = {row["key"]: row for row in payload["coverage"]}
+    assert coverage["wandb_summary"]["status"] == "error"
+    assert coverage["wandb_history"]["status"] == "error"
 
 
 def test_replay_catalog_filters_and_frame_fetch(tmp_path: Path) -> None:
@@ -504,6 +648,28 @@ class _FailingWandbProxy:
         del entity
         del project
         del limit
+        raise RuntimeError("W&B proxy unavailable in test")
+
+    def get_run_summary(self, *, entity: str, project: str, run_id: str) -> dict:
+        del entity
+        del project
+        del run_id
+        raise RuntimeError("W&B proxy unavailable in test")
+
+    def get_run_history(
+        self,
+        *,
+        entity: str,
+        project: str,
+        run_id: str,
+        keys: list[str] | None,
+        max_points: int,
+    ) -> list[dict]:
+        del entity
+        del project
+        del run_id
+        del keys
+        del max_points
         raise RuntimeError("W&B proxy unavailable in test")
 
 

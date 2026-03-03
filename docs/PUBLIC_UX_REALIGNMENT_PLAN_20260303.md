@@ -80,6 +80,7 @@ Assumption used for conflicting wording in request (left vs right side dashboard
 - Surface run config lineage and training context fields in dedicated cards.
 - Add consistency checks for missing/empty metrics and explicit stale-data states.
 - Keep analytics read-only; no training mutation controls.
+- Implementation status (2026-03-03): complete via `GET /api/runs/{run_id}/analytics/completeness` plus frontend coverage table and lineage cards in `analytics-dashboard.tsx`.
 
 ### Workstream E - Operator tooling alignment (no bespoke dashboard)
 
@@ -104,7 +105,7 @@ Frontend code and styling:
 Backend/API:
 
 - Existing endpoints remain valid for core flows.
-- May add one read-only analytics aggregation endpoint if current payload fan-out becomes too expensive.
+- Added read-only analytics aggregation endpoint `GET /api/runs/{run_id}/analytics/completeness` for coverage/lineage/staleness contract checks.
 - No public training-control endpoints will be added.
 
 Training/runtime:

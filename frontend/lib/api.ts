@@ -1,4 +1,5 @@
 import {
+  AnalyticsCompletenessResponse,
   MetricsWindowsResponse,
   PlaySessionCreateRequest,
   PlaySessionDeleteResponse,
@@ -286,6 +287,28 @@ export async function getReplayFramesWebSocket(
   });
 }
 
+export async function getAnalyticsCompleteness(
+  runId: string,
+  options?: {
+    staleAfterSeconds?: number;
+    wandbRunId?: string;
+    wandbEntity?: string;
+    wandbProject?: string;
+    wandbHistoryMaxPoints?: number;
+  },
+): Promise<AnalyticsCompletenessResponse> {
+  return requestJson<AnalyticsCompletenessResponse>(
+    `/api/runs/${runId}/analytics/completeness`,
+    undefined,
+    {
+      stale_after_seconds: options?.staleAfterSeconds,
+      wandb_run_id: options?.wandbRunId,
+      wandb_entity: options?.wandbEntity,
+      wandb_project: options?.wandbProject,
+      wandb_history_max_points: options?.wandbHistoryMaxPoints ?? 1000,
+    },
+  );
+}
 export async function getMetricsWindows(
   runId: string,
   options?: { limit?: number; order?: "asc" | "desc" },

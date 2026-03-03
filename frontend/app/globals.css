@@ -396,6 +396,18 @@ button:hover:enabled {
   border-color: rgba(176, 0, 32, 0.24);
 }
 
+.badge.stale {
+  background: rgba(245, 158, 11, 0.16);
+  color: #7f4f09;
+  border-color: rgba(245, 158, 11, 0.36);
+}
+
+.badge.error {
+  background: rgba(176, 0, 32, 0.18);
+  color: #7a1225;
+  border-color: rgba(176, 0, 32, 0.44);
+}
+
 .list-inline {
   display: flex;
   flex-wrap: wrap;
@@ -447,6 +459,40 @@ button:hover:enabled {
   stroke: var(--accent-cool);
 }
 
+.coverage-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.coverage-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 860px;
+  font-size: 0.82rem;
+}
+
+.coverage-table th,
+.coverage-table td {
+  border: 1px solid var(--edge);
+  padding: 0.5rem 0.55rem;
+  vertical-align: top;
+  text-align: left;
+}
+
+.coverage-table thead th {
+  background: rgba(16, 32, 41, 0.05);
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.73rem;
+}
+
+.mono-small {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.76rem;
+  color: var(--ink-main);
+  word-break: break-word;
+}
 .frame-panel {
   font-family: var(--font-jetbrains-mono), monospace;
   background: #0f1f24;

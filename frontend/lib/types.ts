@@ -145,6 +145,54 @@ export interface WandbIterationViewResponse {
   kpis: Record<string, unknown>;
 }
 
+export type AnalyticsCoverageStatus = "ok" | "stale" | "missing" | "error";
+
+export interface AnalyticsCoverageRow {
+  key: string;
+  label: string;
+  status: AnalyticsCoverageStatus;
+  observed_count: number;
+  required_fields: string[];
+  missing_fields: string[];
+  lineage: {
+    source: string;
+    path: string | null;
+    updated_at: string | null;
+  };
+  notes: string[];
+}
+
+export interface AnalyticsCompletenessResponse {
+  run_id: string;
+  generated_at: string;
+  stale_after_seconds: number;
+  overall_status: AnalyticsCoverageStatus;
+  status_counts: {
+    ok: number;
+    stale: number;
+    missing: number;
+    error: number;
+  };
+  run_context: {
+    trainer_backend: string | null;
+    status: string | null;
+    started_at: string | null;
+    updated_at: string | null;
+    finished_at: string | null;
+    run_config_path: string | null;
+    metrics_windows_path: string | null;
+    replay_index_path: string | null;
+    wandb_run_url: string | null;
+    constellation_url: string | null;
+  };
+  wandb_scope: {
+    entity: string | null;
+    project: string | null;
+    run_id: string | null;
+    scope_error: string | null;
+  };
+  coverage: AnalyticsCoverageRow[];
+}
 export interface PlaySessionCreateRequest {
   seed?: number;
   env_time_max?: number;

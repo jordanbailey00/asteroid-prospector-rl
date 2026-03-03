@@ -42,6 +42,7 @@ python -m uvicorn server.main:app --reload --port 8000
 - `GET /api/runs`
 - `GET /api/runs/{run_id}`
 - `GET /api/runs/{run_id}/metrics/windows`
+- `GET /api/runs/{run_id}/analytics/completeness`
 - `GET /api/runs/{run_id}/replays`
 - `GET /api/runs/{run_id}/replays/{replay_id}`
 - `GET /api/runs/{run_id}/replays/{replay_id}/frames`
@@ -61,6 +62,12 @@ Replay list filters (`/api/runs/{run_id}/replays`):
 Metrics query (`/api/runs/{run_id}/metrics/windows`):
 - `limit`
 - `order` (`asc` or `desc`)
+
+Analytics completeness query (`/api/runs/{run_id}/analytics/completeness`):
+- `stale_after_seconds` (60..604800, default `21600`)
+- `wandb_run_id` (optional override; otherwise inferred from `run_metadata.json` when available)
+- `wandb_entity`, `wandb_project` (optional scope override; defaults to `ABP_WANDB_ENTITY`/`ABP_WANDB_PROJECT`)
+- `wandb_history_max_points` (1..5000, default `1000`)
 
 W&B proxy query controls:
 - `/api/wandb/runs/latest`: `limit` (1..50), optional `entity`, `project`
