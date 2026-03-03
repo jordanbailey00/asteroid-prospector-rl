@@ -39,31 +39,33 @@ Read top to bottom.
 
 11. `frontend/asteroid_belt_prospector_frontend_spec_wandb.md`
     - Replay/player/analytics frontend requirements.
+12. `PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`
+    - Gap analysis and phased redesign plan for Replay/Play/Analytics plus private local ops console.
 
 ## 6) Graphics and audio
 
-12. `graphics/asteroid_belt_prospector_graphics_spec.md`
+13. `graphics/asteroid_belt_prospector_graphics_spec.md`
     - Asset mapping and rendering/audio manifests.
 
 ## 7) Agent operating docs
 
-13. `AGENT_HANDOFF_BRIEF.md`
+14. `AGENT_HANDOFF_BRIEF.md`
     - Purpose, milestones, acceptance criteria.
-14. `AGENT_HYGIENE_GUARDRAILS.md`
+15. `AGENT_HYGIENE_GUARDRAILS.md`
     - Non-negotiables and repo hygiene rules.
-15. `ACCEPTANCE_TESTS_PARITY_HARNESS.md`
+16. `ACCEPTANCE_TESTS_PARITY_HARNESS.md`
     - Determinism and parity gates.
-16. `BUILD_CHECKLIST.md`
+17. `BUILD_CHECKLIST.md`
     - Ordered implementation checklist.
-17. `PROJECT_STATUS.md`
+18. `PROJECT_STATUS.md`
     - Current project state, milestone board, and ordered next work.
-18. `DECISION_LOG.md`
+19. `DECISION_LOG.md`
     - Architecture/process decisions with consequences.
-19. `M65_MANUAL_VERIFICATION.md`
+20. `M65_MANUAL_VERIFICATION.md`
     - Final M6.5 replay/play checklist evidence and sampled replay trace.
-20. `M9_DEPLOYMENT_RUNBOOK.md`
+21. `M9_DEPLOYMENT_RUNBOOK.md`
     - Production deployment wiring and smoke-check procedure for M9.
-21. `M9_DEPLOYMENT_EVIDENCE_20260303.md`
+22. `M9_DEPLOYMENT_EVIDENCE_20260303.md`
     - Captured live endpoint values and smoke artifacts for the 2026-03-03 M9 deployment dry run.
 
 ## Notes

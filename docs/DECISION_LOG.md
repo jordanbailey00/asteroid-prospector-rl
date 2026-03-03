@@ -399,3 +399,12 @@ Use this file for non-trivial project decisions.
 - Decision: Update local check script, pre-commit hook file scopes, and CI black/ruff commands to include `python`, `training`, `replay`, `server`, `tests`, and `tools`. Expand CI pip installs to include dependencies needed by default test runs (`fastapi`, `pydantic`, `starlette`, `httpx`, `hypothesis`, `requests`) in addition to existing lint/test packages.
 - Consequences: Quality gates now catch Python lint/format drift across core runtime and API paths before merge; CI test setup is closer to actual repo test requirements and less prone to dependency-related false failures.
 - Related commits/docs: `tools/run_checks.ps1`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml`, `server/app.py`, `training/puffer_backend.py`, `docs/PROJECT_STATUS.md`, `docs/DECISION_LOG.md`, `CHANGELOG.md`
+
+### ADR-0044 - Split public website UX from private training-ops controls and keep pixel rendering as presentation-only
+
+- Date: 2026-03-03
+- Status: Accepted
+- Context: Product direction now requires a clearer player-facing website where Replay/Play/Analytics are easy to use and free of training-ops complexity, while preserving the existing RL architecture where learning happens in the non-pixel simulation state space.
+- Decision: Treat the public frontend as a read-only observer/player surface (`/`, `/play`, `/analytics`) with no training mutation controls. Keep RL training on the non-pixel environment contracts and use pixel rendering strictly as a presentation layer for replay and human play. Introduce a separate private local dashboard for operator workflows (training launch/tune/monitor controls).
+- Consequences: Public UX can be simplified for end users without exposing ops complexity or secrets; operator controls move to a local-only tool boundary. Upcoming frontend work must prioritize large gameplay viewport, explicit pilot guidance, and analytics completeness while avoiding training-control interactions in public routes.
+- Related commits/docs: `docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`, `docs/PROJECT_STATUS.md`, `docs/BUILD_CHECKLIST.md`, `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`, `frontend/README.md`

@@ -1,7 +1,7 @@
 # Project Status
 
 Last updated: 2026-03-03
-Current focus: M9 execution (throughput evidence, W&B-backed analytics integration, Vercel deployment alignment)
+Current focus: M9 execution (public UX realignment for Replay/Play/Analytics, private local training-ops split, and deployment hardening)
 
 ## Current state
 
@@ -19,6 +19,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
   - HTTP frame pagination (`GET /api/runs/{run_id}/replays/{replay_id}/frames`),
   - websocket chunk stream (`WS /ws/runs/{run_id}/replays/{replay_id}/frames`).
 - Frontend routes are live for replay (`/`), play (`/play`), and analytics (`/analytics`).
+- Public gameplay UX currently remains control-heavy and space-constrained (fixed small sector viewport + fragmented HUD), and needs a player-first layout pass per `docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`.
 - Backend W&B proxy endpoints are now available for iteration analytics:
   - `GET /api/wandb/runs/latest`
   - `GET /api/wandb/runs/{wandb_run_id}/summary`
@@ -60,7 +61,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 | M6.5 - Graphics + audio | Complete | File-backed Kenney asset wiring plus validation checks |
 | M7 - Baselines + benchmarking | Pending | Baseline bots and benchmark protocol automation are not complete yet |
 | M8 - Performance + stability hardening | Complete | Replay transport tuning, benchmark/stability runners, native batch runtime path |
-| M9 - Throughput + W&B dashboard + Vercel alignment | In Progress | Throughput matrix/floor artifacts plus W&B proxy + analytics drilldown are in place; deployment alignment remains |
+| M9 - Throughput + W&B dashboard + Vercel alignment | In Progress | Throughput matrix/floor artifacts plus W&B proxy are in place; public UX realignment + private ops split are now the active product focus |
 
 ## Latest recorded validation health (2026-03-03)
 
@@ -77,16 +78,24 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 ## Next work (ordered)
 
-1. Investigate and harden production replay websocket stability (`/ws/runs/.../frames`) to eliminate intermittent EOF failures in strict smoke.
-2. Keep deployment evidence current per release cut:
+1. Execute `docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md` workstreams A-D:
+   - enlarge Replay/Play viewport to primary screen region with right-side compact gameplay HUD
+   - make human pilot controls and "how to play" flow explicit and beginner-readable
+   - simplify Replay into observer-first mode with advanced controls collapsed
+   - define and enforce analytics completeness contract in `/analytics`
+2. Implement workstream E from `docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`: private local training-ops dashboard (launch/tune/monitor controls) that is not deployed publicly.
+3. Investigate and harden production replay websocket stability (`/ws/runs/.../frames`) to eliminate intermittent EOF failures in strict smoke.
+4. Keep deployment evidence current per release cut:
    - `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`
    - local smoke artifact under `artifacts/deploy/`
    - manual CI run artifact from `.github/workflows/m9-deployment-smoke.yml`
-3. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
-4. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
+5. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
+6. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
 
 ## Active risks and blockers
 
+- Public Replay/Play UX is still not player-first (small viewport and dense operator controls), which can block usability for new users.
+- Private local training-ops dashboard does not yet exist, so operator workflows remain CLI-driven and fragmented.
 - 100,000 steps/sec remains aspirational; current measured trainer throughput is far below target and requires further bottleneck reduction.
 - W&B backend proxy now authenticates with production credentials and passes strict smoke checks under default scope.
 - Replay websocket streaming in production is intermittent (`/ws/runs/.../frames` sometimes closes with EOF before first payload), causing strict smoke instability.

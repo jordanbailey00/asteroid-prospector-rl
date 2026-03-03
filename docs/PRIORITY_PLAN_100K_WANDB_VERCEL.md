@@ -1,23 +1,25 @@
-﻿# Priority Implementation Plan: 100k Throughput + W&B Dashboard + Vercel
+# Priority Implementation Plan: 100k Throughput + W&B Dashboard + Vercel
 
-Last updated: 2026-03-01
-Status: Approved planning baseline for next execution cycle
+Last updated: 2026-03-03
+Status: Approved planning baseline with public UX realignment extension
 
 ## Scope
 
-This plan covers only the following priorities:
+This plan covers the following priorities:
 
 1. Training throughput target of 100,000 env steps/sec (or highest stable throughput if hardware ceiling is lower).
 2. W&B-backed analytics integration into the website for current iteration, full historical trend, and last-10 iteration drilldown.
 3. Frontend hosting on Vercel.
+4. Public UX realignment for Replay/Play/Analytics so gameplay is viewport-first and beginner-readable.
+5. Private local dashboard for training operations (launch/tune/monitor) outside the public website.
 
 Detailed runtime performance plan: `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
 
 ## Non-goals
 
 - No RL interface changes (`OBS_DIM=260`, `N_ACTIONS=69`, reward/action/obs contracts remain frozen).
-- No redesign of replay/play APIs unrelated to throughput or W&B analytics integration.
-- No broad spec-gap closure outside the three priorities above.
+- No migration of training-control UX into public Vercel routes.
+- No requirement to expose backend secrets or mutable training controls to browser clients.
 
 ## Architecture impacts
 
@@ -48,6 +50,14 @@ Detailed runtime performance plan: `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
   - full historical trend across prior iterations,
   - last-10 iteration dropdown and iteration-specific drilldown,
   - compact KPI snapshot cards.
+- Replay and Play routes need a new viewport-first layout with a compact side HUD and fewer operator-facing controls.
+- Human pilot UX needs explicit onboarding and grouped action controls so first-time users can play without reading source docs.
+
+### Product boundary and operations tooling
+
+- Public website routes (`/`, `/play`, `/analytics`) remain observer/player only.
+- Training launch/tuning/ops controls move to a private local dashboard that is not deployed to Vercel.
+- Pixel rendering remains presentation-only; training remains on non-pixel RL state space.
 
 ### Hosting and deployment
 
@@ -179,6 +189,49 @@ Detailed runtime performance plan: `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
 - Analytics dashboard loads from backend proxy in production.
 - No W&B secret exposed in frontend bundles/env.
 
+## Workstream D: Public UX realignment for Replay and Play
+
+### D1. Shared gameplay shell and responsive viewport
+
+- Implement a shared viewport-first layout for Replay and Play.
+- Desktop: large primary viewport with compact right-side gameplay HUD.
+- Mobile: stacked layout preserving gameplay visibility and control clarity.
+
+### D2. Replay simplification
+
+- Default to latest run/replay selection.
+- Keep advanced transport/filter controls behind a collapsed advanced section.
+- Keep playback controls visible and near the viewport.
+
+### D3. Human pilot clarity
+
+- Add explicit `How to play` flow and grouped action categories.
+- Keep advanced play-session knobs behind an advanced section.
+- Add visible hotkey/action legend.
+
+### D4. Acceptance criteria
+
+- New users can understand and perform core pilot loop from in-page guidance.
+- Replay and Play viewport occupies most of desktop screen real estate.
+- Critical pilot metrics remain visible in compact side HUD throughout gameplay.
+
+## Workstream E: Private local training-ops dashboard
+
+### E1. Local-only operator dashboard scaffold
+
+- Create local-only dashboard path for training job control.
+- Keep deployment target local machine only (`localhost`).
+
+### E2. Operator controls and telemetry
+
+- Provide controls to launch/stop/tune training runs.
+- Surface live logs, throughput, checkpoint/replay artifact state, and run metadata updates.
+
+### E3. Acceptance criteria
+
+- Training and experiment mutation controls are available locally for operator workflows.
+- No training mutation controls are exposed on public web routes.
+
 ## Ordered execution checklist
 
 1. Add throughput profiler + baseline report generation.
@@ -188,8 +241,13 @@ Detailed runtime performance plan: `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
 5. Implement W&B proxy endpoints with caching and tests.
 6. Extend analytics UI for current iteration, full history, and last-10 iteration selector.
 7. Add frontend integration tests and manual verification artifacts for analytics UI.
-8. Deploy frontend to Vercel and backend to websocket-capable host with production CORS/env.
-9. Run production smoke checks and publish deployment runbook.
+8. Execute Replay/Play public UX realignment (shared shell, large viewport, compact side HUD).
+9. Add explicit human pilot onboarding and grouped action controls.
+10. Remove or collapse operator-facing controls from public routes.
+11. Implement local-only private training-ops dashboard.
+12. Validate public/private boundary (no training mutation from public website).
+13. Deploy frontend to Vercel and backend to websocket-capable host with production CORS/env.
+14. Run production smoke checks and publish deployment runbook.
 
 ## Risks and mitigations
 

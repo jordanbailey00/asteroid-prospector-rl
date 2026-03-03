@@ -464,9 +464,9 @@ Purpose: Ensure the system can run long training jobs reliably and fast.
 
 ---
 
-## Phase 11 - Throughput + W&B Dashboard + Vercel Deployment Alignment (M9)
+## Phase 11 - Throughput + W&B Dashboard + Vercel Deployment + Public UX Realignment (M9)
 
-Purpose: Execute current product priorities after M8 hardening.
+Purpose: Execute current product priorities after M8 hardening, including public gameplay UX realignment and private local training-ops split.
 
 ### 11.1 [M9.1] Throughput target program (100,000 steps/sec)
 - Add throughput profiler tooling for:
@@ -521,7 +521,30 @@ Reference plan: `docs/PERFORMANCE_BOTTLENECK_PLAN.md`
   - backend `WANDB_API_KEY` (server-side only)
 - Add deployment smoke checks for replay WS and analytics dashboard routes.
 
+### 11.4 [M9.4] Public Replay/Play UX realignment
+- Introduce shared viewport-first shell for `/` and `/play`:
+  - large gameplay viewport as primary surface
+  - compact right-side HUD for critical gameplay metrics
+- Simplify public control surfaces:
+  - keep observer/player essentials visible
+  - move advanced transport/session tuning into collapsed advanced panels
+- Add explicit pilot onboarding on `/play`:
+  - action groups by gameplay intent
+  - "how to play" quick loop guidance and hotkey hints
+- Preserve analytics as read-only and remove any user-facing training mutation controls from public routes.
+
+### 11.5 [M9.5] Private local training-ops dashboard
+- Create separate local-only dashboard for operator workflows (not publicly deployed).
+- Provide controls to:
+  - launch/stop training jobs
+  - adjust training specs/hyperparameters
+  - monitor logs, throughput, checkpoints, and replay generation
+- Keep this dashboard on localhost and outside Vercel/public routing.
+
 **Exit criteria (Phase 11)**
 - Throughput profiler report exists with pass/fail against target or calibrated floor.
 - Analytics dashboard is W&B-backed through backend proxy and supports last-10 iteration drilldown.
+- Replay and Play routes are viewport-first with compact side HUD and clear pilot onboarding.
+- Public website contains no training mutation controls.
+- Private local dashboard exists for operator-only training control workflows.
 - Frontend is live on Vercel with working backend connectivity and websocket replay support.

@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added public UX realignment planning docs and roadmap updates for Replay/Play/Analytics plus private local training-ops dashboard split (`docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`, `docs/PROJECT_STATUS.md`, `docs/BUILD_CHECKLIST.md`, `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`, `docs/DECISION_LOG.md`, `docs/DOCS_INDEX.md`, `frontend/README.md`).
 - Activated production W&B proxy credentials/scope (`WANDB_API_KEY`, `ABP_WANDB_ENTITY=jordanbaileypmp-georgia-institute-of-technology`, `ABP_WANDB_PROJECT=asteroid-prospector`) and captured strict smoke pass artifact `artifacts/deploy/m9-smoke-strict-20260303-post-wandb-attempt1.json`.
 - Seeded production backend run artifacts with `runs/ws-profile-smoke` so strict deployment smoke can run without `--allow-empty-runs`, and logged follow-up strict smoke evidence in `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`.
 - Added M9 deployment execution packet: `server/.env.production.example`, `frontend/.env.production.example`, and `docs/M9_DEPLOYMENT_EXECUTION_CHECKLIST.md` for operator-ready split-host release wiring.
