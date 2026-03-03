@@ -408,3 +408,12 @@ Use this file for non-trivial project decisions.
 - Decision: Treat the public frontend as a read-only observer/player surface (`/`, `/play`, `/analytics`) with no training mutation controls. Keep RL training on the non-pixel environment contracts and use pixel rendering strictly as a presentation layer for replay and human play. Introduce a separate private local dashboard for operator workflows (training launch/tune/monitor controls).
 - Consequences: Public UX can be simplified for end users without exposing ops complexity or secrets; operator controls move to a local-only tool boundary. Upcoming frontend work must prioritize large gameplay viewport, explicit pilot guidance, and analytics completeness while avoiding training-control interactions in public routes.
 - Related commits/docs: `docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`, `docs/PROJECT_STATUS.md`, `docs/BUILD_CHECKLIST.md`, `docs/PRIORITY_PLAN_100K_WANDB_VERCEL.md`, `frontend/README.md`
+
+### ADR-0045 - Standardize public Replay/Play on a viewport-first shell with collapsed advanced controls
+
+- Date: 2026-03-03
+- Status: Accepted
+- Context: Public gameplay routes were visually cramped and control-heavy, making it hard for first-time users to understand how to observe replay behavior or pilot a session.
+- Decision: Use a shared viewport-first shell for `/` and `/play` with a large primary sector viewport, compact right-side gameplay HUD rail, and advanced replay/session knobs moved behind collapsible panels. For `/play`, present all 69 actions grouped by gameplay intent and add explicit quick-loop onboarding plus hotkey hints.
+- Consequences: Replay and Play now prioritize legibility and user orientation while still preserving operator diagnostics in expandable sections. Public routes remain observer/player focused and avoid exposing training mutation workflows.
+- Related commits/docs: `frontend/app/globals.css`, `frontend/components/replay-dashboard.tsx`, `frontend/components/play-console.tsx`, `docs/PUBLIC_UX_REALIGNMENT_PLAN_20260303.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`

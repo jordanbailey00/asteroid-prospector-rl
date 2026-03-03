@@ -339,139 +339,72 @@ export function ReplayDashboard() {
     void playCue("ui.step");
   }, [jumpTarget, frames.length, playCue]);
 
-  return (
-    <section className="panel-grid">
-      <aside className="stack">
-        <article className="card stack">
-          <h2>Replay Source</h2>
-          <p className="muted">Backend API: {backendBaseUrl()}</p>
-          <p className="muted">Backend WS: {backendWsBase()}</p>
-          <label>
-            Run ID
-            <select
-              value={selectedRunId}
-              onChange={(event) => {
-                setSelectedRunId(event.target.value);
-                void playCue("ui.click");
-              }}
-              disabled={loadingRuns || runs.length === 0}
-            >
-              {runs.map((run) => (
-                <option key={run.run_id} value={run.run_id}>
-                  {run.run_id} ({run.status ?? "unknown"})
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Replay tag filter
-            <input
-              value={tagFilter}
-              onChange={(event) => setTagFilter(event.target.value)}
-              placeholder="every_window"
-            />
-          </label>
-          <label>
-            Frame transport
-            <select
-              value={frameTransport}
-              onChange={(event) => {
-                setFrameTransport(event.target.value as ReplayFrameTransport);
-                void playCue("ui.click");
-              }}
-            >
-              <option value="http">HTTP /frames</option>
-              <option value="ws">WebSocket stream</option>
-            </select>
-          </label>
-          <label>
-            Window ID
-            <select
-              value={selectedWindowId}
-              onChange={(event) => {
-                setSelectedWindowId(event.target.value);
-                void playCue("ui.click");
-              }}
-              disabled={windowOptions.length === 0}
-            >
-              <option value="all">All windows</option>
-              {windowOptions.map((windowId) => (
-                <option key={windowId} value={String(windowId)}>
-                  {windowId}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Replay ID
-            <select
-              value={selectedReplayId}
-              onChange={(event) => {
-                setSelectedReplayId(event.target.value);
-                void playCue("ui.click");
-              }}
-              disabled={filteredReplays.length === 0}
-            >
-              {filteredReplays.map((replay) => (
-                <option key={replay.replay_id} value={replay.replay_id}>
-                  {replay.replay_id} (window {replay.window_id})
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="row">
-            <span className="badge">runs: {runs.length}</span>
-            <span className="badge">replays: {filteredReplays.length}</span>
-          </div>
-          {loadingRuns || loadingRunData ? <p className="muted">Loading run data...</p> : null}
-          {runsError ? <p className="notice error">{runsError}</p> : null}
-          {renderMetadataLinks(runDetail)}
-        </article>
+  const frameCount = frames.length;
+  const timelineMax = Math.max(frameCount - 1, 0);
+  const currentFrameNumber = frameCount === 0 ? 0 : cursor + 1;
 
-        <article className="card stack">
-          <h2>Playback Controls</h2>
-          <label>
-            FPS ({fps})
-            <input
-              type="range"
-              min={1}
-              max={20}
-              value={fps}
-              onChange={(event) => setFps(Number(event.target.value))}
-            />
-          </label>
-          <label>
-            Stride ({stride})
-            <input
-              type="range"
-              min={1}
-              max={15}
-              value={stride}
-              onChange={(event) => setStride(Number(event.target.value))}
-            />
-          </label>
-          <label>
-            Jump to frame
-            <div className="row">
-              <input
-                type="number"
-                min={1}
-                max={Math.max(frames.length, 1)}
-                value={jumpTarget}
-                onChange={(event) => setJumpTarget(event.target.value)}
-              />
-              <button className="alt" onClick={jumpToFrame} disabled={frames.length === 0}>
-                Jump
-              </button>
-            </div>
-          </label>
+  return (
+    <section className="gameplay-shell">
+      <section className="gameplay-main">
+        <article className="card gameplay-viewport-card stack">
           <div className="row">
+            <h2>Agent Replay</h2>
+            <div className="list-inline">
+              <span className="badge">runs {runs.length}</span>
+              <span className="badge">replays {filteredReplays.length}</span>
+              <span className="badge">frame {currentFrameNumber}</span>
+            </div>
+          </div>
+          <p className="muted">
+            Observe the trained agent in the pixel replay layer. RL training itself runs in the non-pixel
+            simulation state space.
+          </p>
+
+          <div className="metric-grid">
+            <label>
+              Run ID
+              <select
+                value={selectedRunId}
+                onChange={(event) => {
+                  setSelectedRunId(event.target.value);
+                  void playCue("ui.click");
+                }}
+                disabled={loadingRuns || runs.length === 0}
+              >
+                {runs.map((run) => (
+                  <option key={run.run_id} value={run.run_id}>
+                    {run.run_id} ({run.status ?? "unknown"})
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Replay ID
+              <select
+                value={selectedReplayId}
+                onChange={(event) => {
+                  setSelectedReplayId(event.target.value);
+                  void playCue("ui.click");
+                }}
+                disabled={filteredReplays.length === 0}
+              >
+                {filteredReplays.map((replay) => (
+                  <option key={replay.replay_id} value={replay.replay_id}>
+                    {replay.replay_id} (window {replay.window_id})
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="player-toolbar">
             <button
               onClick={() => {
                 setIsPlaying((prev) => !prev);
                 void playCue(isPlaying ? "ui.pause" : "ui.play");
               }}
-              disabled={frames.length <= 1}
+              disabled={frameCount <= 1}
             >
               {isPlaying ? "Pause" : "Play"}
             </button>
@@ -481,17 +414,17 @@ export function ReplayDashboard() {
                 setCursor((prev) => Math.max(prev - 1, 0));
                 void playCue("ui.step");
               }}
-              disabled={frames.length <= 1}
+              disabled={frameCount <= 1}
             >
               Back
             </button>
             <button
               className="alt"
               onClick={() => {
-                setCursor((prev) => Math.min(prev + 1, Math.max(frames.length - 1, 0)));
+                setCursor((prev) => Math.min(prev + 1, timelineMax));
                 void playCue("ui.step");
               }}
-              disabled={frames.length <= 1}
+              disabled={frameCount <= 1}
             >
               Step
             </button>
@@ -501,17 +434,11 @@ export function ReplayDashboard() {
                 setCursor(0);
                 void playCue("ui.step");
               }}
-              disabled={frames.length === 0}
+              disabled={frameCount === 0}
             >
               Reset
             </button>
-          </div>
-          <div className="row">
-            <span className="badge">frame {frames.length === 0 ? 0 : cursor + 1}</span>
-            <span className="badge">total {frames.length}</span>
-          </div>
-          <div className="row">
-            <span className="muted">Audio cues</span>
+            <span className="spacer" />
             <button
               className={audioEnabled ? "warn" : "alt"}
               onClick={() => {
@@ -522,26 +449,40 @@ export function ReplayDashboard() {
               {audioEnabled ? "Mute" : "Enable Audio"}
             </button>
           </div>
-          {loadingFrames ? <p className="muted">Loading frames...</p> : null}
-          {frameError ? <p className="notice error">{frameError}</p> : null}
-        </article>
-      </aside>
 
-      <section className="stack">
-        <article className="card stack">
-          <h2>Sector View</h2>
+          <div className="timeline-row">
+            <div className="row">
+              <span className="badge">total {frameCount}</span>
+              <span className="badge">fps {fps}</span>
+              <span className="badge">stride {stride}</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={timelineMax}
+              value={Math.min(cursor, timelineMax)}
+              onChange={(event) => setCursor(Number(event.target.value))}
+              disabled={frameCount <= 1}
+            />
+          </div>
+
           <SectorView
             mode="agent"
             observation={obsForRender}
             action={currentFrame ? Number(currentFrame.action) : null}
             events={currentFrame?.events ?? []}
           />
+
+          {loadingFrames ? <p className="muted">Loading frames...</p> : null}
+          {loadingRuns || loadingRunData ? <p className="muted">Loading run data...</p> : null}
+          {frameError ? <p className="notice error">{frameError}</p> : null}
+          {runsError ? <p className="notice error">{runsError}</p> : null}
         </article>
 
         <article className="card stack">
-          <h2>Current Frame</h2>
+          <h3>Replay Readout</h3>
           {currentFrame ? (
-            <>
+            <div className="details-card">
               <div className="row">
                 <span className="badge">t={String(currentFrame.t ?? "-")}</span>
                 <span className="badge">dt={String(currentFrame.dt ?? "-")}</span>
@@ -557,58 +498,173 @@ export function ReplayDashboard() {
                   </span>
                 ))}
               </div>
-              <pre className="frame-panel">{JSON.stringify(currentFrame.render_state ?? {}, null, 2)}</pre>
-            </>
+            </div>
           ) : (
             <p className="muted">No frame selected.</p>
           )}
+
+          <details className="advanced-panel">
+            <summary>Advanced Replay Controls</summary>
+            <div className="stack">
+              <p className="muted">Backend API: {backendBaseUrl()}</p>
+              <p className="muted">Backend WS: {backendWsBase()}</p>
+              <label>
+                Replay tag filter
+                <input
+                  value={tagFilter}
+                  onChange={(event) => setTagFilter(event.target.value)}
+                  placeholder="every_window"
+                />
+              </label>
+              <label>
+                Frame transport
+                <select
+                  value={frameTransport}
+                  onChange={(event) => {
+                    setFrameTransport(event.target.value as ReplayFrameTransport);
+                    void playCue("ui.click");
+                  }}
+                >
+                  <option value="http">HTTP /frames</option>
+                  <option value="ws">WebSocket stream</option>
+                </select>
+              </label>
+              <label>
+                Window ID
+                <select
+                  value={selectedWindowId}
+                  onChange={(event) => {
+                    setSelectedWindowId(event.target.value);
+                    void playCue("ui.click");
+                  }}
+                  disabled={windowOptions.length === 0}
+                >
+                  <option value="all">All windows</option>
+                  {windowOptions.map((windowId) => (
+                    <option key={windowId} value={String(windowId)}>
+                      {windowId}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                FPS ({fps})
+                <input
+                  type="range"
+                  min={1}
+                  max={20}
+                  value={fps}
+                  onChange={(event) => setFps(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                Stride ({stride})
+                <input
+                  type="range"
+                  min={1}
+                  max={15}
+                  value={stride}
+                  onChange={(event) => setStride(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                Jump to frame
+                <div className="row">
+                  <input
+                    type="number"
+                    min={1}
+                    max={Math.max(frameCount, 1)}
+                    value={jumpTarget}
+                    onChange={(event) => setJumpTarget(event.target.value)}
+                  />
+                  <button className="alt" onClick={jumpToFrame} disabled={frameCount === 0}>
+                    Jump
+                  </button>
+                </div>
+              </label>
+              {renderMetadataLinks(runDetail)}
+            </div>
+          </details>
+
+          <details className="advanced-panel">
+            <summary>Frame Payload (JSON)</summary>
+            {currentFrame ? (
+              <pre className="frame-panel">{JSON.stringify(currentFrame.render_state ?? {}, null, 2)}</pre>
+            ) : (
+              <p className="muted">No frame selected.</p>
+            )}
+          </details>
+        </article>
+      </section>
+
+      <aside className="hud-rail">
+        <article className="card">
+          <h3>Gameplay HUD</h3>
+          {frameHud ? (
+            <dl className="kv">
+              <dt>Fuel</dt>
+              <dd>{formatNumber(frameHud.fuelPct, 1)}%</dd>
+              <dt>Hull</dt>
+              <dd>{formatNumber(frameHud.hullPct, 1)}%</dd>
+              <dt>Heat</dt>
+              <dd>{formatNumber(frameHud.heatPct, 1)}%</dd>
+              <dt>Tool</dt>
+              <dd>{formatNumber(frameHud.toolPct, 1)}%</dd>
+              <dt>Cargo</dt>
+              <dd>{formatNumber(frameHud.cargoPct, 1)}%</dd>
+              <dt>Alert</dt>
+              <dd>{formatNumber(frameHud.alertPct, 1)}%</dd>
+              <dt>Credits</dt>
+              <dd>{formatNumber(frameHud.credits, 2)}</dd>
+              <dt>Net Profit</dt>
+              <dd>{formatNumber(frameHud.netProfit, 2)}</dd>
+              <dt>Survival</dt>
+              <dd>{formatNumber(frameHud.survival, 3)}</dd>
+              <dt>Node Context</dt>
+              <dd>{frameHud.nodeContext}</dd>
+              <dt>Time Remaining</dt>
+              <dd>{formatNumber(frameHud.timeRemaining, 2)}</dd>
+            </dl>
+          ) : (
+            <p className="muted">Replay frame has no decodable render_state payload.</p>
+          )}
         </article>
 
-        <div className="data-board">
-          <article className="card">
-            <h3>Frame HUD</h3>
-            {frameHud ? (
+        <article className="card">
+          <h3>Replay Snapshot</h3>
+          {selectedReplay ? (
+            <>
               <dl className="kv">
-                <dt>Fuel</dt>
-                <dd>{formatNumber(frameHud.fuelPct, 1)}%</dd>
-                <dt>Hull</dt>
-                <dd>{formatNumber(frameHud.hullPct, 1)}%</dd>
-                <dt>Heat</dt>
-                <dd>{formatNumber(frameHud.heatPct, 1)}%</dd>
-                <dt>Tool</dt>
-                <dd>{formatNumber(frameHud.toolPct, 1)}%</dd>
-                <dt>Cargo</dt>
-                <dd>{formatNumber(frameHud.cargoPct, 1)}%</dd>
-                <dt>Alert</dt>
-                <dd>{formatNumber(frameHud.alertPct, 1)}%</dd>
-                <dt>Credits</dt>
-                <dd>{formatNumber(frameHud.credits, 2)}</dd>
-                <dt>Net Profit</dt>
-                <dd>{formatNumber(frameHud.netProfit, 2)}</dd>
-                <dt>Survival</dt>
-                <dd>{formatNumber(frameHud.survival, 3)}</dd>
-                <dt>Node Context</dt>
-                <dd>{frameHud.nodeContext}</dd>
-                <dt>Time Remaining</dt>
-                <dd>{formatNumber(frameHud.timeRemaining, 2)}</dd>
-              </dl>
-            ) : (
-              <p className="muted">Replay frame has no decodable render_state payload.</p>
-            )}
-          </article>
-
-          <article className="card">
-            <h3>Window Summary</h3>
-            {selectedReplay && replayWindow ? (
-              <dl className="kv">
-                <dt>Window ID</dt>
-                <dd>{String(replayWindow.window_id)}</dd>
+                <dt>Replay ID</dt>
+                <dd>{selectedReplay.replay_id}</dd>
+                <dt>Window</dt>
+                <dd>{selectedReplay.window_id}</dd>
+                <dt>Steps</dt>
+                <dd>{selectedReplay.steps}</dd>
                 <dt>Return</dt>
                 <dd>{formatNumber(selectedReplay.return_total, 3)}</dd>
                 <dt>Profit</dt>
                 <dd>{formatNumber(selectedReplay.profit, 3)}</dd>
                 <dt>Survival</dt>
                 <dd>{formatNumber(selectedReplay.survival, 3)}</dd>
+                <dt>Created</dt>
+                <dd>{formatTimestamp(selectedReplay.created_at)}</dd>
+              </dl>
+              <div className="list-inline">
+                {selectedReplay.tags.map((tag) => (
+                  <span key={tag} className="badge">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="muted">No replay selected.</p>
+          )}
+          {replayWindow ? (
+            <div className="details-card">
+              <h3>Window Metrics</h3>
+              <dl className="kv">
                 <dt>Reward Mean</dt>
                 <dd>{formatNumber(replayWindow.reward_mean)}</dd>
                 <dt>Profit Mean</dt>
@@ -616,60 +672,31 @@ export function ReplayDashboard() {
                 <dt>Survival Rate</dt>
                 <dd>{formatNumber(replayWindow.survival_rate)}</dd>
               </dl>
-            ) : (
-              <p className="muted">Choose a replay to inspect its window metrics.</p>
-            )}
-          </article>
-
-          <article className="card">
-            <h3>Replay Metadata</h3>
-            {selectedReplay ? (
-              <>
-                <dl className="kv">
-                  <dt>Replay ID</dt>
-                  <dd>{selectedReplay.replay_id}</dd>
-                  <dt>Window</dt>
-                  <dd>{selectedReplay.window_id}</dd>
-                  <dt>Steps</dt>
-                  <dd>{selectedReplay.steps}</dd>
-                  <dt>Created</dt>
-                  <dd>{formatTimestamp(selectedReplay.created_at)}</dd>
-                </dl>
-                <div className="list-inline">
-                  {selectedReplay.tags.map((tag) => (
-                    <span key={tag} className="badge">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="muted">No replay selected.</p>
-            )}
-          </article>
-
-          <article className="card full">
-            <h3>Recent Trends</h3>
-            <div className="metric-grid">
-              <div className="metric-chip">
-                Reward Mean
-                <strong>{formatNumber(rewardTrend[rewardTrend.length - 1])}</strong>
-                <Sparkline values={rewardTrend} stroke="#1f8a70" />
-              </div>
-              <div className="metric-chip">
-                Profit Mean
-                <strong>{formatNumber(profitTrend[profitTrend.length - 1])}</strong>
-                <Sparkline values={profitTrend} stroke="#db3e00" />
-              </div>
-              <div className="metric-chip">
-                Survival Rate
-                <strong>{formatNumber(survivalTrend[survivalTrend.length - 1], 3)}</strong>
-                <Sparkline values={survivalTrend} stroke="#13547a" />
-              </div>
             </div>
-          </article>
-        </div>
-      </section>
+          ) : null}
+        </article>
+
+        <article className="card">
+          <h3>Recent Trends</h3>
+          <div className="metric-grid">
+            <div className="metric-chip">
+              Reward Mean
+              <strong>{formatNumber(rewardTrend[rewardTrend.length - 1])}</strong>
+              <Sparkline values={rewardTrend} stroke="#1f8a70" />
+            </div>
+            <div className="metric-chip">
+              Profit Mean
+              <strong>{formatNumber(profitTrend[profitTrend.length - 1])}</strong>
+              <Sparkline values={profitTrend} stroke="#db3e00" />
+            </div>
+            <div className="metric-chip">
+              Survival Rate
+              <strong>{formatNumber(survivalTrend[survivalTrend.length - 1], 3)}</strong>
+              <Sparkline values={survivalTrend} stroke="#13547a" />
+            </div>
+          </div>
+        </article>
+      </aside>
     </section>
   );
 }
