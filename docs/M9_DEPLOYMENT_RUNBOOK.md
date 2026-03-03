@@ -1,6 +1,6 @@
 # M9 Deployment Runbook (Vercel + External Backend)
 
-Last updated: 2026-03-02
+Last updated: 2026-03-03
 
 This runbook aligns with M9.3 requirements:
 
@@ -29,6 +29,8 @@ Required backend environment variables:
 - `WANDB_API_KEY` (server-side only; never expose to frontend)
 - `ABP_WANDB_CACHE_TTL_SECONDS` (optional; default `30`)
 
+Template: `server/.env.production.example`
+
 Backend startup example:
 
 ```powershell
@@ -43,6 +45,10 @@ Set these in Vercel project environment variables:
 - `NEXT_PUBLIC_BACKEND_WS_BASE` = `wss://<backend-host>`
 
 Vercel build root should target `frontend/`.
+
+Template: `frontend/.env.production.example`
+
+Execution checklist: `docs/M9_DEPLOYMENT_EXECUTION_CHECKLIST.md`.
 
 ## 4) Post-deploy smoke checks
 

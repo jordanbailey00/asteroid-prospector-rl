@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-03-02
+Last updated: 2026-03-03
 Current focus: M9 execution (throughput evidence, W&B-backed analytics integration, Vercel deployment alignment)
 
 ## Current state
@@ -32,6 +32,10 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
   - `docs/M9_DEPLOYMENT_RUNBOOK.md`
   - `tools/smoke_m9_deployment.py`
   - `.github/workflows/m9-deployment-smoke.yml` supports strict W&B status gating (`require_clean_wandb_status`) with W&B run-detail coverage (`latest`, `summary`, `history`, `iteration-view`) and post-operation status checks.
+- Deployment execution templates are now staged for M9.3 release operations:
+  - `server/.env.production.example`
+  - `frontend/.env.production.example`
+  - `docs/M9_DEPLOYMENT_EXECUTION_CHECKLIST.md`
 - M6.5 manual verification artifacts remain captured:
   - `docs/M65_MANUAL_VERIFICATION.md`
   - `docs/verification/m65_sample_replay.jsonl`
@@ -66,10 +70,10 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 ## Next work (ordered)
 
-1. Complete live deployment path:
-   - frontend on Vercel,
-   - backend on websocket-capable host,
-   - production CORS/env/secret wiring.
+1. Fill production values and execute live deployment cutover using M9 templates:
+   - backend env template: `server/.env.production.example`
+   - frontend env template: `frontend/.env.production.example`
+   - operator checklist: `docs/M9_DEPLOYMENT_EXECUTION_CHECKLIST.md`
 2. Run deployment smoke checks against production endpoints and publish artifact evidence:
    - local: `tools/smoke_m9_deployment.py` (use `--require-clean-wandb-status` for release gates)
    - CI/manual: `.github/workflows/m9-deployment-smoke.yml` (`require_clean_wandb_status=true` for release gates)

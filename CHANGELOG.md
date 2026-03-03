@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added M9 deployment execution packet: `server/.env.production.example`, `frontend/.env.production.example`, and `docs/M9_DEPLOYMENT_EXECUTION_CHECKLIST.md` for operator-ready split-host release wiring.
 - Expanded Python quality gates to cover `server/`, `training/`, and `replay/` in local checks, pre-commit, and CI; CI now installs the API/test runtime dependencies required by default pytest runs.
 - Cleaned lint debt in W&B diagnostics and native-probe helper code paths (`server/app.py`, `training/puffer_backend.py`).
 - Added manual GitHub Actions deployment smoke workflow `.github/workflows/m9-deployment-smoke.yml` to run `tools/smoke_m9_deployment.py` against configured backend/frontend URLs and upload JSON smoke artifacts.
