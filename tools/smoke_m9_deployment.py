@@ -506,9 +506,13 @@ def run_smoke(cfg: SmokeConfig) -> dict[str, Any]:
         )
     pass_count = sum(1 for row in results if row.ok)
     fail_count = len(results) - pass_count
+    config_payload = asdict(cfg)
+    if cfg.output_path is not None:
+        config_payload["output_path"] = str(cfg.output_path)
+
     report = {
         "generated_at": now_iso(),
-        "config": asdict(cfg),
+        "config": config_payload,
         "summary": {
             "pass": fail_count == 0,
             "checks": len(results),

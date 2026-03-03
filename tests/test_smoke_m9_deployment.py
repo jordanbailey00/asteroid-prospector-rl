@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from tools import smoke_m9_deployment as smoke
@@ -168,3 +170,23 @@ def test_run_smoke_skips_wandb_run_detail_checks_when_latest_has_no_run(
     assert "returned no run_id" in rows["wandb-run-summary"]["detail"]
     assert rows["wandb-run-history"]["ok"] is True
     assert rows["wandb-iteration-view"]["ok"] is True
+
+
+def test_run_smoke_serializes_output_path_and_writes_report(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setattr(smoke, "_check_backend_health", lambda **kwargs: "ok")
+    monkeypatch.setattr(smoke, "_check_backend_runs", lambda **kwargs: "ok")
+    monkeypatch.setattr(smoke, "_discover_run_and_replay", lambda **kwargs: (None, None))
+
+    output_path = tmp_path / "smoke-report.json"
+    cfg = _cfg(frontend_base=None, allow_empty_runs=True, skip_wandb=True, output_path=output_path)
+    report = smoke.run_smoke(cfg)
+
+    assert output_path.exists()
+    assert report["config"]["output_path"] == str(output_path)
+
+    persisted = json.loads(output_path.read_text(encoding="utf-8"))
+    assert persisted["config"]["output_path"] == str(output_path)
+    assert persisted["summary"]["pass"] is True
