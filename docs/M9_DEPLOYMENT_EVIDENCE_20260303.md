@@ -42,9 +42,10 @@ Artifact:
 
 ### GitHub Actions manual smoke
 
-Workflow run:
+Workflow runs:
 
 - `https://github.com/jordanbailey00/asteroid-prospector-rl/actions/runs/22639886521`
+- `https://github.com/jordanbailey00/asteroid-prospector-rl/actions/runs/22640174270`
 
 Inputs used:
 
@@ -56,9 +57,10 @@ Inputs used:
 
 Result:
 
-- Job `smoke`: success
-- Artifact downloaded locally to:
+- Job `smoke`: success on both manual runs
+- Artifacts downloaded locally to:
   - `artifacts/deploy/ci-m9-smoke-22639886521/m9-smoke-22639886521.json`
+  - `artifacts/deploy/ci-m9-smoke-22640174270/m9-smoke-22640174270.json`
 
 ## Remaining release-gate gaps
 

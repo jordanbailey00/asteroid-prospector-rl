@@ -101,6 +101,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 | Date | Commit | Type | Summary |
 | --- | --- | --- | --- |
+| 2026-03-03 | `b0dc2d5` | docs | Record live M9 deployment evidence and update remaining release-gate work |
 | 2026-03-03 | `ceddf8a` | fix | Unblock M9 deployment smoke serialization, add Railway backend bootstrap, and upgrade frontend Next.js for Vercel security gates |
 | 2026-03-02 | `8d1e7d4` | docs | Align MVP roadmap and acceptance references with current repo state |
 | 2026-03-02 | `d394e3a` | feat | Expand M9 smoke checks across W&B analytics routes |
