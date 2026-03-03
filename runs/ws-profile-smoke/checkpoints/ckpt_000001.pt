@@ -1,0 +1,8 @@
+{
+  "run_id": "ws-profile-smoke",
+  "window_id": 1,
+  "env_steps_total": 80,
+  "trainer_backend": "random",
+  "created_at": "2026-03-01T00:50:29.128172+00:00",
+  "checkpoint_format": "json_v1"
+}

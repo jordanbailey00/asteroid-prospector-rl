@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "run_id": "ws-profile-smoke",
+  "updated_at": "2026-03-01T00:50:29.217344+00:00",
+  "entries": [
+    {
+      "run_id": "ws-profile-smoke",
+      "window_id": 0,
+      "replay_id": "replay-000000-e853f53f",
+      "replay_path": "replays/replay-000000-e853f53f.jsonl.gz",
+      "checkpoint_path": "checkpoints/ckpt_000000.pt",
+      "tags": [
+        "every_window",
+        "best_so_far",
+        "milestone:survival:1"
+      ],
+      "trainer_backend": "random",
+      "return_total": -0.012,
+      "steps": 2,
+      "profit": 0.0,
+      "survival": 1.0,
+      "terminated": true,
+      "truncated": false,
+      "checkpoint_env_steps_total": 40,
+      "created_at": "2026-03-01T00:50:29.113775+00:00"
+    },
+    {
+      "run_id": "ws-profile-smoke",
+      "window_id": 1,
+      "replay_id": "replay-000001-d6fe446d",
+      "replay_path": "replays/replay-000001-d6fe446d.jsonl.gz",
+      "checkpoint_path": "checkpoints/ckpt_000001.pt",
+      "tags": [
+        "every_window",
+        "milestone:survival:1"
+      ],
+      "trainer_backend": "random",
+      "return_total": -0.7736017257078505,
+      "steps": 32,
+      "profit": 0.0,
+      "survival": 1.0,
+      "terminated": false,
+      "truncated": false,
+      "checkpoint_env_steps_total": 80,
+      "created_at": "2026-03-01T00:50:29.217108+00:00"
+    }
+  ]
+}

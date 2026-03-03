@@ -1,0 +1,71 @@
+{
+  "run_id": "ws-profile-smoke",
+  "status": "completed",
+  "trainer_backend": "random",
+  "target_env_steps": 80,
+  "window_env_steps": 40,
+  "env_steps_total": 80,
+  "episodes_total": 0,
+  "windows_emitted": 2,
+  "checkpoints_written": 2,
+  "latest_window": {
+    "window_id": 1,
+    "window_complete": true,
+    "env_steps_start": 40,
+    "env_steps_end": 80,
+    "env_steps_in_window": 40,
+    "env_steps_total": 80,
+    "metrics_row_path": "metrics/windows.jsonl"
+  },
+  "latest_checkpoint": {
+    "window_id": 1,
+    "env_steps_total": 80,
+    "path": "checkpoints/ckpt_000001.pt",
+    "created_at": "2026-03-01T00:50:29.129146+00:00"
+  },
+  "latest_replay": {
+    "run_id": "ws-profile-smoke",
+    "window_id": 1,
+    "replay_id": "replay-000001-d6fe446d",
+    "replay_path": "replays/replay-000001-d6fe446d.jsonl.gz",
+    "checkpoint_path": "checkpoints/ckpt_000001.pt",
+    "tags": [
+      "every_window",
+      "milestone:survival:1"
+    ],
+    "trainer_backend": "random",
+    "return_total": -0.7736017257078505,
+    "steps": 32,
+    "profit": 0.0,
+    "survival": 1.0,
+    "terminated": false,
+    "truncated": false,
+    "checkpoint_env_steps_total": 80,
+    "created_at": "2026-03-01T00:50:29.217108+00:00"
+  },
+  "metrics_windows_path": "metrics/windows.jsonl",
+  "checkpoints_dir": "checkpoints",
+  "replays_dir": "replays",
+  "replay_index_path": "replay_index.json",
+  "config_path": "config.json",
+  "wandb_run_url": null,
+  "constellation_url": null,
+  "info_metric_keys": [
+    "credits",
+    "net_profit",
+    "profit_per_tick",
+    "survival",
+    "overheat_ticks",
+    "pirate_encounters",
+    "value_lost_to_pirates",
+    "fuel_used",
+    "hull_damage",
+    "tool_wear",
+    "scan_count",
+    "mining_ticks",
+    "cargo_utilization_avg"
+  ],
+  "started_at": "2026-03-01T00:50:29.007240+00:00",
+  "updated_at": "2026-03-01T00:50:29.219219+00:00",
+  "finished_at": "2026-03-01T00:50:29.219219+00:00"
+}

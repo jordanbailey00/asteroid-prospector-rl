@@ -40,6 +40,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
   - backend: `https://abp-backend-production.up.railway.app` (`wss://abp-backend-production.up.railway.app`)
   - frontend: `https://frontend-nine-sandy-47.vercel.app`
   - evidence: `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md` + `artifacts/deploy/m9-smoke-live-20260303.json`
+- Production backend run root is now seeded with a validated smoke bundle at `runs/ws-profile-smoke`, enabling strict smoke runs without `--allow-empty-runs`.
 - M6.5 manual verification artifacts remain captured:
   - `docs/M65_MANUAL_VERIFICATION.md`
   - `docs/verification/m65_sample_replay.jsonl`
@@ -67,6 +68,8 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
 - `python -m pytest -q tests/test_server_api.py` -> 15 passed.
 - `python -m pytest -q tests/test_smoke_m9_deployment.py` -> 12 passed.
+- `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status` -> strict production smoke now runs with non-empty run/replay checks passing; remaining blockers are missing `WANDB_API_KEY` and intermittent websocket EOF on replay stream checks.
+
 - `npm --prefix frontend run lint` -> pass.
 - `npm --prefix frontend run build` -> pass (`/`, `/play`, `/analytics`).
 - `python tools/run_parity.py --seeds 2 --steps 512 --native-library engine_core/build/abp_core.dll` -> 12/12 cases passed.
@@ -74,11 +77,11 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 ## Next work (ordered)
 
-1. Configure production W&B backend credentials/scope and execute strict W&B smoke gates:
-   - set `WANDB_API_KEY` on backend host
-   - set `ABP_WANDB_ENTITY` + verify `ABP_WANDB_PROJECT`
+1. Configure production W&B backend credentials and complete strict W&B smoke gates:
+   - set backend `WANDB_API_KEY`
+   - verify `ABP_WANDB_ENTITY=jordanbailey00` and `ABP_WANDB_PROJECT=asteroid-prospector`
    - rerun smoke without `--skip-wandb` and with `--require-clean-wandb-status`
-2. Publish production run artifacts into backend `ABP_RUNS_ROOT` and rerun smoke without `--allow-empty-runs`.
+2. Investigate and harden production replay websocket stability (`/ws/runs/.../frames`) to eliminate intermittent EOF failures in strict smoke.
 3. Keep deployment evidence current per release cut:
    - `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`
    - local smoke artifact under `artifacts/deploy/`
@@ -89,7 +92,8 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 ## Active risks and blockers
 
 - 100,000 steps/sec remains aspirational; current measured trainer throughput is far below target and requires further bottleneck reduction.
-- W&B proxy remains unavailable in production until `WANDB_API_KEY` + scope env are configured on backend host.
+- W&B proxy remains unavailable in production until backend `WANDB_API_KEY` is configured.
+- Replay websocket streaming in production is intermittent (`/ws/runs/.../frames` sometimes closes with EOF before first payload), causing strict smoke instability.
 - Split frontend/backend hosting (Vercel + external API) is now live, but remains sensitive to env/CORS drift across redeploys.
 - M7 baseline bots/benchmark automation remains a functional gap for comparative performance reporting.
 

@@ -1,0 +1,44 @@
+{
+  "run_root": "artifacts\\ws_profile\\runs",
+  "run_id": "ws-profile-smoke",
+  "total_env_steps": 80,
+  "window_env_steps": 40,
+  "checkpoint_every_windows": 1,
+  "seed": 29,
+  "env_time_max": 20000.0,
+  "trainer_backend": "random",
+  "wandb_mode": "disabled",
+  "wandb_project": "asteroid-prospector",
+  "flush_partial_window": false,
+  "eval_replays_per_window": 1,
+  "eval_max_steps_per_episode": 32,
+  "eval_include_info": true,
+  "eval_policy_deterministic": true,
+  "eval_seed_offset": 100000,
+  "eval_milestone_profit_thresholds": [
+    100.0,
+    500.0,
+    1000.0
+  ],
+  "eval_milestone_return_thresholds": [
+    10.0,
+    25.0,
+    50.0
+  ],
+  "eval_milestone_survival_thresholds": [
+    1.0
+  ],
+  "ppo_num_envs": 8,
+  "ppo_num_workers": 4,
+  "ppo_rollout_steps": 128,
+  "ppo_num_minibatches": 4,
+  "ppo_update_epochs": 4,
+  "ppo_learning_rate": 0.0003,
+  "ppo_gamma": 0.99,
+  "ppo_gae_lambda": 0.95,
+  "ppo_clip_coef": 0.2,
+  "ppo_ent_coef": 0.01,
+  "ppo_vf_coef": 0.5,
+  "ppo_max_grad_norm": 0.5,
+  "ppo_vector_backend": "multiprocessing"
+}

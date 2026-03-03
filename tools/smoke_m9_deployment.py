@@ -73,9 +73,20 @@ def _build_url(
     return f"{base}{path}?{urlencode(query)}"
 
 
-def _recv_exact(sock: socket.socket, count: int) -> bytes:
+def _recv_exact(
+    sock: socket.socket,
+    count: int,
+    prefetched: bytearray | None = None,
+) -> bytes:
     chunks: list[bytes] = []
     remaining = int(count)
+
+    if prefetched is not None and len(prefetched) > 0:
+        take = min(remaining, len(prefetched))
+        chunks.append(bytes(prefetched[:take]))
+        del prefetched[:take]
+        remaining -= take
+
     while remaining > 0:
         chunk = sock.recv(remaining)
         if not chunk:
@@ -113,7 +124,7 @@ def _ws_send_frame(sock: socket.socket, opcode: int, payload: bytes) -> None:
     sock.sendall(header + mask + masked)
 
 
-def _ws_open(url: str, timeout_seconds: float) -> socket.socket:
+def _ws_open(url: str, timeout_seconds: float) -> tuple[socket.socket, bytes]:
     parsed = urlparse(url)
     scheme = parsed.scheme.lower()
     if scheme not in {"ws", "wss"}:
@@ -151,7 +162,12 @@ def _ws_open(url: str, timeout_seconds: float) -> socket.socket:
     sock.sendall(request)
 
     response = _recv_until(sock, b"\r\n\r\n")
-    header_text = response.decode("iso-8859-1")
+    header_end = response.find(b"\r\n\r\n")
+    if header_end < 0:
+        raise RuntimeError("Websocket handshake response missing header terminator")
+    header_bytes = response[: header_end + 4]
+    prefetched = response[header_end + 4 :]
+    header_text = header_bytes.decode("iso-8859-1")
     lines = header_text.split("\r\n")
     status_line = lines[0] if lines else ""
     if " 101 " not in status_line:
@@ -171,13 +187,18 @@ def _ws_open(url: str, timeout_seconds: float) -> socket.socket:
     if actual_accept != expected_accept:
         raise RuntimeError("Websocket handshake returned invalid Sec-WebSocket-Accept")
 
-    return sock
+    return sock, prefetched
 
 
-def _ws_recv_text(sock: socket.socket, timeout_seconds: float) -> str:
+def _ws_recv_text(
+    sock: socket.socket,
+    timeout_seconds: float,
+    prefetched: bytes = b"",
+) -> str:
     sock.settimeout(timeout_seconds)
+    read_buffer = bytearray(prefetched)
     while True:
-        header = _recv_exact(sock, 2)
+        header = _recv_exact(sock, 2, prefetched=read_buffer)
         first = header[0]
         second = header[1]
 
@@ -186,12 +207,12 @@ def _ws_recv_text(sock: socket.socket, timeout_seconds: float) -> str:
         payload_len = second & 0x7F
 
         if payload_len == 126:
-            payload_len = struct.unpack("!H", _recv_exact(sock, 2))[0]
+            payload_len = struct.unpack("!H", _recv_exact(sock, 2, prefetched=read_buffer))[0]
         elif payload_len == 127:
-            payload_len = struct.unpack("!Q", _recv_exact(sock, 8))[0]
+            payload_len = struct.unpack("!Q", _recv_exact(sock, 8, prefetched=read_buffer))[0]
 
-        mask = _recv_exact(sock, 4) if masked else b""
-        payload = _recv_exact(sock, payload_len)
+        mask = _recv_exact(sock, 4, prefetched=read_buffer) if masked else b""
+        payload = _recv_exact(sock, payload_len, prefetched=read_buffer)
 
         if masked:
             payload = bytes(value ^ mask[idx % 4] for idx, value in enumerate(payload))
@@ -581,9 +602,13 @@ def _check_backend_replay_frames_ws(*, cfg: SmokeConfig, run_id: str, replay_id:
         {"offset": 0, "limit": 1, "batch_size": 1},
     )
 
-    sock = _ws_open(url=ws_url, timeout_seconds=cfg.timeout_seconds)
+    sock, prefetched = _ws_open(url=ws_url, timeout_seconds=cfg.timeout_seconds)
     try:
-        message_text = _ws_recv_text(sock=sock, timeout_seconds=cfg.timeout_seconds)
+        message_text = _ws_recv_text(
+            sock=sock,
+            timeout_seconds=cfg.timeout_seconds,
+            prefetched=prefetched,
+        )
         try:
             payload = json.loads(message_text)
         except json.JSONDecodeError as exc:

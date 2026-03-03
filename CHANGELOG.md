@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Seeded production backend run artifacts with `runs/ws-profile-smoke` so strict deployment smoke can run without `--allow-empty-runs`, and logged follow-up strict smoke evidence in `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`.
 - Added M9 deployment execution packet: `server/.env.production.example`, `frontend/.env.production.example`, and `docs/M9_DEPLOYMENT_EXECUTION_CHECKLIST.md` for operator-ready split-host release wiring.
 - Added Railway deployment bootstrap files (`Procfile`, `requirements.txt`) so backend deploys start deterministically with `python -m uvicorn server.main:app`.
 - Fixed `tools/smoke_m9_deployment.py` report serialization for `--output-path` by normalizing `Path` values to strings, and added regression coverage in `tests/test_smoke_m9_deployment.py`.
@@ -138,6 +139,9 @@ All notable changes to this project will be documented in this file.
 - Published updated reusable trainer image jordanbailey00/rl-puffer-base:py311-puffercore3.0.17 with digest sha256:723c58843d9ed563fa66c0927da975bdbab5355c913ec965dbea25a2af67bb71.
 - Refreshed root README.md to reflect current milestone completion state and current trainer/image baseline.
 - Expanded infra/trainer/README.md with copy/paste cross-project handoff details including digest pinning.
+
+### Fixed
+- Hardened websocket handshake parsing in `tools/smoke_m9_deployment.py` by preserving post-header prefetched bytes when reading the first websocket frame (avoids frame loss when data arrives in the same TCP read as the `101` response).
 
 ### Environment
 - Installed missing development dependencies and toolchains:
