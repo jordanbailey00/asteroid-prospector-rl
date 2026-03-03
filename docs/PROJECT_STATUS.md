@@ -68,7 +68,7 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
 - `python -m pytest -q tests/test_server_api.py` -> 15 passed.
 - `python -m pytest -q tests/test_smoke_m9_deployment.py` -> 12 passed.
-- `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status` -> strict production smoke now runs with non-empty run/replay checks passing; remaining blockers are missing `WANDB_API_KEY` and intermittent websocket EOF on replay stream checks.
+- `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260303-post-wandb-attempt1.json` -> pass (13/13) after backend W&B key + scope activation and production run-root seeding.
 
 - `npm --prefix frontend run lint` -> pass.
 - `npm --prefix frontend run build` -> pass (`/`, `/play`, `/analytics`).
@@ -77,22 +77,18 @@ Current focus: M9 execution (throughput evidence, W&B-backed analytics integrati
 
 ## Next work (ordered)
 
-1. Configure production W&B backend credentials and complete strict W&B smoke gates:
-   - set backend `WANDB_API_KEY`
-   - verify `ABP_WANDB_ENTITY=jordanbailey00` and `ABP_WANDB_PROJECT=asteroid-prospector`
-   - rerun smoke without `--skip-wandb` and with `--require-clean-wandb-status`
-2. Investigate and harden production replay websocket stability (`/ws/runs/.../frames`) to eliminate intermittent EOF failures in strict smoke.
-3. Keep deployment evidence current per release cut:
+1. Investigate and harden production replay websocket stability (`/ws/runs/.../frames`) to eliminate intermittent EOF failures in strict smoke.
+2. Keep deployment evidence current per release cut:
    - `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`
    - local smoke artifact under `artifacts/deploy/`
    - manual CI run artifact from `.github/workflows/m9-deployment-smoke.yml`
-4. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
-5. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
+3. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
+4. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
 
 ## Active risks and blockers
 
 - 100,000 steps/sec remains aspirational; current measured trainer throughput is far below target and requires further bottleneck reduction.
-- W&B proxy remains unavailable in production until backend `WANDB_API_KEY` is configured.
+- W&B backend proxy now authenticates with production credentials and passes strict smoke checks under default scope.
 - Replay websocket streaming in production is intermittent (`/ws/runs/.../frames` sometimes closes with EOF before first payload), causing strict smoke instability.
 - Split frontend/backend hosting (Vercel + external API) is now live, but remains sensitive to env/CORS drift across redeploys.
 - M7 baseline bots/benchmark automation remains a functional gap for comparative performance reporting.

@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Activated production W&B proxy credentials/scope (`WANDB_API_KEY`, `ABP_WANDB_ENTITY=jordanbaileypmp-georgia-institute-of-technology`, `ABP_WANDB_PROJECT=asteroid-prospector`) and captured strict smoke pass artifact `artifacts/deploy/m9-smoke-strict-20260303-post-wandb-attempt1.json`.
 - Seeded production backend run artifacts with `runs/ws-profile-smoke` so strict deployment smoke can run without `--allow-empty-runs`, and logged follow-up strict smoke evidence in `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`.
 - Added M9 deployment execution packet: `server/.env.production.example`, `frontend/.env.production.example`, and `docs/M9_DEPLOYMENT_EXECUTION_CHECKLIST.md` for operator-ready split-host release wiring.
 - Added Railway deployment bootstrap files (`Procfile`, `requirements.txt`) so backend deploys start deterministically with `python -m uvicorn server.main:app`.

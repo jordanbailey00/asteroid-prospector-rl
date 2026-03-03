@@ -101,3 +101,31 @@ Current blockers to clear strict smoke:
 
 - Configure backend production `WANDB_API_KEY`.
 - Stabilize production websocket replay stream reliability for `/ws/runs/{run_id}/replays/{replay_id}/frames`.
+
+## W&B credentials activation (2026-03-03)
+
+Applied production backend scope/auth updates:
+
+- Set backend `WANDB_API_KEY` in Railway secret vars.
+- Updated backend default W&B scope to:
+  - `ABP_WANDB_ENTITY=jordanbaileypmp-georgia-institute-of-technology`
+  - `ABP_WANDB_PROJECT=asteroid-prospector`
+- Bootstrapped project visibility with a minimal run (`run_id=de2xq5nz`) under that scope.
+
+Strict smoke rerun (W&B required, non-empty runs required):
+
+```powershell
+python tools/smoke_m9_deployment.py \
+  --backend-http-base "https://abp-backend-production.up.railway.app" \
+  --backend-ws-base "wss://abp-backend-production.up.railway.app" \
+  --frontend-base "https://frontend-nine-sandy-47.vercel.app" \
+  --require-clean-wandb-status \
+  --output-path artifacts/deploy/m9-smoke-strict-20260303-post-wandb-attempt1.json
+```
+
+Result:
+
+- `pass=true`
+- `checks=13`
+- `pass_count=13`
+- `fail_count=0`
