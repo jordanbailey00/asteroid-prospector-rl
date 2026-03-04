@@ -52,6 +52,22 @@ docker compose -f infra/docker-compose.yml run --rm -T trainer python training/t
 python training/train_puffer.py --trainer-backend random --total-env-steps 6000 --window-env-steps 2000 --wandb-mode disabled
 ```
 
+## Baseline bots (M7.1)
+
+Run deterministic baseline bots over seeded episodes:
+
+```powershell
+python tools/run_baseline_bots.py --episodes 100 --base-seed 7 --env-time-max 20000 --max-steps-per-episode 30000 --output-path artifacts/benchmarks/m7-baselines-100eps.json
+```
+
+Run a specific bot only:
+
+```powershell
+python tools/run_baseline_bots.py --bot market_timer --episodes 100 --base-seed 7 --market-timer-target-commodity 3 --output-path artifacts/benchmarks/m7-market-timer-100eps.json
+```
+
+Report includes per-episode and per-bot summary metrics used in M7 benchmarking (`net_profit`, `survival`, `profit_per_tick`, `overheat_ticks`, `pirate_encounters`, `value_lost_to_pirates`, `scan_count`, `mining_ticks`).
+
 ## Enable replay generation (M4)
 
 Generate one eval replay per checkpointed window:

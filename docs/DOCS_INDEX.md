@@ -67,6 +67,8 @@ Read top to bottom.
     - Production deployment wiring and smoke-check procedure for M9.
 22. `M9_DEPLOYMENT_EVIDENCE_20260303.md`
     - Captured live endpoint values and smoke artifacts for the 2026-03-03 M9 deployment dry run.
+23. `M7_BASELINE_BOTS_EXECUTION_20260304.md`
+    - Chunk 1 execution record for baseline bot implementation, corrections, validation, and remaining M7 scope.
 
 ## Notes
 

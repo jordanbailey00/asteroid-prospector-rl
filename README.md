@@ -6,11 +6,11 @@ Asteroid Prospector RL is an end-to-end reinforcement learning project for a det
 - FastAPI replay/play APIs (HTTP + websocket replay transport),
 - and a Next.js frontend for replay, play, and analytics.
 
-## Current Status (2026-03-03)
+## Current Status (2026-03-04)
 
-- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M8`, `M9.4`, `M9.5`.
-- Active milestone: `M9` (throughput program + W&B analytics integration + Vercel alignment).
-- Remaining milestone: `M7` baseline bots + benchmark automation.
+- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7.1`, `M8`, `M9.4`, `M9.5`.
+- Active milestone work: `M7.2` + `M7.3` (benchmark protocol automation and W&B benchmark logging).
+- Remaining MVP scope: finish M7 automation and benchmark reporting.
 
 Trainer/runtime baseline:
 - `pufferlib-core==3.0.17`
@@ -36,10 +36,9 @@ Published trainer base image:
 
 ## Immediate Next Work
 
-1. Complete analytics completeness contract work for `/analytics` (coverage table, lineage fields, stale/missing-data states).
-2. Harden production replay websocket stability (`/ws/runs/.../frames`) to eliminate intermittent EOF failures.
-3. Implement baseline bots (greedy miner, cautious scanner, market timer) for M7.
-4. Automate PPO-vs-baseline benchmark reporting and publish reproducible summaries.
+1. Automate M7.2 benchmark protocol (PPO vs `greedy_miner` / `cautious_scanner` / `market_timer`) across a reproducible seed matrix.
+2. Add M7.3 W&B benchmark logging (`job_type=eval`) and artifact lineage for benchmark runs.
+3. Keep deployment smoke evidence current for release cuts (`tools/smoke_m9_deployment.py` + workflow artifacts).
 
 ## Quick Start
 

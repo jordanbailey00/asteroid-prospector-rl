@@ -463,3 +463,12 @@ Use this file for non-trivial project decisions.
 - Decision: Keep a prelude `type=frames` payload, immediately yield the event loop after sending it (`await asyncio.sleep(0)`), and explicitly close successful replay streams with a websocket close handshake (`code=1000`) after a short flush window (`await asyncio.sleep(0.05)`) once the `type=complete` payload is sent.
 - Consequences: Replay websocket sessions now terminate more deterministically through intermediaries, and production strict smoke reliability at default retries improved from intermittent failures to stable passes in a 12-run evidence loop.
 - Related commits/docs: `server/app.py`, `tools/smoke_m9_deployment.py`, `tests/test_server_api.py`, `tests/test_smoke_m9_deployment.py`, `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0051 - Implement M7.1 baseline bots as deterministic observation-only policies with a seeded benchmark runner
+
+- Date: 2026-03-04
+- Status: Accepted
+- Context: MVP closure required baseline bot coverage (`greedy_miner`, `cautious_scanner`, `market_timer`) and reproducible non-learning benchmark execution before PPO-vs-baseline automation could be layered in (`M7.2`/`M7.3`).
+- Decision: Implement baseline bots in `training/baseline_bots.py` as deterministic observation-only policies aligned to frozen obs/action contracts, including station egress and affordability guards to avoid invalid station transactions. Add `tools/run_baseline_bots.py` as the canonical seeded runner (`seed = base_seed + episode_idx`) with per-episode and per-bot summary metrics persisted as JSON artifacts.
+- Consequences: Baseline policies are now reproducible and benchmark-ready, and benchmark protocol automation can build directly on the emitted report schema. Comparative quality/tuning and W&B benchmark logging remain explicit follow-on work (`M7.2`, `M7.3`).
+- Related commits/docs: `training/baseline_bots.py`, `tools/run_baseline_bots.py`, `tests/test_baseline_bots.py`, `tests/test_run_baseline_bots.py`, `docs/M7_BASELINE_BOTS_EXECUTION_20260304.md`, `docs/PROJECT_STATUS.md`, `docs/BUILD_CHECKLIST.md`, `CHANGELOG.md`

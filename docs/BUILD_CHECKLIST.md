@@ -26,11 +26,11 @@ Read order / context:
 - `M9`: Phase 11 (Throughput + W&B dashboard + Vercel alignment)
 - Sub-chunks are numbered as `M*.1`, `M*.2`, etc.
 
-## Execution Snapshot (2026-03-01)
+## Execution Snapshot (2026-03-04)
 
-- Completed: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M8`
-- Active: `M9`
-- Remaining: `M7`
+- Completed: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7.1`, `M8`
+- Active: `M7.2`, `M7.3`, and `M9` release evidence upkeep
+- Remaining: full M7 benchmark automation closure (`M7.2` + `M7.3`)
 
 This file is the canonical milestone naming source used by `README.md`, `docs/PROJECT_STATUS.md`, and handoff docs.
 
@@ -405,6 +405,9 @@ Purpose: Establish non-learning benchmarks and track improvements.
   - cautious scanner
   - market timer
 - Add CLI to run bots for N episodes and log summary metrics.
+
+Status: complete (2026-03-04)
+- Implemented in `training/baseline_bots.py` and `tools/run_baseline_bots.py` with deterministic tests under `tests/test_baseline_bots.py` and `tests/test_run_baseline_bots.py`.
 
 ### 9.2 [M7.2] Benchmark protocol automation
 - Run bots for 1000 episodes (or smaller for CI)
