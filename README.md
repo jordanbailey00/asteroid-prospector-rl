@@ -8,8 +8,8 @@ Asteroid Prospector RL is an end-to-end reinforcement learning project for a det
 
 ## Current Status (2026-03-04)
 
-- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7.1`, `M8`, `M9.4`, `M9.5`.
-- Active milestone work: `M7.2` + `M7.3` (benchmark protocol automation and W&B benchmark logging).
+- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7.1`, `M7.2`, `M8`, `M9.4`, `M9.5`.
+- Active milestone work: `M7.3` (W&B benchmark logging and artifact lineage).
 - Remaining MVP scope: finish M7 automation and benchmark reporting.
 
 Trainer/runtime baseline:
@@ -36,9 +36,8 @@ Published trainer base image:
 
 ## Immediate Next Work
 
-1. Automate M7.2 benchmark protocol (PPO vs `greedy_miner` / `cautious_scanner` / `market_timer`) across a reproducible seed matrix.
-2. Add M7.3 W&B benchmark logging (`job_type=eval`) and artifact lineage for benchmark runs.
-3. Keep deployment smoke evidence current for release cuts (`tools/smoke_m9_deployment.py` + workflow artifacts).
+1. Add M7.3 W&B benchmark logging (`job_type=eval`) and artifact lineage for benchmark runs.
+2. Keep deployment smoke evidence current for release cuts (`tools/smoke_m9_deployment.py` + workflow artifacts).
 
 ## Quick Start
 

@@ -10,7 +10,7 @@ It explains what is already built, what remains, and which documents are authori
 - Frozen RL interface remains unchanged: `OBS_DIM=260`, `N_ACTIONS=69`, action IDs `0..68`.
 - Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M8`.
 - In progress milestone: `M9` (throughput program + W&B-backed analytics + Vercel deployment alignment).
-- Remaining milestone not complete: `M7` (baseline bots + benchmark protocol automation).
+- Remaining milestone not complete: `M7.3` (benchmark result logging/lineage in W&B).
 
 ## Canonical milestone map
 

@@ -28,9 +28,9 @@ Read order / context:
 
 ## Execution Snapshot (2026-03-04)
 
-- Completed: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7.1`, `M8`
-- Active: `M7.2`, `M7.3`, and `M9` release evidence upkeep
-- Remaining: full M7 benchmark automation closure (`M7.2` + `M7.3`)
+- Completed: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7.1`, `M7.2`, `M8`
+- Active: `M7.3` and `M9` release evidence upkeep
+- Remaining: full M7 benchmark automation closure (`M7.3`)
 
 This file is the canonical milestone naming source used by `README.md`, `docs/PROJECT_STATUS.md`, and handoff docs.
 
@@ -413,6 +413,10 @@ Status: complete (2026-03-04)
 - Run bots for 1000 episodes (or smaller for CI)
 - Compare PPO vs bots on:
   - net profit, survival, profit/tick, overheat ticks, pirate encounters
+
+Status: complete (2026-03-04)
+- Implemented in `tools/run_m7_benchmark_protocol.py` with regression coverage in `tests/test_run_m7_benchmark_protocol.py`.
+- Report schema captures seeded contender summaries and comparison deltas for `net_profit_mean`, `survival_rate`, `profit_per_tick_mean`, `overheat_ticks_mean`, and `pirate_encounters_mean`.
 
 ### 9.3 [M7.3] Log benchmark results
 - Log benchmark summaries to W&B as a separate job type (e.g., `eval`)

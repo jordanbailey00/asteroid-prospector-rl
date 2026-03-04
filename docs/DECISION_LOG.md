@@ -472,3 +472,12 @@ Use this file for non-trivial project decisions.
 - Decision: Implement baseline bots in `training/baseline_bots.py` as deterministic observation-only policies aligned to frozen obs/action contracts, including station egress and affordability guards to avoid invalid station transactions. Add `tools/run_baseline_bots.py` as the canonical seeded runner (`seed = base_seed + episode_idx`) with per-episode and per-bot summary metrics persisted as JSON artifacts.
 - Consequences: Baseline policies are now reproducible and benchmark-ready, and benchmark protocol automation can build directly on the emitted report schema. Comparative quality/tuning and W&B benchmark logging remain explicit follow-on work (`M7.2`, `M7.3`).
 - Related commits/docs: `training/baseline_bots.py`, `tools/run_baseline_bots.py`, `tests/test_baseline_bots.py`, `tests/test_run_baseline_bots.py`, `docs/M7_BASELINE_BOTS_EXECUTION_20260304.md`, `docs/PROJECT_STATUS.md`, `docs/BUILD_CHECKLIST.md`, `CHANGELOG.md`
+
+### ADR-0052 - Automate M7.2 benchmark protocol with a seeded contender runner and consolidated PPO-vs-baseline report schema
+
+- Date: 2026-03-04
+- Status: Accepted
+- Context: After M7.1 baseline bots landed, the remaining M7 execution gap was protocol automation for reproducible PPO-vs-baseline comparisons across seeds and a canonical local artifact schema for KPI deltas.
+- Decision: Add `tools/run_m7_benchmark_protocol.py` as the canonical M7.2 runner. For each matrix seed, launch a deterministic training run, resolve the latest checkpoint, evaluate the trained policy and all baseline bots on aligned seeded episodes, and emit a single JSON report containing per-seed summaries, aggregate contender KPIs, and comparison deltas for `net_profit_mean`, `survival_rate`, `profit_per_tick_mean`, `overheat_ticks_mean`, and `pirate_encounters_mean`.
+- Consequences: M7.2 protocol automation is now reproducible and testable with a single command/artifact path; M7.3 can layer W&B `job_type=eval` logging and artifact lineage directly on top of this report contract.
+- Related commits/docs: `tools/run_m7_benchmark_protocol.py`, `tests/test_run_m7_benchmark_protocol.py`, `docs/M7_BENCHMARK_PROTOCOL_EXECUTION_20260304.md`, `docs/PROJECT_STATUS.md`, `docs/BUILD_CHECKLIST.md`, `training/README.md`, `CHANGELOG.md`

@@ -68,6 +68,22 @@ python tools/run_baseline_bots.py --bot market_timer --episodes 100 --base-seed 
 
 Report includes per-episode and per-bot summary metrics used in M7 benchmarking (`net_profit`, `survival`, `profit_per_tick`, `overheat_ticks`, `pirate_encounters`, `value_lost_to_pirates`, `scan_count`, `mining_ticks`).
 
+## Benchmark protocol automation (M7.2)
+
+Run seeded benchmark protocol automation (trained policy candidate vs baseline bots) and emit comparison report:
+
+```powershell
+python tools/run_m7_benchmark_protocol.py --trainer-backend random --seed-matrix 7,19 --episodes-per-seed 20 --trainer-total-env-steps 2000 --trainer-window-env-steps 500 --output-path artifacts/benchmarks/m7-protocol-random-smoke.json
+```
+
+For PPO-backed runs, execute in Linux trainer runtime (Docker):
+
+```powershell
+docker compose -f infra/docker-compose.yml run --rm -T trainer python tools/run_m7_benchmark_protocol.py --trainer-backend puffer_ppo --seed-matrix 7,19,31 --episodes-per-seed 100 --trainer-total-env-steps 20000 --trainer-window-env-steps 2000 --wandb-mode disabled --output-path artifacts/benchmarks/m7-protocol-ppo.json
+```
+
+Report includes per-contender seed summaries, aggregate KPI comparisons, and protocol expectation checks (`net_profit_mean`, `survival_rate`, `profit_per_tick_mean`, `overheat_ticks_mean`, `pirate_encounters_mean`).
+
 ## Enable replay generation (M4)
 
 Generate one eval replay per checkpointed window:
