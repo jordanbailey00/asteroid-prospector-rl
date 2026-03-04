@@ -71,6 +71,8 @@ Read top to bottom.
     - Chunk 1 execution record for baseline bot implementation, corrections, validation, and remaining M7 scope.
 24. `M7_BENCHMARK_PROTOCOL_EXECUTION_20260304.md`
     - Chunk 2 execution record for benchmark protocol automation, validation evidence, and remaining M7 scope.
+25. `M7_WANDB_BENCHMARK_EXECUTION_20260304.md`
+    - Chunk 3 execution record for W&B benchmark logging + artifact lineage implementation and validation evidence.
 
 ## Notes
 

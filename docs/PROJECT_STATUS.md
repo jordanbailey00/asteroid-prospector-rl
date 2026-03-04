@@ -1,7 +1,7 @@
 # Project Status
 
 Last updated: 2026-03-04
-Current focus: M7 execution (W&B benchmark logging + lineage) with M9 release evidence upkeep
+Current focus: M9 release evidence upkeep and operational hardening
 
 ## Current state
 
@@ -25,6 +25,7 @@ Current focus: M7 execution (W&B benchmark logging + lineage) with M9 release ev
 - Operator training management is now aligned to PufferLib-native tooling (trainer CLI + terminal dashboard output), with W&B as the persisted analytics/artifact system and optional Constellation visibility when configured.
 - M7.1 baseline bots are now implemented with a reproducible seeded runner (`training/baseline_bots.py`, `tools/run_baseline_bots.py`) and execution evidence in `docs/M7_BASELINE_BOTS_EXECUTION_20260304.md`.
 - M7.2 benchmark protocol automation is now implemented in `tools/run_m7_benchmark_protocol.py` with regression coverage in `tests/test_run_m7_benchmark_protocol.py` and execution evidence in `docs/M7_BENCHMARK_PROTOCOL_EXECUTION_20260304.md`.
+- M7.3 W&B benchmark logging/lineage is now implemented in `tools/log_m7_benchmark_wandb.py` with benchmark logger support in `training/logging.py`, execution evidence in `docs/M7_WANDB_BENCHMARK_EXECUTION_20260304.md`, and regression coverage in `tests/test_log_m7_benchmark_wandb.py` plus `tests/test_wandb_offline.py`.
 - Backend W&B proxy endpoints are now available for iteration analytics:
   - `GET /api/wandb/runs/latest`
   - `GET /api/wandb/runs/{wandb_run_id}/summary`
@@ -66,23 +67,25 @@ Current focus: M7 execution (W&B benchmark logging + lineage) with M9 release ev
 | M5 - API server | Complete | Run/metrics/replay/play-session API surface |
 | M6 - Frontend integration | Complete | Replay/play/analytics pages wired to backend APIs |
 | M6.5 - Graphics + audio | Complete | File-backed Kenney asset wiring plus validation checks |
-| M7 - Baselines + benchmarking | In Progress | M7.1 baseline bots and M7.2 protocol automation are complete; M7.3 W&B benchmark logging remains |
+| M7 - Baselines + benchmarking | Complete | Baseline bots, seeded protocol automation, and W&B benchmark logging/lineage are complete |
 | M8 - Performance + stability hardening | Complete | Replay transport tuning, benchmark/stability runners, native batch runtime path |
 | M9 - Throughput + W&B dashboard + Vercel alignment | In Progress | Throughput matrix/floor artifacts and W&B proxy are in place, public UX and operator-tooling alignment are complete, and release evidence upkeep remains part of ongoing operations |
 
 ## Latest recorded validation health (2026-03-04)
 
-- `python -m pytest -q` -> 121 passed, 2 skipped.
+- `python -m pytest -q` -> 124 passed, 2 skipped.
 - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
 - `python -m pytest -q tests/test_server_api.py tests/test_smoke_m9_deployment.py` -> 34 passed.
 - `python -m pytest -q tests/test_baseline_bots.py tests/test_run_baseline_bots.py` -> 7 passed.
 - `python -m pytest -q tests/test_run_m7_benchmark_protocol.py` -> 3 passed.
+- `python -m pytest -q tests/test_log_m7_benchmark_wandb.py tests/test_wandb_offline.py` -> 4 passed.
 - `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260303-post-wandb-attempt1.json` -> pass (13/13) after backend W&B key + scope activation and production run-root seeding.
 - `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run1.json` -> pass (13/13) after Railway deploy of websocket close-handshake hardening.
 - `for i in 1..12: python tools/smoke_m9_deployment.py ... --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run{i}.json` -> pass 12/12 at default websocket retries (`3`).
 
 - `python tools/run_baseline_bots.py --episodes 3 --base-seed 7 --env-time-max 4000 --max-steps-per-episode 12000 --run-id m7-baseline-smoke --output-path artifacts/benchmarks/m7-baseline-smoke.json` -> pass (3 bots; non-zero net-profit summaries emitted).
 - `python tools/run_m7_benchmark_protocol.py --trainer-backend random --seed-matrix 7,9 --episodes-per-seed 2 --trainer-total-env-steps 80 --trainer-window-env-steps 40 --env-time-max 4000 --max-steps-per-episode 12000 --run-id m7-protocol-smoke --output-path artifacts/benchmarks/m7-protocol-smoke.json` -> pass (seeded contender comparison report emitted).
+- `python tools/log_m7_benchmark_wandb.py --report-path artifacts/benchmarks/m7-protocol-smoke.json --wandb-mode disabled` -> pass (report updated with `wandb_benchmark` payload in disabled/no-op mode).
 
 - `npm --prefix frontend run lint` -> pass.
 - `npm --prefix frontend run build` -> pass (`/`, `/play`, `/analytics`).
@@ -91,11 +94,11 @@ Current focus: M7 execution (W&B benchmark logging + lineage) with M9 release ev
 
 ## Next work (ordered)
 
-1. Log benchmark summaries to W&B as benchmark/eval jobs with reproducible lineage (`M7.3`).
-2. Keep deployment evidence current per release cut:
+1. Keep deployment evidence current per release cut:
    - `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`
    - local smoke artifact under `artifacts/deploy/`
    - manual CI run artifact from `.github/workflows/m9-deployment-smoke.yml`
+2. Continue throughput and infrastructure hardening toward sustained release targets.
 
 ## Active risks and blockers
 
@@ -103,7 +106,7 @@ Current focus: M7 execution (W&B benchmark logging + lineage) with M9 release ev
 - W&B backend proxy now authenticates with production credentials and passes strict smoke checks under default scope.
 - Replay websocket transport recovered after close-handshake hardening, but should be revalidated during each release cut to catch infrastructure regressions early.
 - Split frontend/backend hosting (Vercel + external API) is now live, but remains sensitive to env/CORS drift across redeploys.
-- M7.3 W&B benchmark logging and artifact lineage remain the functional gap for comparative performance reporting.
+- Comparative benchmark reporting path is now complete; ongoing risk is operational drift (W&B scopes/env/caching) across deployments.
 
 ## Decision pointers
 

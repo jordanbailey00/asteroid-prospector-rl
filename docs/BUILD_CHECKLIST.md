@@ -28,9 +28,9 @@ Read order / context:
 
 ## Execution Snapshot (2026-03-04)
 
-- Completed: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7.1`, `M7.2`, `M8`
-- Active: `M7.3` and `M9` release evidence upkeep
-- Remaining: full M7 benchmark automation closure (`M7.3`)
+- Completed: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7.1`, `M7.2`, `M7.3`, `M8`
+- Active: `M9` release evidence upkeep
+- Remaining: release evidence upkeep and operational readiness checks (`M9`)
 
 This file is the canonical milestone naming source used by `README.md`, `docs/PROJECT_STATUS.md`, and handoff docs.
 
@@ -421,6 +421,9 @@ Status: complete (2026-03-04)
 ### 9.3 [M7.3] Log benchmark results
 - Log benchmark summaries to W&B as a separate job type (e.g., `eval`)
 
+Status: complete (2026-03-04)
+- Implemented in `tools/log_m7_benchmark_wandb.py` using `training.logging.WandbBenchmarkLogger` for eval-job logging and artifact lineage attachment to benchmark reports/checkpoints.
+- Regression coverage added in `tests/test_log_m7_benchmark_wandb.py` and `tests/test_wandb_offline.py` for benchmark logger metrics/artifacts behavior.
 **Exit criteria (Phase 9)**
 - Baselines run reproducibly across seeds.
 - Benchmark report produced and stored (local + W&B).

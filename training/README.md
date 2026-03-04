@@ -84,6 +84,15 @@ docker compose -f infra/docker-compose.yml run --rm -T trainer python tools/run_
 
 Report includes per-contender seed summaries, aggregate KPI comparisons, and protocol expectation checks (`net_profit_mean`, `survival_rate`, `profit_per_tick_mean`, `overheat_ticks_mean`, `pirate_encounters_mean`).
 
+## W&B benchmark logging (M7.3)
+
+After generating an M7.2 benchmark report, log benchmark summaries to W&B (`job_type=eval`) with artifact lineage:
+
+```powershell
+python tools/log_m7_benchmark_wandb.py --report-path artifacts/benchmarks/m7-protocol-ppo.json --wandb-mode online --wandb-project asteroid-prospector --wandb-job-type eval --wandb-tags m7,benchmark,eval
+```
+
+Use `--wandb-mode offline` for local dry runs without immediate sync. The tool updates the benchmark report with a `wandb_benchmark` block containing run URL, artifact aliases, and lineage file count.
 ## Enable replay generation (M4)
 
 Generate one eval replay per checkpointed window:

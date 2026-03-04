@@ -481,3 +481,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add `tools/run_m7_benchmark_protocol.py` as the canonical M7.2 runner. For each matrix seed, launch a deterministic training run, resolve the latest checkpoint, evaluate the trained policy and all baseline bots on aligned seeded episodes, and emit a single JSON report containing per-seed summaries, aggregate contender KPIs, and comparison deltas for `net_profit_mean`, `survival_rate`, `profit_per_tick_mean`, `overheat_ticks_mean`, and `pirate_encounters_mean`.
 - Consequences: M7.2 protocol automation is now reproducible and testable with a single command/artifact path; M7.3 can layer W&B `job_type=eval` logging and artifact lineage directly on top of this report contract.
 - Related commits/docs: `tools/run_m7_benchmark_protocol.py`, `tests/test_run_m7_benchmark_protocol.py`, `docs/M7_BENCHMARK_PROTOCOL_EXECUTION_20260304.md`, `docs/PROJECT_STATUS.md`, `docs/BUILD_CHECKLIST.md`, `training/README.md`, `CHANGELOG.md`
+
+### ADR-0053 - Implement M7.3 as a dedicated post-protocol W&B eval logger with benchmark artifact lineage
+
+- Date: 2026-03-04
+- Status: Accepted
+- Context: After M7.2 landed, the remaining gap was W&B benchmark reporting with lineage, but coupling networked W&B writes directly into the seeded protocol runner would complicate deterministic local benchmark execution and testability.
+- Decision: Implement M7.3 as a separate tool (`tools/log_m7_benchmark_wandb.py`) that consumes M7.2 benchmark report artifacts, logs summary metrics under a stable `benchmark/*` namespace, and publishes a benchmark artifact via `training.logging.WandbBenchmarkLogger` with lineage attachments to source report and resolved checkpoint files. Default job type is `eval`.
+- Consequences: M7 benchmark generation remains deterministic/offline by default, while W&B logging/lineage can be executed independently in controlled environments (offline or online). This separation simplifies regression testing and operational retries without rerunning full benchmark generation.
+- Related commits/docs: `tools/log_m7_benchmark_wandb.py`, `training/logging.py`, `tests/test_log_m7_benchmark_wandb.py`, `tests/test_wandb_offline.py`, `docs/M7_WANDB_BENCHMARK_EXECUTION_20260304.md`, `docs/PROJECT_STATUS.md`, `docs/BUILD_CHECKLIST.md`, `CHANGELOG.md`

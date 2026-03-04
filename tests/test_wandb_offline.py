@@ -1,6 +1,7 @@
 from pathlib import Path
+from typing import Any
 
-from training.logging import WandbWindowLogger
+from training.logging import WandbBenchmarkLogger, WandbWindowLogger
 
 
 class _FakeArtifact:
@@ -8,20 +9,23 @@ class _FakeArtifact:
         self.name = name
         self.type = type
         self.files: list[str] = []
+        self.named_files: list[tuple[str, str | None]] = []
+        self.metadata: dict[str, Any] = {}
 
-    def add_file(self, path: str) -> None:
+    def add_file(self, path: str, name: str | None = None) -> None:
         self.files.append(path)
+        self.named_files.append((path, name))
 
 
 class _FakeRun:
     def __init__(self) -> None:
         self.url = "https://example.test/run/123"
-        self.summary: dict[str, float | int] = {}
-        self.logged: list[tuple[dict[str, float | int], int]] = []
+        self.summary: dict[str, Any] = {}
+        self.logged: list[tuple[dict[str, Any], int]] = []
         self.artifacts: list[tuple[_FakeArtifact, list[str]]] = []
         self.finished = False
 
-    def log(self, payload: dict[str, float | int], *, step: int) -> None:
+    def log(self, payload: dict[str, Any], *, step: int) -> None:
         self.logged.append((payload, step))
 
     def log_artifact(self, artifact: _FakeArtifact, *, aliases: list[str]) -> None:
@@ -70,4 +74,55 @@ def test_wandb_logger_logs_windows_and_checkpoint_artifacts(tmp_path: Path) -> N
     assert replay_aliases == ["latest", "window-3", "every_window", "best_so_far"]
 
     assert run.summary["env_steps_total"] == 300
+    assert run.finished is True
+
+
+def test_wandb_benchmark_logger_logs_metrics_and_lineage_artifact(tmp_path: Path) -> None:
+    run = _FakeRun()
+    logger = WandbBenchmarkLogger(run=run, artifact_ctor=_FakeArtifact, job_type="eval")
+
+    report_path = tmp_path / "m7-report.json"
+    report_path.write_text("{}\n", encoding="utf-8")
+
+    ckpt_a = tmp_path / "ckpt_a.pt"
+    ckpt_a.write_text("checkpoint-a", encoding="utf-8")
+    ckpt_b = tmp_path / "ckpt_b.pt"
+    ckpt_b.write_text("checkpoint-b", encoding="utf-8")
+
+    report = {
+        "generated_at": "2026-03-04T00:00:00Z",
+        "summary": {"pass": True, "seed_count": 2},
+        "comparison": {"reference_policy": "ppo"},
+        "artifacts": {"training_run_ids": ["run-a", "run-b"]},
+    }
+
+    logger.log_metrics({"benchmark/pass": 1.0}, step=0)
+    artifact_info = logger.log_benchmark_report(
+        report_path=report_path,
+        run_id="m7-protocol-test",
+        report=report,
+        lineage_paths=[ckpt_a, ckpt_b],
+    )
+    logger.finish({"benchmark_pass": True})
+
+    assert run.logged == [({"benchmark/pass": 1.0}, 0)]
+    assert len(run.artifacts) == 1
+
+    artifact, aliases = run.artifacts[0]
+    assert artifact.name == "benchmark-m7-protocol-test"
+    assert artifact.type == "benchmark"
+    assert artifact.files[0] == str(report_path)
+    assert str(ckpt_a) in artifact.files
+    assert str(ckpt_b) in artifact.files
+    assert aliases == ["latest", "m7-protocol-test", "job-eval"]
+
+    assert artifact.metadata["reference_policy"] == "ppo"
+    assert artifact.metadata["summary_pass"] is True
+    assert artifact.metadata["seed_count"] == 2
+
+    assert artifact_info["artifact_name"] == "benchmark-m7-protocol-test"
+    assert artifact_info["artifact_aliases"] == ["latest", "m7-protocol-test", "job-eval"]
+    assert artifact_info["lineage_file_count"] == 2
+
+    assert run.summary["benchmark_pass"] is True
     assert run.finished is True

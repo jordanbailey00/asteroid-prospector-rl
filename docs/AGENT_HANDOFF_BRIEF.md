@@ -5,12 +5,12 @@
 This brief is a quick orientation for any coding agent starting work in this repo.
 It explains what is already built, what remains, and which documents are authoritative.
 
-## Current snapshot (2026-03-02)
+## Current snapshot (2026-03-04)
 
 - Frozen RL interface remains unchanged: `OBS_DIM=260`, `N_ACTIONS=69`, action IDs `0..68`.
-- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M8`.
+- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7`, `M8`.
 - In progress milestone: `M9` (throughput program + W&B-backed analytics + Vercel deployment alignment).
-- Remaining milestone not complete: `M7.3` (benchmark result logging/lineage in W&B).
+- Remaining active milestone focus: `M9` release evidence upkeep and operational hardening.
 
 ## Canonical milestone map
 
