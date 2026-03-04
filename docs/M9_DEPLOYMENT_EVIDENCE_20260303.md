@@ -305,3 +305,11 @@ Result:
 Artifact:
 
 - `artifacts/deploy/m9-smoke-strict-20260304-chunk3-run1.json`
+
+Manual GitHub Actions strict smoke rerun after CORS guardrail patch:
+
+- Workflow run: `https://github.com/jordanbailey00/asteroid-prospector-rl/actions/runs/22655777348`
+- Result: `success`
+- Downloaded artifact:
+  - `artifacts/deploy/ci-m9-smoke-22655777348/m9-deployment-smoke-22655777348/m9-smoke-22655777348.json`
+- Summary: `pass=true`, `checks=15`, `pass_count=15`, `fail_count=0`
