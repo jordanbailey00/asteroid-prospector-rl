@@ -243,3 +243,38 @@ Conclusion:
 
 - Strict deployment smoke now passes reliably in production with default websocket retry budget (`--ws-check-attempts=3`).
 - Replay websocket release gate is closed for this patch line.
+
+## Release-cut evidence refresh (2026-03-04)
+
+Local strict smoke rerun command:
+
+```powershell
+python tools/smoke_m9_deployment.py \
+  --backend-http-base "https://abp-backend-production.up.railway.app" \
+  --backend-ws-base "wss://abp-backend-production.up.railway.app" \
+  --frontend-base "https://frontend-nine-sandy-47.vercel.app" \
+  --require-clean-wandb-status \
+  --output-path artifacts/deploy/m9-smoke-strict-20260304-chunk1-run1.json
+```
+
+Local strict rerun result:
+
+- `pass=true`
+- `checks=13`
+- `pass_count=13`
+- `fail_count=0`
+
+Local artifact:
+
+- `artifacts/deploy/m9-smoke-strict-20260304-chunk1-run1.json`
+
+Manual GitHub Actions strict smoke rerun:
+
+- Workflow run: `https://github.com/jordanbailey00/asteroid-prospector-rl/actions/runs/22655188824`
+- Result: `success`
+- Downloaded artifact:
+  - `artifacts/deploy/ci-m9-smoke-22655188824/m9-deployment-smoke-22655188824/m9-smoke-22655188824.json`
+
+Release-cut conclusion refresh:
+
+- Both local and CI strict deployment smoke checks are green at the current production URLs.
