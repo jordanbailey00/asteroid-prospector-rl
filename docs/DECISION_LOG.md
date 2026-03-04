@@ -445,3 +445,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add `GET /api/runs/{run_id}/analytics/completeness` to compute a canonical five-source coverage contract (`run_metadata`, `window_metrics`, `replay_timeline`, `wandb_summary`, `wandb_history`) with standardized statuses (`ok|stale|missing|error`), required-field checks, observed counts, lineage metadata, and run context/wandb scope payloads. Wire frontend analytics to consume this payload and render a dedicated coverage table plus lineage context card.
 - Consequences: Public analytics now has explicit completeness signaling and provenance visibility for each source, reducing ambiguity for users and operators. API/tests can enforce completeness behavior consistently, and stale/missing/error states are no longer implicit UI side effects.
 - Related commits/docs: `server/app.py`, `tests/test_server_api.py`, `frontend/lib/types.ts`, `frontend/lib/api.ts`, `frontend/components/analytics-dashboard.tsx`, `frontend/app/globals.css`, `server/README.md`, `frontend/README.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0049 - Harden replay websocket resilience with backend error envelopes and retrying smoke probes
+
+- Date: 2026-03-03
+- Status: Accepted
+- Context: Deployment smoke evidence showed intermittent replay websocket EOF failures before the first payload, which made strict release checks noisy and obscured whether failures came from transient transport drops versus backend handler errors.
+- Decision: Add a defensive exception envelope in `WS /ws/runs/{run_id}/replays/{replay_id}/frames` so unexpected server exceptions return an explicit `type=error` payload with status `500` before closing. Extend `tools/smoke_m9_deployment.py` with bounded websocket retries (`--ws-check-attempts`, default `3`) that retry only transient transport failures and still fail fast on deterministic protocol/payload errors.
+- Consequences: Replay websocket failures are now diagnosable from structured backend payloads, and deployment smoke checks are more resilient to transient EOF/connection-reset conditions without masking real regressions.
+- Related commits/docs: `server/app.py`, `tools/smoke_m9_deployment.py`, `tests/test_server_api.py`, `tests/test_smoke_m9_deployment.py`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `server/README.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`

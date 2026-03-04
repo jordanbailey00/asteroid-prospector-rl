@@ -26,6 +26,7 @@ class SmokeConfig:
     backend_ws_base: str
     frontend_base: str | None
     timeout_seconds: float
+    ws_check_attempts: int
     run_id: str | None
     replay_id: str | None
     allow_empty_runs: bool
@@ -594,7 +595,24 @@ def _check_backend_replay_frames_http(
     return f"HTTP replay frames returned count={count}"
 
 
-def _check_backend_replay_frames_ws(*, cfg: SmokeConfig, run_id: str, replay_id: str) -> str:
+def _is_retryable_ws_exception(exc: Exception) -> bool:
+    if isinstance(exc, socket.timeout | TimeoutError | ConnectionError | OSError):
+        return True
+
+    message = str(exc).lower()
+    return any(
+        marker in message
+        for marker in (
+            "unexpected websocket eof",
+            "websocket closed before text payload was received",
+            "no close frame received",
+            "connection reset",
+            "timed out",
+        )
+    )
+
+
+def _check_backend_replay_frames_ws_once(*, cfg: SmokeConfig, run_id: str, replay_id: str) -> str:
     ws_path = f"/ws/runs/{quote(run_id, safe='')}/replays/{quote(replay_id, safe='')}/frames"
     ws_url = _build_url(
         cfg.backend_ws_base,
@@ -633,6 +651,29 @@ def _check_backend_replay_frames_ws(*, cfg: SmokeConfig, run_id: str, replay_id:
             sock.close()
         except Exception:
             pass
+
+
+def _check_backend_replay_frames_ws(*, cfg: SmokeConfig, run_id: str, replay_id: str) -> str:
+    attempts_total = max(1, int(cfg.ws_check_attempts))
+    last_error: Exception | None = None
+
+    for attempt in range(1, attempts_total + 1):
+        try:
+            detail = _check_backend_replay_frames_ws_once(
+                cfg=cfg, run_id=run_id, replay_id=replay_id
+            )
+            if attempt == 1:
+                return detail
+            return f"{detail} (attempt={attempt}/{attempts_total})"
+        except Exception as exc:
+            last_error = exc
+            if attempt >= attempts_total or not _is_retryable_ws_exception(exc):
+                raise
+            time.sleep(min(0.75, 0.15 * float(attempt)))
+
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("Websocket replay check failed without recorded error")
 
 
 def _check_frontend_route(*, session: requests.Session, cfg: SmokeConfig, path: str) -> str:
@@ -850,6 +891,7 @@ def _parse_args() -> SmokeConfig:
     parser.add_argument("--backend-ws-base", type=str, default=None)
     parser.add_argument("--frontend-base", type=str, default=None)
     parser.add_argument("--timeout-seconds", type=float, default=12.0)
+    parser.add_argument("--ws-check-attempts", type=int, default=3)
     parser.add_argument("--run-id", type=str, default=None)
     parser.add_argument("--replay-id", type=str, default=None)
     parser.add_argument("--allow-empty-runs", action="store_true")
@@ -877,6 +919,7 @@ def _parse_args() -> SmokeConfig:
         backend_ws_base=backend_ws_base,
         frontend_base=frontend_base,
         timeout_seconds=float(args.timeout_seconds),
+        ws_check_attempts=max(1, int(args.ws_check_attempts)),
         run_id=args.run_id,
         replay_id=args.replay_id,
         allow_empty_runs=bool(args.allow_empty_runs),

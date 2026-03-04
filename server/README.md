@@ -94,11 +94,12 @@ python tools/smoke_m9_deployment.py \
   --backend-http-base "https://<backend-host>" \
   --backend-ws-base "wss://<backend-host>" \
   --frontend-base "https://<vercel-domain>" \
+  --ws-check-attempts 3 \
   --wandb-entity "<wandb-entity>" \
   --wandb-project "<wandb-project>" \
   --require-clean-wandb-status
 ```
 
-See `docs/M9_DEPLOYMENT_RUNBOOK.md` for full procedure. Smoke checks now validate W&B latest + summary + history + iteration-view endpoints and run a post-operation `/api/wandb/status` gate. Use `--require-clean-wandb-status` for release gating when W&B status notes must be empty.
+See `docs/M9_DEPLOYMENT_RUNBOOK.md` for full procedure. Smoke checks now validate W&B latest + summary + history + iteration-view endpoints and run a post-operation `/api/wandb/status` gate. Use `--require-clean-wandb-status` for release gating when W&B status notes must be empty. Use `--ws-check-attempts` (default `3`) when replay websocket checks need bounded retry handling for transient EOF/connection resets.
 
 Manual CI run: `.github/workflows/m9-deployment-smoke.yml` (workflow_dispatch).

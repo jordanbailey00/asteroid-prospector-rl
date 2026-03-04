@@ -472,6 +472,33 @@ def test_replay_frame_websocket_unknown_replay(tmp_path: Path) -> None:
     assert "replay_id not found" in payload["detail"]
 
 
+def test_replay_frame_websocket_internal_error_payload(tmp_path: Path) -> None:
+    run_id = "run-ws-internal"
+    _make_run(tmp_path, run_id, updated_at="2026-02-28T06:10:00+00:00")
+
+    _write_json(
+        tmp_path / run_id / "replay_index.json",
+        {
+            "schema_version": 999,
+            "run_id": run_id,
+            "updated_at": "2026-02-28T06:10:00+00:00",
+            "entries": [],
+        },
+    )
+
+    app = create_app(runs_root=tmp_path)
+    client = TestClient(app)
+
+    with client.websocket_connect(
+        f"/ws/runs/{run_id}/replays/{run_id}-replay/frames?offset=0&limit=10"
+    ) as ws:
+        payload = ws.receive_json()
+
+    assert payload["type"] == "error"
+    assert payload["status_code"] == 500
+    assert "internal websocket error" in payload["detail"]
+
+
 def test_play_session_lifecycle(tmp_path: Path) -> None:
     app = create_app(runs_root=tmp_path)
     client = TestClient(app)

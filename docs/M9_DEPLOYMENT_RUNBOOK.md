@@ -59,6 +59,7 @@ python tools/smoke_m9_deployment.py \
   --backend-http-base "https://<backend-host>" \
   --backend-ws-base "wss://<backend-host>" \
   --frontend-base "https://<vercel-app-domain>" \
+  --ws-check-attempts 3 \
   --wandb-entity "<wandb-entity>" \
   --wandb-project "<wandb-project>" \
   --require-clean-wandb-status \
@@ -84,6 +85,7 @@ Notes:
   - W&B proxy latest-runs endpoint,
   - W&B run detail endpoints (`/summary`, `/history`, `/iteration-view`) using the latest discoverable run.
 - Exit code is non-zero when any check fails.
+- Use `--ws-check-attempts` (default `3`) to retry transient websocket EOF/connection resets during replay-stream validation.
 - Check `GET /api/wandb/status` for auth/config/cache/operation diagnostics before retrying failed W&B smoke checks.
 
 ## 5) GitHub Actions manual smoke run

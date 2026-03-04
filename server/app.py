@@ -1775,6 +1775,19 @@ def create_app(
                 await websocket.close(code=1008)
             except RuntimeError:
                 return
+        except Exception as exc:  # pragma: no cover - defensive envelope for transport stability
+            detail = f"internal websocket error: {type(exc).__name__}: {exc}"
+            try:
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "status_code": 500,
+                        "detail": detail,
+                    }
+                )
+                await websocket.close(code=1011)
+            except RuntimeError:
+                return
 
     @app.post("/api/play/session")
     def create_play_session(request: CreatePlaySessionRequest) -> dict[str, Any]:

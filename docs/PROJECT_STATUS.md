@@ -18,6 +18,7 @@ Current focus: M9 execution (deployment hardening, replay websocket stability, a
 - Replay transport supports both:
   - HTTP frame pagination (`GET /api/runs/{run_id}/replays/{replay_id}/frames`),
   - websocket chunk stream (`WS /ws/runs/{run_id}/replays/{replay_id}/frames`).
+- Replay websocket hardening now includes a defensive internal-error envelope in the backend route and bounded retry support in deployment smoke checks (`--ws-check-attempts`, default `3`) to reduce transient EOF failures.
 - Frontend routes are live for replay (`/`), play (`/play`), and analytics (`/analytics`).
 - Public Replay/Play UX is now viewport-first with compact right-side HUD rails, grouped pilot actions, and collapsed advanced controls aligned to M9.4 observer/player goals.
 - Operator training management is now aligned to PufferLib-native tooling (trainer CLI + terminal dashboard output), with W&B as the persisted analytics/artifact system and optional Constellation visibility when configured.
@@ -68,10 +69,10 @@ Current focus: M9 execution (deployment hardening, replay websocket stability, a
 
 ## Latest recorded validation health (2026-03-03)
 
-- `python -m pytest -q` -> 104 passed, 2 skipped.
+- `python -m pytest -q` -> 110 passed, 2 skipped.
 - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
-- `python -m pytest -q tests/test_server_api.py` -> 18 passed.
-- `python -m pytest -q tests/test_smoke_m9_deployment.py` -> 12 passed.
+- `python -m pytest -q tests/test_server_api.py` -> 19 passed.
+- `python -m pytest -q tests/test_smoke_m9_deployment.py` -> 14 passed.
 - `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260303-post-wandb-attempt1.json` -> pass (13/13) after backend W&B key + scope activation and production run-root seeding.
 
 - `npm --prefix frontend run lint` -> pass.
@@ -81,7 +82,7 @@ Current focus: M9 execution (deployment hardening, replay websocket stability, a
 
 ## Next work (ordered)
 
-1. Investigate and harden production replay websocket stability (`/ws/runs/.../frames`) to eliminate intermittent EOF failures in strict smoke.
+1. Deploy the replay websocket resilience patch (backend error envelope + smoke retry checks) and capture strict smoke evidence showing stable websocket pass behavior.
 2. Keep deployment evidence current per release cut:
    - `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`
    - local smoke artifact under `artifacts/deploy/`
@@ -93,7 +94,7 @@ Current focus: M9 execution (deployment hardening, replay websocket stability, a
 
 - 100,000 steps/sec remains aspirational; current measured trainer throughput is far below target and requires further bottleneck reduction.
 - W&B backend proxy now authenticates with production credentials and passes strict smoke checks under default scope.
-- Replay websocket streaming in production is intermittent (`/ws/runs/.../frames` sometimes closes with EOF before first payload), causing strict smoke instability.
+- Replay websocket streaming in production has shown intermittent EOF before first payload; release gating remains blocked until the new resilience patch is deployed and validated in strict smoke evidence.
 - Split frontend/backend hosting (Vercel + external API) is now live, but remains sensitive to env/CORS drift across redeploys.
 - M7 baseline bots/benchmark automation remains a functional gap for comparative performance reporting.
 

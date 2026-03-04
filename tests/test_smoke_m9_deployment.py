@@ -11,6 +11,7 @@ def _cfg(**overrides) -> smoke.SmokeConfig:
         "backend_ws_base": "wss://api.example.com",
         "frontend_base": "https://app.example.com",
         "timeout_seconds": 5.0,
+        "ws_check_attempts": 3,
         "run_id": None,
         "replay_id": None,
         "allow_empty_runs": True,
@@ -47,6 +48,66 @@ def test_build_url_with_query() -> None:
         "https://api.example.com/api/runs?limit=10&order=desc",
         "https://api.example.com/api/runs?order=desc&limit=10",
     }
+
+
+class _FakeSocket:
+    def close(self) -> None:
+        return None
+
+
+def test_check_backend_replay_frames_ws_retries_on_transient_eof(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    recv_attempts = {"count": 0}
+
+    monkeypatch.setattr(smoke, "_ws_open", lambda **kwargs: (_FakeSocket(), b""))
+    monkeypatch.setattr(smoke, "_ws_send_frame", lambda *args, **kwargs: None)
+
+    def fake_recv_text(*, sock, timeout_seconds: float, prefetched: bytes = b"") -> str:
+        del sock
+        del timeout_seconds
+        del prefetched
+        recv_attempts["count"] += 1
+        if recv_attempts["count"] < 3:
+            raise RuntimeError("Unexpected websocket EOF")
+        return '{"type":"frames","count":1}'
+
+    monkeypatch.setattr(smoke, "_ws_recv_text", fake_recv_text)
+
+    detail = smoke._check_backend_replay_frames_ws(
+        cfg=_cfg(ws_check_attempts=3),
+        run_id="run-1",
+        replay_id="replay-1",
+    )
+
+    assert recv_attempts["count"] == 3
+    assert "message type=frames" in detail
+    assert "attempt=3/3" in detail
+
+
+def test_check_backend_replay_frames_ws_does_not_retry_non_retryable_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    open_attempts = {"count": 0}
+
+    def fake_open(*, url: str, timeout_seconds: float):
+        del url
+        del timeout_seconds
+        open_attempts["count"] += 1
+        return _FakeSocket(), b""
+
+    monkeypatch.setattr(smoke, "_ws_open", fake_open)
+    monkeypatch.setattr(smoke, "_ws_send_frame", lambda *args, **kwargs: None)
+    monkeypatch.setattr(smoke, "_ws_recv_text", lambda **kwargs: '{"type":"error","detail":"oops"}')
+
+    with pytest.raises(RuntimeError, match="error payload"):
+        smoke._check_backend_replay_frames_ws(
+            cfg=_cfg(ws_check_attempts=4),
+            run_id="run-1",
+            replay_id="replay-1",
+        )
+
+    assert open_attempts["count"] == 1
 
 
 def test_parse_wandb_status_payload_allows_available_non_strict() -> None:
