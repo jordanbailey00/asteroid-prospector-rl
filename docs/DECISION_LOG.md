@@ -454,3 +454,12 @@ Use this file for non-trivial project decisions.
 - Decision: Add a defensive exception envelope in `WS /ws/runs/{run_id}/replays/{replay_id}/frames` so unexpected server exceptions return an explicit `type=error` payload with status `500` before closing. Extend `tools/smoke_m9_deployment.py` with bounded websocket retries (`--ws-check-attempts`, default `3`) that retry only transient transport failures and still fail fast on deterministic protocol/payload errors.
 - Consequences: Replay websocket failures are now diagnosable from structured backend payloads, and deployment smoke checks are more resilient to transient EOF/connection-reset conditions without masking real regressions.
 - Related commits/docs: `server/app.py`, `tools/smoke_m9_deployment.py`, `tests/test_server_api.py`, `tests/test_smoke_m9_deployment.py`, `docs/M9_DEPLOYMENT_RUNBOOK.md`, `server/README.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0050 - Flush replay websocket prelude and close success path explicitly to reduce edge EOF drops
+
+- Date: 2026-03-04
+- Status: Accepted
+- Context: Production strict smoke still showed intermittent websocket EOF before first payload at the default retry budget (`--ws-check-attempts=3`) even after adding error envelopes and retry logic, indicating edge/transport instability around short-lived replay websocket sessions.
+- Decision: Keep a prelude `type=frames` payload, immediately yield the event loop after sending it (`await asyncio.sleep(0)`), and explicitly close successful replay streams with a websocket close handshake (`code=1000`) after a short flush window (`await asyncio.sleep(0.05)`) once the `type=complete` payload is sent.
+- Consequences: Replay websocket sessions now terminate more deterministically through intermediaries, and production strict smoke reliability at default retries improved from intermittent failures to stable passes in a 12-run evidence loop.
+- Related commits/docs: `server/app.py`, `tools/smoke_m9_deployment.py`, `tests/test_server_api.py`, `tests/test_smoke_m9_deployment.py`, `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`

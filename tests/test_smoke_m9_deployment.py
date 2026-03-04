@@ -85,6 +85,40 @@ def test_check_backend_replay_frames_ws_retries_on_transient_eof(
     assert "attempt=3/3" in detail
 
 
+def test_check_backend_replay_frames_ws_waits_for_nonempty_frames_after_prelude(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    recv_attempts = {"count": 0}
+
+    monkeypatch.setattr(smoke, "_ws_open", lambda **kwargs: (_FakeSocket(), b""))
+    monkeypatch.setattr(smoke, "_ws_send_frame", lambda *args, **kwargs: None)
+
+    messages = iter(
+        [
+            '{"type":"frames","count":0,"frames":[],"prelude":true}',
+            '{"type":"frames","count":1,"frames":[{"frame_index":0}]}',
+        ]
+    )
+
+    def fake_recv_text(*, sock, timeout_seconds: float, prefetched: bytes = b"") -> str:
+        del sock
+        del timeout_seconds
+        del prefetched
+        recv_attempts["count"] += 1
+        return next(messages)
+
+    monkeypatch.setattr(smoke, "_ws_recv_text", fake_recv_text)
+
+    detail = smoke._check_backend_replay_frames_ws(
+        cfg=_cfg(ws_check_attempts=1),
+        run_id="run-1",
+        replay_id="replay-1",
+    )
+
+    assert recv_attempts["count"] == 2
+    assert "message type=frames" in detail
+
+
 def test_check_backend_replay_frames_ws_does_not_retry_non_retryable_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

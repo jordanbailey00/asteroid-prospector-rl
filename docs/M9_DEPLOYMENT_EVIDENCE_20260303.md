@@ -64,9 +64,10 @@ Result:
 
 ## Remaining release-gate gaps
 
-- W&B strict gate remains blocked in production until backend `WANDB_API_KEY` is configured.
-- Replay websocket smoke is intermittently failing with `Unexpected websocket EOF` on `backend-replay-frames-ws`.
-- Non-empty run/replay smoke gate is now enabled and passing (production `ABP_RUNS_ROOT` seeded with `runs/ws-profile-smoke`).
+- W&B strict gate: resolved (production backend `WANDB_API_KEY` + scoped entity/project are active).
+- Replay websocket strict smoke gate: resolved after close-handshake hardening (default retries `3` now stable in production evidence).
+- Non-empty run/replay smoke gate: enabled and passing (production `ABP_RUNS_ROOT` seeded with `runs/ws-profile-smoke`).
+- Remaining MVP gaps are now baseline bot implementation and benchmark automation (tracked in `docs/PROJECT_STATUS.md`).
 
 ## Strict smoke follow-up (2026-03-03)
 
@@ -192,5 +193,53 @@ Diagnostic result:
 Conclusion:
 
 - Deployment of commit `394e7af` is live.
-- Strict smoke with default retry budget (`3`) still fails due intermittent websocket EOF on production replay frames.
-- Release gate remains open pending websocket transport stabilization sufficient for default strict smoke.
+- At this stage (pre-close-handshake patch), strict smoke with default retry budget (`3`) still failed due intermittent websocket EOF on production replay frames.
+- This release-gate-open conclusion is superseded by the 2026-03-04 close-handshake section below.
+
+
+## Websocket close-handshake deploy + strict reliability rerun (2026-03-04)
+
+Production deploy action:
+
+```powershell
+railway up --service abp-backend --environment production --ci --message "deploy websocket close-handshake stabilization"
+```
+
+Deploy result:
+
+- Railway deploy: success
+- Build logs: `https://railway.com/project/d526c56e-db13-4e5e-916a-e76ec86d9b2e/service/4317e6ca-fe17-40fc-921b-7aedd395564f?id=c37c2505-f896-4dab-be98-c7801c544d43&`
+
+Strict smoke command template (default websocket retries = 3):
+
+```powershell
+python tools/smoke_m9_deployment.py   --backend-http-base "https://abp-backend-production.up.railway.app"   --backend-ws-base "wss://abp-backend-production.up.railway.app"   --frontend-base "https://frontend-nine-sandy-47.vercel.app"   --require-clean-wandb-status   --output-path artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-runN.json
+```
+
+Artifacts captured:
+
+- `artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run1.json`
+- `artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run2.json`
+- `artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run3.json`
+- `artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run4.json`
+- `artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run5.json`
+- `artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run6.json`
+- `artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run7.json`
+- `artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run8.json`
+- `artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run9.json`
+- `artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run10.json`
+- `artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run11.json`
+- `artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run12.json`
+
+Observed result across runs 1-12:
+
+- `pass=true` for all 12 runs
+- `checks=13`
+- `pass_count=13`
+- `fail_count=0`
+- `backend-replay-frames-ws` succeeded with `WS replay frames returned message type=frames` on every run.
+
+Conclusion:
+
+- Strict deployment smoke now passes reliably in production with default websocket retry budget (`--ws-check-attempts=3`).
+- Replay websocket release gate is closed for this patch line.

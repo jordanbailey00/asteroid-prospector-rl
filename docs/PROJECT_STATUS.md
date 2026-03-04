@@ -18,8 +18,8 @@ Current focus: M9 execution (deployment hardening, replay websocket stability, a
 - Replay transport supports both:
   - HTTP frame pagination (`GET /api/runs/{run_id}/replays/{replay_id}/frames`),
   - websocket chunk stream (`WS /ws/runs/{run_id}/replays/{replay_id}/frames`).
-- Replay websocket hardening now includes a defensive internal-error envelope in the backend route and bounded retry support in deployment smoke checks (`--ws-check-attempts`, default `3`) to reduce transient EOF failures.
-- Railway production redeploy of commit `394e7af` is complete, but strict smoke still shows intermittent replay websocket EOF at the default retry budget (`3`).
+- Replay websocket hardening now includes a defensive internal-error envelope, prelude flush yield, and explicit success-path close handshake in the backend route, plus bounded retry support in deployment smoke checks (`--ws-check-attempts`, default `3`).
+- Railway production redeploy of websocket close-handshake hardening is complete, and strict smoke now passes reliably at the default websocket retry budget (`3`) based on a 12/12 production rerun loop.
 - Frontend routes are live for replay (`/`), play (`/play`), and analytics (`/analytics`).
 - Public Replay/Play UX is now viewport-first with compact right-side HUD rails, grouped pilot actions, and collapsed advanced controls aligned to M9.4 observer/player goals.
 - Operator training management is now aligned to PufferLib-native tooling (trainer CLI + terminal dashboard output), with W&B as the persisted analytics/artifact system and optional Constellation visibility when configured.
@@ -66,17 +66,16 @@ Current focus: M9 execution (deployment hardening, replay websocket stability, a
 | M6.5 - Graphics + audio | Complete | File-backed Kenney asset wiring plus validation checks |
 | M7 - Baselines + benchmarking | Pending | Baseline bots and benchmark protocol automation are not complete yet |
 | M8 - Performance + stability hardening | Complete | Replay transport tuning, benchmark/stability runners, native batch runtime path |
-| M9 - Throughput + W&B dashboard + Vercel alignment | In Progress | Throughput matrix/floor artifacts and W&B proxy are in place; M9.4 Replay/Play UX and analytics completeness contract are implemented, and M9.5 is aligned to PufferLib-native operator tooling, with deployment hardening + websocket stability follow-up remaining |
+| M9 - Throughput + W&B dashboard + Vercel alignment | In Progress | Throughput matrix/floor artifacts and W&B proxy are in place; M9.4 Replay/Play UX and analytics completeness contract are implemented, M9.5 is aligned to PufferLib-native operator tooling, and remaining work is baseline bot + benchmark automation for MVP closure |
 
 ## Latest recorded validation health (2026-03-04)
 
-- `python -m pytest -q` -> 110 passed, 2 skipped.
+- `python -m pytest -q` -> 111 passed, 2 skipped.
 - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
-- `python -m pytest -q tests/test_server_api.py` -> 19 passed.
-- `python -m pytest -q tests/test_smoke_m9_deployment.py` -> 14 passed.
+- `python -m pytest -q tests/test_server_api.py tests/test_smoke_m9_deployment.py` -> 34 passed.
 - `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260303-post-wandb-attempt1.json` -> pass (13/13) after backend W&B key + scope activation and production run-root seeding.
-- `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260303-post-ws-hardening-attempt1.json` -> fail (12/13) on `backend-replay-frames-ws` (`Unexpected websocket EOF`) with default `ws_check_attempts=3` after Railway redeploy of commit `394e7af`.
-- `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status --ws-check-attempts 10 --output-path artifacts/deploy/m9-smoke-strict-20260303-post-ws-hardening-attempt5-ws10.json` -> pass (13/13), websocket recovered on `attempt=5/10`.
+- `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run1.json` -> pass (13/13) after Railway deploy of websocket close-handshake hardening.
+- `for i in 1..12: python tools/smoke_m9_deployment.py ... --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run{i}.json` -> pass 12/12 at default websocket retries (`3`).
 
 - `npm --prefix frontend run lint` -> pass.
 - `npm --prefix frontend run build` -> pass (`/`, `/play`, `/analytics`).
@@ -85,19 +84,18 @@ Current focus: M9 execution (deployment hardening, replay websocket stability, a
 
 ## Next work (ordered)
 
-1. Stabilize production replay websocket transport so strict smoke passes reliably with default `--ws-check-attempts=3` (current production evidence requires higher retry budget to recover).
-2. Keep deployment evidence current per release cut:
+1. Keep deployment evidence current per release cut:
    - `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`
    - local smoke artifact under `artifacts/deploy/`
    - manual CI run artifact from `.github/workflows/m9-deployment-smoke.yml`
-3. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
-4. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
+2. Implement baseline bots (`greedy miner`, `cautious scanner`, `market timer`) and reproducible CLI runs.
+3. Automate PPO-vs-baseline benchmark protocol across seeds and publish summary artifacts.
 
 ## Active risks and blockers
 
 - 100,000 steps/sec remains aspirational; current measured trainer throughput is far below target and requires further bottleneck reduction.
 - W&B backend proxy now authenticates with production credentials and passes strict smoke checks under default scope.
-- Replay websocket streaming in production still intermittently returns EOF before first payload after patch deploy; strict smoke failed 4/4 runs at default retry budget (`3`) and only recovered with `--ws-check-attempts 10` (`attempt=5/10`).
+- Replay websocket transport recovered after close-handshake hardening, but should be revalidated during each release cut to catch infrastructure regressions early.
 - Split frontend/backend hosting (Vercel + external API) is now live, but remains sensitive to env/CORS drift across redeploys.
 - M7 baseline bots/benchmark automation remains a functional gap for comparative performance reporting.
 

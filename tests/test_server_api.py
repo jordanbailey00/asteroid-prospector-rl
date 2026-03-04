@@ -383,9 +383,14 @@ def test_replay_frame_websocket_stream(tmp_path: Path) -> None:
     with client.websocket_connect(
         f"/ws/runs/{run_id}/replays/{run_id}-replay/frames?offset=0&limit=2&batch_size=1"
     ) as ws:
+        prelude = ws.receive_json()
         first = ws.receive_json()
         second = ws.receive_json()
         complete = ws.receive_json()
+
+    assert prelude["type"] == "frames"
+    assert prelude["count"] == 0
+    assert prelude["prelude"] is True
 
     assert first["type"] == "frames"
     assert first["count"] == 1
@@ -420,9 +425,14 @@ def test_replay_frame_websocket_max_chunk_bytes_splits_stream(tmp_path: Path) ->
         f"/ws/runs/{run_id}/replays/{run_id}-replay/frames"
         "?offset=0&limit=2&batch_size=10&max_chunk_bytes=1024"
     ) as ws:
+        prelude = ws.receive_json()
         first = ws.receive_json()
         second = ws.receive_json()
         complete = ws.receive_json()
+
+    assert prelude["type"] == "frames"
+    assert prelude["count"] == 0
+    assert prelude["prelude"] is True
 
     assert first["type"] == "frames"
     assert first["count"] == 1
@@ -465,7 +475,12 @@ def test_replay_frame_websocket_unknown_replay(tmp_path: Path) -> None:
     with client.websocket_connect(
         f"/ws/runs/{run_id}/replays/does-not-exist/frames?offset=0&limit=10"
     ) as ws:
+        prelude = ws.receive_json()
         payload = ws.receive_json()
+
+    assert prelude["type"] == "frames"
+    assert prelude["count"] == 0
+    assert prelude["prelude"] is True
 
     assert payload["type"] == "error"
     assert payload["status_code"] == 404
@@ -492,7 +507,12 @@ def test_replay_frame_websocket_internal_error_payload(tmp_path: Path) -> None:
     with client.websocket_connect(
         f"/ws/runs/{run_id}/replays/{run_id}-replay/frames?offset=0&limit=10"
     ) as ws:
+        prelude = ws.receive_json()
         payload = ws.receive_json()
+
+    assert prelude["type"] == "frames"
+    assert prelude["count"] == 0
+    assert prelude["prelude"] is True
 
     assert payload["type"] == "error"
     assert payload["status_code"] == 500

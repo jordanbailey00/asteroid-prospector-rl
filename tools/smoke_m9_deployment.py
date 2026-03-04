@@ -622,26 +622,45 @@ def _check_backend_replay_frames_ws_once(*, cfg: SmokeConfig, run_id: str, repla
 
     sock, prefetched = _ws_open(url=ws_url, timeout_seconds=cfg.timeout_seconds)
     try:
-        message_text = _ws_recv_text(
-            sock=sock,
-            timeout_seconds=cfg.timeout_seconds,
-            prefetched=prefetched,
-        )
-        try:
-            payload = json.loads(message_text)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(f"Invalid websocket JSON payload: {message_text!r}") from exc
+        next_prefetched = prefetched
+        max_messages = 12
+        for _ in range(max_messages):
+            message_text = _ws_recv_text(
+                sock=sock,
+                timeout_seconds=cfg.timeout_seconds,
+                prefetched=next_prefetched,
+            )
+            next_prefetched = b""
 
-        if not isinstance(payload, dict):
-            raise RuntimeError(f"Unexpected websocket payload type: {payload!r}")
+            try:
+                payload = json.loads(message_text)
+            except json.JSONDecodeError as exc:
+                raise RuntimeError(f"Invalid websocket JSON payload: {message_text!r}") from exc
 
-        message_type = str(payload.get("type", ""))
-        if message_type == "error":
-            raise RuntimeError(f"Websocket route returned error payload: {payload!r}")
-        if message_type not in {"frames", "complete"}:
+            if not isinstance(payload, dict):
+                raise RuntimeError(f"Unexpected websocket payload type: {payload!r}")
+
+            message_type = str(payload.get("type", ""))
+            if message_type == "error":
+                raise RuntimeError(f"Websocket route returned error payload: {payload!r}")
+            if message_type == "frames":
+                frames = payload.get("frames")
+                count = payload.get("count")
+                if isinstance(frames, list) and len(frames) > 0:
+                    return "WS replay frames returned message type=frames"
+                if isinstance(count, int) and count > 0:
+                    return "WS replay frames returned message type=frames"
+                continue
+            if message_type == "complete":
+                count = payload.get("count")
+                if isinstance(count, int) and count > 0:
+                    return "WS replay frames returned message type=complete"
+                raise RuntimeError(
+                    "Websocket stream completed before any frame payload was received"
+                )
             raise RuntimeError(f"Unexpected websocket message type: {message_type!r}")
 
-        return f"WS replay frames returned message type={message_type}"
+        raise RuntimeError("Websocket stream did not produce frame payload within message budget")
     finally:
         try:
             _ws_send_frame(sock, opcode=0x8, payload=struct.pack("!H", 1000))

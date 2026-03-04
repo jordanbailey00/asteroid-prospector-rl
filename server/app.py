@@ -1672,6 +1672,27 @@ def create_app(
                     detail="yield_every_batches must be in [0, 1000]",
                 )
 
+            # Send an empty frames prelude immediately after validation so clients
+            # receive traffic even when replay artifacts are cold on remote filesystems.
+            await websocket.send_json(
+                {
+                    "type": "frames",
+                    "run_id": run_id,
+                    "replay_id": replay_id,
+                    "offset": offset,
+                    "next_offset": offset,
+                    "count": 0,
+                    "has_more": True,
+                    "chunk_index": -1,
+                    "chunk_bytes": 0,
+                    "max_chunk_bytes": max_chunk_bytes,
+                    "frames": [],
+                    "prelude": True,
+                }
+            )
+            # Yield once so the prelude can flush before filesystem work begins.
+            await asyncio.sleep(0)
+
             run_dir = _resolve_run_dir(run_id)
             _, index_payload = _load_index_for_run(run_id, run_dir)
             entry = get_replay_entry_by_id(index_payload, replay_id)
@@ -1761,6 +1782,10 @@ def create_app(
                     "yield_every_batches": yield_every_batches,
                 }
             )
+            # Give intermediaries a brief window to flush terminal payloads
+            # before issuing an explicit websocket close handshake.
+            await asyncio.sleep(0.05)
+            await websocket.close(code=1000)
         except WebSocketDisconnect:
             return
         except HTTPException as exc:
