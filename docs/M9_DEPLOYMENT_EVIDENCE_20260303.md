@@ -129,3 +129,68 @@ Result:
 - `checks=13`
 - `pass_count=13`
 - `fail_count=0`
+
+## Websocket resilience deploy + strict smoke rerun (2026-03-04)
+
+Production deploy action:
+
+```powershell
+railway up --service abp-backend --environment production --ci --message "deploy 394e7af websocket resilience patch"
+```
+
+Deploy result:
+
+- Railway deploy: success
+- Build logs: `https://railway.com/project/d526c56e-db13-4e5e-916a-e76ec86d9b2e/service/4317e6ca-fe17-40fc-921b-7aedd395564f?id=e7642084-875d-4e33-9513-1f6007b09a43`
+
+Strict smoke reruns (default websocket retries = 3):
+
+```powershell
+python tools/smoke_m9_deployment.py \
+  --backend-http-base "https://abp-backend-production.up.railway.app" \
+  --backend-ws-base "wss://abp-backend-production.up.railway.app" \
+  --frontend-base "https://frontend-nine-sandy-47.vercel.app" \
+  --require-clean-wandb-status \
+  --output-path artifacts/deploy/m9-smoke-strict-20260303-post-ws-hardening-attempt1.json
+```
+
+Repeat runs using the same command were captured to:
+
+- `artifacts/deploy/m9-smoke-strict-20260303-post-ws-hardening-attempt1.json`
+- `artifacts/deploy/m9-smoke-strict-20260303-post-ws-hardening-attempt2.json`
+- `artifacts/deploy/m9-smoke-strict-20260303-post-ws-hardening-attempt3.json`
+- `artifacts/deploy/m9-smoke-strict-20260303-post-ws-hardening-attempt4.json`
+
+Observed result across attempts 1-4:
+
+- `pass=false`
+- `checks=13`
+- `pass_count=12`
+- `fail_count=1`
+- Consistent failing check: `backend-replay-frames-ws` with `RuntimeError: Unexpected websocket EOF`
+
+Diagnostic strict smoke with higher retry cap:
+
+```powershell
+python tools/smoke_m9_deployment.py \
+  --backend-http-base "https://abp-backend-production.up.railway.app" \
+  --backend-ws-base "wss://abp-backend-production.up.railway.app" \
+  --frontend-base "https://frontend-nine-sandy-47.vercel.app" \
+  --require-clean-wandb-status \
+  --ws-check-attempts 10 \
+  --output-path artifacts/deploy/m9-smoke-strict-20260303-post-ws-hardening-attempt5-ws10.json
+```
+
+Diagnostic result:
+
+- `pass=true`
+- `checks=13`
+- `pass_count=13`
+- `fail_count=0`
+- `backend-replay-frames-ws` recovered on `attempt=5/10`
+
+Conclusion:
+
+- Deployment of commit `394e7af` is live.
+- Strict smoke with default retry budget (`3`) still fails due intermittent websocket EOF on production replay frames.
+- Release gate remains open pending websocket transport stabilization sufficient for default strict smoke.
