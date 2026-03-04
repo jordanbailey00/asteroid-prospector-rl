@@ -78,6 +78,10 @@ Read top to bottom.
 27. `M9_CHUNK3_DRIFT_GUARDRAILS_EXECUTION_20260304.md`
     - Chunk 3 execution record for W&B/websocket/CORS drift guardrails and strict smoke evidence updates.
 
+28. `M9_CHUNK4_MVP_CLOSEOUT_EXECUTION_20260304.md`
+    - Final MVP closeout execution record, including full validation sweep and strict production smoke artifact.
+29. `MVP_EXTENSIVE_TEST_PLAN_20260305.md`
+    - End-to-end extensive validation plan for post-MVP verification campaign.
 ## Notes
 
 - If any docs conflict, frozen interface docs (Section 2) win.

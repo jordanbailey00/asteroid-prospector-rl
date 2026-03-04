@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Completed M9 Chunk 4 MVP closeout sweep with final evidence artifact `artifacts/deploy/m9-smoke-strict-20260304-final.json` and published execution record `docs/M9_CHUNK4_MVP_CLOSEOUT_EXECUTION_20260304.md`.
+- Added `docs/MVP_EXTENSIVE_TEST_PLAN_20260305.md` to stage tomorrow's extensive validation campaign (local gates, strict deployment smoke, CI evidence, manual UX checks, and operator workflow checks).
+- Updated status and handoff documentation to mark `M9` complete and shift active work to post-MVP validation/hardening (`README.md`, `docs/PROJECT_STATUS.md`, `docs/BUILD_CHECKLIST.md`, `docs/AGENT_HANDOFF_BRIEF.md`, `docs/DOCS_INDEX.md`).
 - Added M7.1 baseline bot package (`greedy_miner`, `cautious_scanner`, `market_timer`) in `training/baseline_bots.py` plus deterministic seeded CLI runner `tools/run_baseline_bots.py`, with policy/runner regression coverage in `tests/test_baseline_bots.py` and `tests/test_run_baseline_bots.py`.
 - Added M7.2 benchmark protocol automation runner `tools/run_m7_benchmark_protocol.py` with seeded contender orchestration (trained policy + baseline bots), consolidated KPI comparison report schema, and regression coverage in `tests/test_run_m7_benchmark_protocol.py`.
 - Added M7.3 benchmark-to-W&B logger `tools/log_m7_benchmark_wandb.py` plus `training.logging.WandbBenchmarkLogger` for `job_type=eval` reporting and benchmark artifact lineage (report + checkpoint files), with regression coverage in `tests/test_log_m7_benchmark_wandb.py` and `tests/test_wandb_offline.py`.

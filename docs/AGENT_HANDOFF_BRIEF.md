@@ -8,9 +8,8 @@ It explains what is already built, what remains, and which documents are authori
 ## Current snapshot (2026-03-04)
 
 - Frozen RL interface remains unchanged: `OBS_DIM=260`, `N_ACTIONS=69`, action IDs `0..68`.
-- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7`, `M8`.
-- In progress milestone: `M9` (throughput program + W&B-backed analytics + Vercel deployment alignment).
-- Remaining active milestone focus: `M9` release evidence upkeep and operational hardening.
+- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7`, `M8`, `M9`.
+- MVP scope is complete; active work has moved to post-MVP validation and hardening.
 
 ## Canonical milestone map
 
@@ -31,9 +30,9 @@ Use `docs/BUILD_CHECKLIST.md` as the execution sequence source of truth.
 
 ## Active priorities
 
-1. Throughput: maximize training speed with native-first runtime path and repeatable profiling evidence.
-2. W&B analytics integration: backend proxy endpoints plus frontend iteration views.
-3. Deployment alignment: Vercel frontend with websocket-capable backend hosting.
+1. Execute extensive regression and integration validation from `docs/MVP_EXTENSIVE_TEST_PLAN_20260305.md`.
+2. Maintain deployment smoke evidence for release cuts (local + CI workflow artifacts).
+3. Continue throughput/infrastructure hardening as post-MVP backlog work.
 
 ## Required shared identifiers
 

@@ -67,7 +67,7 @@ Result:
 - W&B strict gate: resolved (production backend `WANDB_API_KEY` + scoped entity/project are active).
 - Replay websocket strict smoke gate: resolved after close-handshake hardening (default retries `3` now stable in production evidence).
 - Non-empty run/replay smoke gate: enabled and passing (production `ABP_RUNS_ROOT` seeded with `runs/ws-profile-smoke`).
-- Remaining MVP gaps are now baseline bot implementation and benchmark automation (tracked in `docs/PROJECT_STATUS.md`).
+- Historical note: remaining-gap bullets in this section reflect 2026-03-03 state and are superseded by `docs/PROJECT_STATUS.md` plus `docs/M9_CHUNK4_MVP_CLOSEOUT_EXECUTION_20260304.md`.
 
 ## Strict smoke follow-up (2026-03-03)
 

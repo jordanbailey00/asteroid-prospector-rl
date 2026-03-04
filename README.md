@@ -8,9 +8,9 @@ Asteroid Prospector RL is an end-to-end reinforcement learning project for a det
 
 ## Current Status (2026-03-04)
 
-- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7.1`, `M7.2`, `M7.3`, `M8`, `M9.4`, `M9.5`.
-- Active milestone work: `M9` release evidence upkeep and operational hardening.
-- Remaining MVP scope: maintain deployment evidence and release-readiness checks.
+- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7.1`, `M7.2`, `M7.3`, `M8`, `M9`.
+- Active focus: post-MVP validation campaign and release-operations hardening.
+- Remaining MVP scope: none (MVP closeout evidence captured on 2026-03-04).
 
 Trainer/runtime baseline:
 - `pufferlib-core==3.0.17`
@@ -36,8 +36,10 @@ Published trainer base image:
 
 ## Immediate Next Work
 
-1. Keep deployment smoke evidence current for release cuts (`tools/smoke_m9_deployment.py` + workflow artifacts).
-2. Continue throughput and infrastructure hardening toward sustained release targets.
+1. Execute `docs/MVP_EXTENSIVE_TEST_PLAN_20260305.md` and capture all evidence artifacts.
+2. Keep deployment smoke evidence current for release cuts (`tools/smoke_m9_deployment.py` + workflow artifacts).
+3. Continue throughput and infrastructure hardening toward sustained release targets.
+
 ## Quick Start
 
 1. Run local checks:

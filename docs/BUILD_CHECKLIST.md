@@ -28,9 +28,9 @@ Read order / context:
 
 ## Execution Snapshot (2026-03-04)
 
-- Completed: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7.1`, `M7.2`, `M7.3`, `M8`
-- Active: `M9` release evidence upkeep
-- Remaining: release evidence upkeep and operational readiness checks (`M9`)
+- Completed: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7.1`, `M7.2`, `M7.3`, `M8`, `M9`
+- Active: post-MVP validation campaign and hardening backlog triage
+- Remaining (MVP): none
 
 This file is the canonical milestone naming source used by `README.md`, `docs/PROJECT_STATUS.md`, and handoff docs.
 
@@ -477,6 +477,8 @@ Purpose: Ensure the system can run long training jobs reliably and fast.
 ## Phase 11 - Throughput + W&B Dashboard + Vercel Deployment + Public UX Realignment (M9)
 
 Purpose: Execute current product priorities after M8 hardening, including public gameplay UX realignment and PufferLib-native operator tooling.
+
+Status: complete (2026-03-04).
 
 ### 11.1 [M9.1] Throughput target program (100,000 steps/sec)
 - Add throughput profiler tooling for:

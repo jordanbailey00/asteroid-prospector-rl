@@ -1,6 +1,6 @@
 # M9 Deployment Runbook (Vercel + External Backend)
 
-Last updated: 2026-03-03
+Last updated: 2026-03-04
 
 This runbook aligns with M9.3 requirements:
 
@@ -78,7 +78,7 @@ python tools/smoke_m9_deployment.py \
 Notes:
 
 - Script validates:
-  - backend `/health`, runs catalog, replay HTTP frames,
+  - backend `/health`, runs catalog, backend CORS simple/preflight checks, replay HTTP frames,
   - replay websocket stream route,
   - frontend routes (`/`, `/play`, `/analytics`),
   - W&B proxy status endpoint (`/api/wandb/status`) before and after W&B checks,

@@ -508,3 +508,12 @@ Use this file for non-trivial project decisions.
 - Decision: Extend `tools/smoke_m9_deployment.py` with CORS-origin-aware checks: a simple-origin GET check and an OPTIONS preflight check. Origin is derived from `--frontend-base` by default with optional override via `--cors-origin`.
 - Consequences: Deployment smoke now fails fast on backend CORS misconfiguration and catches origin/headers/method drift before release. This tightens split-host operational guardrails for Vercel frontend + external backend deployments.
 - Related commits/docs: `tools/smoke_m9_deployment.py`, `tests/test_smoke_m9_deployment.py`, `docs/M9_CHUNK3_DRIFT_GUARDRAILS_EXECUTION_20260304.md`, `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0056 - Define M9 completion gate as a full-stack validation sweep plus strict production smoke artifact
+
+- Date: 2026-03-04
+- Status: Accepted
+- Context: MVP closeout required an explicit, auditable gate so milestone state and release readiness are based on one reproducible command set instead of scattered partial checks.
+- Decision: Mark `M9` complete only when this sweep passes on the same code state: `python -m pytest -q`, `npm --prefix frontend run lint`, `npm --prefix frontend run build`, `python tools/run_parity.py --seeds 2 --steps 512 --native-library engine_core/build/abp_core.dll`, and strict production smoke `tools/smoke_m9_deployment.py --require-clean-wandb-status` with JSON evidence artifact capture.
+- Consequences: MVP completion criteria are now deterministic and repeatable, reducing ambiguity during handoff. Follow-on work transitions to post-MVP validation/hardening, documented through a dedicated extensive-test execution plan.
+- Related commits/docs: `docs/M9_CHUNK4_MVP_CLOSEOUT_EXECUTION_20260304.md`, `artifacts/deploy/m9-smoke-strict-20260304-final.json`, `docs/MVP_EXTENSIVE_TEST_PLAN_20260305.md`, `docs/PROJECT_STATUS.md`, `README.md`, `CHANGELOG.md`
