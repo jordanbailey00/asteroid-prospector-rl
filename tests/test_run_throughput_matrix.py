@@ -111,3 +111,99 @@ def test_throughput_matrix_records_candidate_errors_without_crashing(
     assert candidate["candidate_id"] == "trainer-backend_random"
     assert candidate["status"] == "error"
     assert "simulated trainer failure" in candidate["error"]
+
+
+def test_throughput_matrix_reports_coverage_gap_without_failing_by_default(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    def fake_run_training_throughput_profile(cfg):
+        mode = cfg.modes[0]
+        return {
+            "summary": {"pass": True, "threshold_failures": []},
+            "modes": [
+                {
+                    "mode": mode,
+                    "steps_per_sec_stats": {
+                        "min": 200.0,
+                        "max": 260.0,
+                        "mean": 240.0,
+                        "p50": 240.0,
+                        "p95": 250.0,
+                        "p99": 258.0,
+                    },
+                }
+            ],
+        }
+
+    monkeypatch.setattr(
+        "tools.run_throughput_matrix.run_training_throughput_profile",
+        fake_run_training_throughput_profile,
+    )
+
+    report = run_throughput_matrix(
+        ThroughputMatrixConfig(
+            run_root=tmp_path / "runs",
+            output_path=tmp_path / "throughput-matrix-coverage.json",
+            run_id="throughput-matrix-coverage",
+            modes=(PROFILE_MODE_TRAINER,),
+            trainer_backends=("random",),
+            required_trainer_backends=("puffer_ppo",),
+            fail_on_coverage_gap=False,
+            enforce_target=False,
+        )
+    )
+
+    assert report["summary"]["pass"] is True
+    assert report["summary"]["coverage_pass"] is False
+    assert report["summary"]["coverage_gaps"]
+    assert "puffer_ppo" in report["summary"]["coverage_gaps"][0]
+    assert report["mode_summaries"][PROFILE_MODE_TRAINER]["successful_trainer_backends"] == [
+        "random"
+    ]
+
+
+def test_throughput_matrix_fails_when_coverage_gap_is_enforced(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    def fake_run_training_throughput_profile(cfg):
+        mode = cfg.modes[0]
+        return {
+            "summary": {"pass": True, "threshold_failures": []},
+            "modes": [
+                {
+                    "mode": mode,
+                    "steps_per_sec_stats": {
+                        "min": 210.0,
+                        "max": 260.0,
+                        "mean": 235.0,
+                        "p50": 235.0,
+                        "p95": 248.0,
+                        "p99": 257.0,
+                    },
+                }
+            ],
+        }
+
+    monkeypatch.setattr(
+        "tools.run_throughput_matrix.run_training_throughput_profile",
+        fake_run_training_throughput_profile,
+    )
+
+    report = run_throughput_matrix(
+        ThroughputMatrixConfig(
+            run_root=tmp_path / "runs",
+            output_path=tmp_path / "throughput-matrix-coverage-enforced.json",
+            run_id="throughput-matrix-coverage-enforced",
+            modes=(PROFILE_MODE_TRAINER,),
+            trainer_backends=("random",),
+            required_trainer_backends=("puffer_ppo",),
+            fail_on_coverage_gap=True,
+            enforce_target=False,
+        )
+    )
+
+    assert report["summary"]["pass"] is False
+    assert report["summary"]["coverage_pass"] is False
+    assert "puffer_ppo" in report["summary"]["coverage_gaps"][0]

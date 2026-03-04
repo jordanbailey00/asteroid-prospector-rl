@@ -15,6 +15,7 @@ Current focus: M9 release evidence upkeep and operational hardening
   - matrix runner (`tools/run_throughput_matrix.py`),
   - floor gate (`tools/gate_throughput_floors.py`),
   - Linux PPO matrix artifact (`artifacts/throughput/throughput-matrix-ppo-20260301-m9p2d.json`).
+- Throughput matrix now reports trainer-backend coverage gaps and can enforce required backend presence (`tools/run_throughput_matrix.py --required-trainer-backends ... --fail-on-coverage-gap`).
 - Replay transport supports both:
   - HTTP frame pagination (`GET /api/runs/{run_id}/replays/{replay_id}/frames`),
   - websocket chunk stream (`WS /ws/runs/{run_id}/replays/{replay_id}/frames`).
@@ -92,6 +93,10 @@ Current focus: M9 release evidence upkeep and operational hardening
 - `npm --prefix frontend run lint` -> pass.
 - `npm --prefix frontend run build` -> pass (`/`, `/play`, `/analytics`).
 - `python tools/run_parity.py --seeds 2 --steps 512 --native-library engine_core/build/abp_core.dll` -> 12/12 cases passed.
+- `python tools/profile_training_throughput.py --modes env_only,trainer --env-repeats 2 --env-duration-seconds 1.5 --trainer-repeats 2 --trainer-total-env-steps 2000 --trainer-window-env-steps 1000 --trainer-backend random --run-id m9-chunk2-profile-20260304-r2 --output-path artifacts/throughput/m9-chunk2-profile-20260304-r2.json` -> pass.
+- `python tools/run_throughput_matrix.py --modes env_only,trainer --env-impls native,reference --trainer-backends random --required-trainer-backends puffer_ppo --env-repeats 2 --env-duration-seconds 1.5 --trainer-repeats 2 --trainer-total-env-steps 2000 --trainer-window-env-steps 1000 --run-id m9-chunk2-matrix-20260304-r2 --output-path artifacts/throughput/m9-chunk2-matrix-20260304-r2.json` -> pass with `coverage_pass=false` (`coverage_gaps` identifies missing `puffer_ppo`).
+- `python tools/run_throughput_matrix.py ... --required-trainer-backends puffer_ppo --fail-on-coverage-gap --run-id m9-chunk2-matrix-20260304-r2-enforced --output-path artifacts/throughput/m9-chunk2-matrix-20260304-r2-enforced.json` -> expected non-zero (`exit=2`) with enforced coverage gap failure.
+- `python tools/gate_throughput_floors.py --matrix-report-path artifacts/throughput/m9-chunk2-matrix-20260304-r2.json --modes env_only,trainer --env-repeats 2 --env-duration-seconds 1.5 --trainer-repeats 2 --trainer-total-env-steps 2000 --trainer-window-env-steps 1000 --run-id m9-chunk2-floor-gate-20260304-r2 --output-path artifacts/throughput/m9-chunk2-floor-gate-20260304-r2.json` -> pass.
 - Linux PPO matrix run published with best observed candidate near `1210.8` steps/sec and recommended floor near `1089.7`.
 
 ## Next work (ordered)

@@ -110,6 +110,9 @@ class ThroughputMatrixConfig:
     floor_safety_factor: float = 0.90
     fail_on_candidate_error: bool = False
 
+    required_trainer_backends: tuple[str, ...] = tuple()
+    fail_on_coverage_gap: bool = False
+
 
 @dataclass(frozen=True)
 class MatrixCandidate:
@@ -139,6 +142,11 @@ def _validate_config(cfg: ThroughputMatrixConfig) -> None:
     _validate_choices(
         name="trainer_backends",
         values=cfg.trainer_backends,
+        supported=SUPPORTED_TRAINER_BACKENDS,
+    )
+    _validate_choices(
+        name="required_trainer_backends",
+        values=cfg.required_trainer_backends,
         supported=SUPPORTED_TRAINER_BACKENDS,
     )
     _validate_choices(
@@ -367,6 +375,7 @@ def _serialize_config(cfg: ThroughputMatrixConfig) -> dict[str, Any]:
         "modes",
         "env_impls",
         "trainer_backends",
+        "required_trainer_backends",
         "ppo_num_envs_values",
         "ppo_num_workers_values",
         "ppo_rollout_steps_values",
@@ -572,6 +581,42 @@ def run_throughput_matrix(cfg: ThroughputMatrixConfig) -> dict[str, Any]:
                 f"below target {float(cfg.target_steps_per_sec):.3f}"
             )
 
+    coverage_gaps: list[str] = []
+    trainer_modes = {
+        PROFILE_MODE_TRAINER,
+        PROFILE_MODE_TRAINER_EVAL,
+    }
+    for mode in cfg.modes:
+        if mode not in trainer_modes:
+            continue
+
+        successful_backends = sorted(
+            {
+                str(item.get("trainer_backend", "")).strip()
+                for item in candidate_reports
+                if item.get("mode") == mode
+                and item.get("status") == "ok"
+                and str(item.get("trainer_backend", "")).strip() != ""
+            }
+        )
+        mode_summaries[mode]["successful_trainer_backends"] = successful_backends
+
+        if not cfg.required_trainer_backends:
+            continue
+
+        missing_backends = [
+            backend
+            for backend in cfg.required_trainer_backends
+            if backend not in successful_backends
+        ]
+        if missing_backends:
+            coverage_gaps.append(
+                f"{mode} missing required trainer backends: "
+                + ", ".join(missing_backends)
+                + f" (successful={','.join(successful_backends) or 'none'})"
+            )
+
+    coverage_pass = len(coverage_gaps) == 0
     report = {
         "generated_at": now_iso(),
         "run_id": run_id,
@@ -579,13 +624,16 @@ def run_throughput_matrix(cfg: ThroughputMatrixConfig) -> dict[str, Any]:
         "summary": {
             "pass": error_count == 0
             and len(target_failures) == 0
-            and len(mode_target_failures) == 0,
+            and len(mode_target_failures) == 0
+            and (coverage_pass or not cfg.fail_on_coverage_gap),
             "total_candidates": total_candidates,
             "successful_candidates": success_count,
             "skipped_candidates": skipped_count,
             "error_candidates": error_count,
             "target_failures": target_failures,
             "mode_target_failures": mode_target_failures,
+            "coverage_pass": coverage_pass,
+            "coverage_gaps": coverage_gaps,
         },
         "mode_summaries": mode_summaries,
         "candidates": candidate_reports,
@@ -647,6 +695,8 @@ def _parse_args() -> ThroughputMatrixConfig:
 
     parser.add_argument("--floor-safety-factor", type=float, default=0.90)
     parser.add_argument("--fail-on-candidate-error", action="store_true")
+    parser.add_argument("--required-trainer-backends", type=str, default="")
+    parser.add_argument("--fail-on-coverage-gap", action="store_true")
 
     args = parser.parse_args()
 
@@ -692,6 +742,8 @@ def _parse_args() -> ThroughputMatrixConfig:
         enforce_target=args.enforce_target,
         floor_safety_factor=args.floor_safety_factor,
         fail_on_candidate_error=args.fail_on_candidate_error,
+        required_trainer_backends=_parse_csv(args.required_trainer_backends),
+        fail_on_coverage_gap=args.fail_on_coverage_gap,
     )
 
 

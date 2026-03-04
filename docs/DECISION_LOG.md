@@ -490,3 +490,12 @@ Use this file for non-trivial project decisions.
 - Decision: Implement M7.3 as a separate tool (`tools/log_m7_benchmark_wandb.py`) that consumes M7.2 benchmark report artifacts, logs summary metrics under a stable `benchmark/*` namespace, and publishes a benchmark artifact via `training.logging.WandbBenchmarkLogger` with lineage attachments to source report and resolved checkpoint files. Default job type is `eval`.
 - Consequences: M7 benchmark generation remains deterministic/offline by default, while W&B logging/lineage can be executed independently in controlled environments (offline or online). This separation simplifies regression testing and operational retries without rerunning full benchmark generation.
 - Related commits/docs: `tools/log_m7_benchmark_wandb.py`, `training/logging.py`, `tests/test_log_m7_benchmark_wandb.py`, `tests/test_wandb_offline.py`, `docs/M7_WANDB_BENCHMARK_EXECUTION_20260304.md`, `docs/PROJECT_STATUS.md`, `docs/BUILD_CHECKLIST.md`, `CHANGELOG.md`
+
+### ADR-0054 - Add trainer-backend coverage gating to throughput matrix calibration
+
+- Date: 2026-03-04
+- Status: Accepted
+- Context: Throughput matrix runs can execute on environments where target trainer backends (for example `puffer_ppo`) are unavailable. Without explicit coverage signaling, floor calibration can pass using only fallback backends (for example `random`), which weakens release confidence for target throughput claims.
+- Decision: Extend `tools/run_throughput_matrix.py` with explicit trainer-backend coverage controls: `required_trainer_backends` and optional enforcement via `fail_on_coverage_gap`. Matrix summaries now emit `coverage_pass`, `coverage_gaps`, and `successful_trainer_backends` per trainer mode.
+- Consequences: Matrix artifacts now distinguish performance regressions from evidence-coverage gaps. Operators can run in warning mode for local/dev environments and enforce hard failure in release-calibration contexts when required backend coverage is missing.
+- Related commits/docs: `tools/run_throughput_matrix.py`, `tests/test_run_throughput_matrix.py`, `docs/M9_CHUNK2_THROUGHPUT_EXECUTION_20260304.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
