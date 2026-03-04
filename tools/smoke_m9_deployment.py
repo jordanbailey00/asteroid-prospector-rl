@@ -25,6 +25,7 @@ class SmokeConfig:
     backend_http_base: str
     backend_ws_base: str
     frontend_base: str | None
+    cors_origin: str | None
     timeout_seconds: float
     ws_check_attempts: int
     run_id: str | None
@@ -62,6 +63,28 @@ def derive_ws_base(http_base: str) -> str:
     if http_base.startswith("http://"):
         return f"ws://{http_base[len('http://') :]}"
     return http_base
+
+
+def normalize_origin(origin: str) -> str:
+    parsed = urlparse(origin.strip())
+    if parsed.scheme not in {"http", "https"} or parsed.netloc.strip() == "":
+        raise ValueError(f"Invalid CORS origin: {origin!r}")
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _origin_from_base(base: str | None) -> str | None:
+    if base is None:
+        return None
+    parsed = urlparse(base)
+    if parsed.scheme in {"http", "https"} and parsed.netloc.strip() != "":
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return None
+
+
+def _resolve_cors_origin(cfg: SmokeConfig) -> str | None:
+    if cfg.cors_origin is not None and cfg.cors_origin.strip() != "":
+        return normalize_origin(cfg.cors_origin)
+    return _origin_from_base(cfg.frontend_base)
 
 
 def _build_url(
@@ -334,6 +357,44 @@ def run_smoke(cfg: SmokeConfig) -> dict[str, Any]:
         fn=lambda: _check_backend_runs(session=session, cfg=cfg),
     )
 
+    cors_origin = _resolve_cors_origin(cfg)
+    if cors_origin is None:
+        results.append(
+            SmokeCheckResult(
+                name="backend-cors-simple",
+                ok=True,
+                elapsed_ms=0.0,
+                detail="Skipped CORS simple check (no frontend-base/cors-origin provided).",
+            )
+        )
+        results.append(
+            SmokeCheckResult(
+                name="backend-cors-preflight",
+                ok=True,
+                elapsed_ms=0.0,
+                detail="Skipped CORS preflight check (no frontend-base/cors-origin provided).",
+            )
+        )
+    else:
+        _record_check(
+            name="backend-cors-simple",
+            results=results,
+            fn=lambda: _check_backend_cors_simple(
+                session=session,
+                cfg=cfg,
+                origin=cors_origin,
+            ),
+        )
+        _record_check(
+            name="backend-cors-preflight",
+            results=results,
+            fn=lambda: _check_backend_cors_preflight(
+                session=session,
+                cfg=cfg,
+                origin=cors_origin,
+            ),
+        )
+
     run_id, replay_id = _discover_run_and_replay(session=session, cfg=cfg)
     if run_id is None or replay_id is None:
         if cfg.allow_empty_runs:
@@ -572,6 +633,75 @@ def _check_backend_runs(*, session: requests.Session, cfg: SmokeConfig) -> str:
     if not isinstance(runs, list):
         raise RuntimeError(f"Unexpected /api/runs.runs payload: {runs!r}")
     return f"Runs endpoint returned {len(runs)} rows"
+
+
+def _check_backend_cors_simple(
+    *,
+    session: requests.Session,
+    cfg: SmokeConfig,
+    origin: str,
+) -> str:
+    url = _build_url(cfg.backend_http_base, "/health")
+    response = session.get(url, timeout=cfg.timeout_seconds, headers={"Origin": origin})
+    if int(response.status_code) != 200:
+        raise RuntimeError(f"Expected 200, got {response.status_code}")
+
+    allow_origin = str(response.headers.get("Access-Control-Allow-Origin", "")).strip()
+    if allow_origin not in {"*", origin}:
+        raise RuntimeError(
+            "CORS simple request does not allow frontend origin; "
+            f"origin={origin!r}, allow_origin={allow_origin!r}"
+        )
+    return f"CORS simple request allowed origin={allow_origin}"
+
+
+def _check_backend_cors_preflight(
+    *,
+    session: requests.Session,
+    cfg: SmokeConfig,
+    origin: str,
+) -> str:
+    url = _build_url(cfg.backend_http_base, "/api/runs")
+    response = session.options(
+        url,
+        timeout=cfg.timeout_seconds,
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    if int(response.status_code) not in {200, 204}:
+        raise RuntimeError(f"Expected preflight status 200/204, got {response.status_code}")
+
+    allow_origin = str(response.headers.get("Access-Control-Allow-Origin", "")).strip()
+    if allow_origin not in {"*", origin}:
+        raise RuntimeError(
+            "CORS preflight does not allow frontend origin; "
+            f"origin={origin!r}, allow_origin={allow_origin!r}"
+        )
+
+    allow_methods_raw = str(response.headers.get("Access-Control-Allow-Methods", "")).strip()
+    allow_methods_upper = allow_methods_raw.upper()
+    if allow_methods_raw == "" or (
+        "*" not in allow_methods_upper and "GET" not in allow_methods_upper
+    ):
+        raise RuntimeError(
+            "CORS preflight missing GET in Access-Control-Allow-Methods: " f"{allow_methods_raw!r}"
+        )
+
+    allow_headers_raw = str(response.headers.get("Access-Control-Allow-Headers", "")).strip()
+    allow_headers_upper = allow_headers_raw.upper()
+    if allow_headers_raw != "" and (
+        "*" not in allow_headers_upper and "CONTENT-TYPE" not in allow_headers_upper
+    ):
+        raise RuntimeError(
+            "CORS preflight missing content-type in Access-Control-Allow-Headers: "
+            f"{allow_headers_raw!r}"
+        )
+
+    return f"CORS preflight allowed origin={allow_origin} methods={allow_methods_raw}"
 
 
 def _check_backend_replay_frames_http(
@@ -909,6 +1039,7 @@ def _parse_args() -> SmokeConfig:
     parser.add_argument("--backend-http-base", type=str, required=True)
     parser.add_argument("--backend-ws-base", type=str, default=None)
     parser.add_argument("--frontend-base", type=str, default=None)
+    parser.add_argument("--cors-origin", type=str, default=None)
     parser.add_argument("--timeout-seconds", type=float, default=12.0)
     parser.add_argument("--ws-check-attempts", type=int, default=3)
     parser.add_argument("--run-id", type=str, default=None)
@@ -933,10 +1064,15 @@ def _parse_args() -> SmokeConfig:
     if isinstance(args.frontend_base, str) and args.frontend_base.strip() != "":
         frontend_base = normalize_base(args.frontend_base)
 
+    cors_origin = None
+    if isinstance(args.cors_origin, str) and args.cors_origin.strip() != "":
+        cors_origin = normalize_origin(args.cors_origin)
+
     return SmokeConfig(
         backend_http_base=backend_http_base,
         backend_ws_base=backend_ws_base,
         frontend_base=frontend_base,
+        cors_origin=cors_origin,
         timeout_seconds=float(args.timeout_seconds),
         ws_check_attempts=max(1, int(args.ws_check_attempts)),
         run_id=args.run_id,

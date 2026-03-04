@@ -75,6 +75,8 @@ Read top to bottom.
     - Chunk 3 execution record for W&B benchmark logging + artifact lineage implementation and validation evidence.
 26. `M9_CHUNK2_THROUGHPUT_EXECUTION_20260304.md`
     - Chunk 2 execution record for throughput reruns, backend-coverage gating, and calibrated-floor evidence updates.
+27. `M9_CHUNK3_DRIFT_GUARDRAILS_EXECUTION_20260304.md`
+    - Chunk 3 execution record for W&B/websocket/CORS drift guardrails and strict smoke evidence updates.
 
 ## Notes
 

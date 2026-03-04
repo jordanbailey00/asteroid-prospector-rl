@@ -499,3 +499,12 @@ Use this file for non-trivial project decisions.
 - Decision: Extend `tools/run_throughput_matrix.py` with explicit trainer-backend coverage controls: `required_trainer_backends` and optional enforcement via `fail_on_coverage_gap`. Matrix summaries now emit `coverage_pass`, `coverage_gaps`, and `successful_trainer_backends` per trainer mode.
 - Consequences: Matrix artifacts now distinguish performance regressions from evidence-coverage gaps. Operators can run in warning mode for local/dev environments and enforce hard failure in release-calibration contexts when required backend coverage is missing.
 - Related commits/docs: `tools/run_throughput_matrix.py`, `tests/test_run_throughput_matrix.py`, `docs/M9_CHUNK2_THROUGHPUT_EXECUTION_20260304.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`
+
+### ADR-0055 - Add explicit backend CORS checks to deployment smoke gates
+
+- Date: 2026-03-04
+- Status: Accepted
+- Context: M9 deployment smoke validated backend health, replay transport, frontend routes, and W&B proxy endpoints, but did not validate backend CORS headers/preflight behavior from the frontend origin. This allowed CORS drift to bypass smoke even when browser clients would fail.
+- Decision: Extend `tools/smoke_m9_deployment.py` with CORS-origin-aware checks: a simple-origin GET check and an OPTIONS preflight check. Origin is derived from `--frontend-base` by default with optional override via `--cors-origin`.
+- Consequences: Deployment smoke now fails fast on backend CORS misconfiguration and catches origin/headers/method drift before release. This tightens split-host operational guardrails for Vercel frontend + external backend deployments.
+- Related commits/docs: `tools/smoke_m9_deployment.py`, `tests/test_smoke_m9_deployment.py`, `docs/M9_CHUNK3_DRIFT_GUARDRAILS_EXECUTION_20260304.md`, `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`, `docs/PROJECT_STATUS.md`, `CHANGELOG.md`

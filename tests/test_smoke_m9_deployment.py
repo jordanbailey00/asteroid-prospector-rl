@@ -10,6 +10,7 @@ def _cfg(**overrides) -> smoke.SmokeConfig:
         "backend_http_base": "https://api.example.com",
         "backend_ws_base": "wss://api.example.com",
         "frontend_base": "https://app.example.com",
+        "cors_origin": None,
         "timeout_seconds": 5.0,
         "ws_check_attempts": 3,
         "run_id": None,
@@ -285,3 +286,70 @@ def test_run_smoke_serializes_output_path_and_writes_report(
     persisted = json.loads(output_path.read_text(encoding="utf-8"))
     assert persisted["config"]["output_path"] == str(output_path)
     assert persisted["summary"]["pass"] is True
+
+
+class _FakeHttpResponse:
+    def __init__(
+        self,
+        *,
+        status_code: int = 200,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        self.status_code = status_code
+        self.headers = headers or {}
+
+
+class _FakeCorsSession:
+    def __init__(
+        self, *, get_response: _FakeHttpResponse, options_response: _FakeHttpResponse
+    ) -> None:
+        self._get_response = get_response
+        self._options_response = options_response
+
+    def get(self, url: str, timeout: float, headers: dict[str, str]):
+        del url
+        del timeout
+        del headers
+        return self._get_response
+
+    def options(self, url: str, timeout: float, headers: dict[str, str]):
+        del url
+        del timeout
+        del headers
+        return self._options_response
+
+
+def test_resolve_cors_origin_prefers_explicit_override() -> None:
+    cfg = _cfg(frontend_base="https://frontend.example.com", cors_origin="https://alt.example.com")
+    assert smoke._resolve_cors_origin(cfg) == "https://alt.example.com"
+
+
+def test_check_backend_cors_simple_accepts_reflected_origin() -> None:
+    origin = "https://app.example.com"
+    session = _FakeCorsSession(
+        get_response=_FakeHttpResponse(
+            status_code=200,
+            headers={"Access-Control-Allow-Origin": origin},
+        ),
+        options_response=_FakeHttpResponse(status_code=200, headers={}),
+    )
+
+    detail = smoke._check_backend_cors_simple(session=session, cfg=_cfg(), origin=origin)
+    assert "allowed origin" in detail
+
+
+def test_check_backend_cors_preflight_rejects_missing_get_method() -> None:
+    origin = "https://app.example.com"
+    session = _FakeCorsSession(
+        get_response=_FakeHttpResponse(status_code=200, headers={}),
+        options_response=_FakeHttpResponse(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": origin,
+                "Access-Control-Allow-Methods": "POST",
+            },
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="Access-Control-Allow-Methods"):
+        smoke._check_backend_cors_preflight(session=session, cfg=_cfg(), origin=origin)

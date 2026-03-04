@@ -278,3 +278,30 @@ Manual GitHub Actions strict smoke rerun:
 Release-cut conclusion refresh:
 
 - Both local and CI strict deployment smoke checks are green at the current production URLs.
+
+## Drift guardrail refresh with CORS smoke checks (2026-03-04)
+
+After adding explicit CORS checks to deployment smoke (`backend-cors-simple`, `backend-cors-preflight`), reran strict production smoke with the same live URLs:
+
+```powershell
+python tools/smoke_m9_deployment.py \
+  --backend-http-base "https://abp-backend-production.up.railway.app" \
+  --backend-ws-base "wss://abp-backend-production.up.railway.app" \
+  --frontend-base "https://frontend-nine-sandy-47.vercel.app" \
+  --require-clean-wandb-status \
+  --output-path artifacts/deploy/m9-smoke-strict-20260304-chunk3-run1.json
+```
+
+Result:
+
+- `pass=true`
+- `checks=15`
+- `pass_count=15`
+- `fail_count=0`
+- New CORS checks both passed:
+  - `backend-cors-simple`
+  - `backend-cors-preflight`
+
+Artifact:
+
+- `artifacts/deploy/m9-smoke-strict-20260304-chunk3-run1.json`

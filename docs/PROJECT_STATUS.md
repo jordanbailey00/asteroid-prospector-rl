@@ -1,7 +1,7 @@
 # Project Status
 
 Last updated: 2026-03-04
-Current focus: M9 release evidence upkeep and operational hardening
+Current focus: M9 MVP closeout validation and signoff evidence
 
 ## Current state
 
@@ -42,6 +42,7 @@ Current focus: M9 release evidence upkeep and operational hardening
   - `docs/M9_DEPLOYMENT_RUNBOOK.md`
   - `tools/smoke_m9_deployment.py`
   - `.github/workflows/m9-deployment-smoke.yml` supports strict W&B status gating (`require_clean_wandb_status`) with W&B run-detail coverage (`latest`, `summary`, `history`, `iteration-view`) and post-operation status checks.
+- Deployment smoke now includes backend CORS guardrails (`backend-cors-simple`, `backend-cors-preflight`) to detect split-host origin/preflight drift before release.
 - Deployment execution templates are now staged for M9.3 release operations:
   - `server/.env.production.example`
   - `frontend/.env.production.example`
@@ -77,6 +78,7 @@ Current focus: M9 release evidence upkeep and operational hardening
 - `python -m pytest -q` -> 124 passed, 2 skipped.
 - `python -m pytest -q tests/test_native_core_wrapper.py tests/test_puffer_backend_env_impl.py` -> 17 passed.
 - `python -m pytest -q tests/test_server_api.py tests/test_smoke_m9_deployment.py` -> 34 passed.
+- `python -m pytest -q tests/test_smoke_m9_deployment.py` -> 18 passed (includes CORS smoke guardrail coverage).
 - `python -m pytest -q tests/test_baseline_bots.py tests/test_run_baseline_bots.py` -> 7 passed.
 - `python -m pytest -q tests/test_run_m7_benchmark_protocol.py` -> 3 passed.
 - `python -m pytest -q tests/test_log_m7_benchmark_wandb.py tests/test_wandb_offline.py` -> 4 passed.
@@ -84,6 +86,7 @@ Current focus: M9 release evidence upkeep and operational hardening
 - `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run1.json` -> pass (13/13) after Railway deploy of websocket close-handshake hardening.
 - `for i in 1..12: python tools/smoke_m9_deployment.py ... --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260304-post-ws-close-run{i}.json` -> pass 12/12 at default websocket retries (`3`).
 - `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260304-chunk1-run1.json` -> pass (13/13) as release-cut evidence refresh.
+- `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-20260304-chunk3-run1.json` -> pass (15/15) with backend CORS guardrail checks enabled.
 - `gh workflow run m9-deployment-smoke.yml ... require_clean_wandb_status=true` -> success (run `22655188824`), artifact: `artifacts/deploy/ci-m9-smoke-22655188824/m9-deployment-smoke-22655188824/m9-smoke-22655188824.json`.
 
 - `python tools/run_baseline_bots.py --episodes 3 --base-seed 7 --env-time-max 4000 --max-steps-per-episode 12000 --run-id m7-baseline-smoke --output-path artifacts/benchmarks/m7-baseline-smoke.json` -> pass (3 bots; non-zero net-profit summaries emitted).
@@ -101,11 +104,12 @@ Current focus: M9 release evidence upkeep and operational hardening
 
 ## Next work (ordered)
 
-1. Keep deployment evidence current per release cut:
-   - `docs/M9_DEPLOYMENT_EVIDENCE_20260303.md`
-   - local smoke artifact under `artifacts/deploy/`
-   - manual CI run artifact from `.github/workflows/m9-deployment-smoke.yml`
-2. Continue throughput and infrastructure hardening toward sustained release targets.
+1. Execute final MVP closeout validation sweep:
+   - `python -m pytest -q`
+   - `npm --prefix frontend run lint && npm --prefix frontend run build`
+   - `python tools/run_parity.py --seeds 2 --steps 512 --native-library engine_core/build/abp_core.dll`
+   - `python tools/smoke_m9_deployment.py --backend-http-base https://abp-backend-production.up.railway.app --backend-ws-base wss://abp-backend-production.up.railway.app --frontend-base https://frontend-nine-sandy-47.vercel.app --require-clean-wandb-status --output-path artifacts/deploy/m9-smoke-strict-<date>-final.json`
+2. Publish final MVP completion evidence packet and mark `M9` complete in tracking docs.
 
 ## Active risks and blockers
 
