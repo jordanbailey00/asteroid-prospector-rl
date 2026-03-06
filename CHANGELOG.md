@@ -168,6 +168,7 @@ All notable changes to this project will be documented in this file.
 - Configured user PATH to include CMake, LLVM, and WinLibs binaries.
 
 ### Docs
+- Refreshed root `README.md` with a centered `asteroidmining.jpg` header, GitHub Actions and project status shields, and rewritten overview/goals/setup/build sections for the public repo landing page.
 - Updated `python/README.md` to document platform-selected native core library naming (`abp_core.{dll|so|dylib}`).
 - Standardized `docs/BUILD_CHECKLIST.md` milestone labeling so every phase/sub-chunk has explicit IDs (`M0..M9`, `M*.1`), and added a top-level milestone ID map for quick reference.
 - Clarified Phase 8 (M6.5) completion criteria in docs/BUILD_CHECKLIST.md to require full file-backed Kenney asset wiring for core gameplay semantics.

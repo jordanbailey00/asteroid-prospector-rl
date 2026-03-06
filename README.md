@@ -1,91 +1,105 @@
-# Asteroid Prospector RL
+<p align="center">
+  <img src="asteroidmining.jpg" alt="Asteroid Prospector RL header art" width="960" />
+</p>
 
-Asteroid Prospector RL is an end-to-end reinforcement learning project for a deterministic asteroid-belt simulation with:
-- a native C simulation core,
-- PPO training and eval replay generation,
-- FastAPI replay/play APIs (HTTP + websocket replay transport),
-- and a Next.js frontend for replay, play, and analytics.
+<p align="center">
+  <a href="https://github.com/jordanbailey00/asteroid-prospector-rl/actions/workflows/ci.yml">
+    <img src="https://github.com/jordanbailey00/asteroid-prospector-rl/actions/workflows/ci.yml/badge.svg" alt="CI" />
+  </a>
+  <a href="https://github.com/jordanbailey00/asteroid-prospector-rl/actions/workflows/m7-nightly-regression.yml">
+    <img src="https://github.com/jordanbailey00/asteroid-prospector-rl/actions/workflows/m7-nightly-regression.yml/badge.svg" alt="Nightly Regression" />
+  </a>
+  <img src="https://img.shields.io/badge/status-MVP%20Complete-success" alt="Status: MVP Complete" />
+  <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+" />
+  <img src="https://img.shields.io/badge/backend-FastAPI-009688?logo=fastapi&logoColor=white" alt="Backend: FastAPI" />
+  <img src="https://img.shields.io/badge/frontend-Next.js-000000?logo=nextdotjs&logoColor=white" alt="Frontend: Next.js" />
+  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" />
+</p>
 
-## Current Status (2026-03-04)
+<h1 align="center">Asteroid Prospector RL</h1>
 
-- Completed milestones: `M0`, `M1`, `M2`, `M2.5`, `M3`, `M4`, `M5`, `M6`, `M6.5`, `M7.1`, `M7.2`, `M7.3`, `M8`, `M9`.
-- Active focus: post-MVP validation campaign and release-operations hardening.
-- Remaining MVP scope: none (MVP closeout evidence captured on 2026-03-04).
+Asteroid Prospector RL is an end-to-end reinforcement learning system for a deterministic asteroid-belt simulation. It includes a native simulation core, training pipelines, replay generation, API services, and a web frontend for replay/play/analytics.
 
-Trainer/runtime baseline:
-- `pufferlib-core==3.0.17`
-- `gymnasium==1.2.3`
-- `torch==2.10.0`
-- `wandb==0.25.0`
+## What This Project Is
 
-Published trainer base image:
-- `jordanbailey00/rl-puffer-base:py311-puffercore3.0.17`
-- digest `sha256:723c58843d9ed563fa66c0927da975bdbab5355c913ec965dbea25a2af67bb71`
+- A deterministic resource-trading and navigation environment with a frozen RL interface (`OBS_DIM=260`, `N_ACTIONS=69`).
+- A full training and evaluation pipeline centered on PPO, plus tooling for profiling, parity, and validation.
+- A deployable product surface with FastAPI backend services and a Next.js frontend for replay, human play, and analytics.
 
-## What Is Implemented
+## High-Level Goals
 
-- Frozen RL interface (`OBS_DIM=260`, `N_ACTIONS=69`) with deterministic Python reference env.
-- Native C core plus Python bridge, parity harness, and batched native bridge APIs (`step_many/reset_many`).
-- Windowed training loop with checkpointing, run metadata, and optional W&B logging.
-- Policy-driven eval replays with replay schema/index and replay tags (`every_window`, `best_so_far`, `milestone:*`).
-- API server endpoints for runs, metrics, replays, replay frames (HTTP + WS), and ephemeral human play sessions.
-- Frontend pages for replay (`/`), play (`/play`), and analytics (`/analytics`) using backend APIs.
-- Kenney asset-backed presentation and audio manifests with validation tests.
-- Throughput profiling, matrix calibration, and floor-gate tooling under `tools/` and `artifacts/throughput/`.
-- Operator workflow aligned to PufferLib-native tooling (trainer CLI/terminal dashboards, W&B, optional Constellation) instead of a custom in-repo dashboard.
+1. Train policies that can survive, mine, trade, and optimize profit in a dynamic asteroid economy.
+2. Keep the simulation deterministic and reproducible for debugging and benchmark fairness.
+3. Maintain parity between Python reference and native core behavior under fixed seeds and action traces.
+4. Provide production-oriented tooling for evaluation, deployment smoke tests, and release operations.
+5. Expose training outcomes through usable replay and analytics interfaces.
 
-## Immediate Next Work
+## How It Was Built
 
-1. Execute `docs/MVP_EXTENSIVE_TEST_PLAN_20260305.md` and capture all evidence artifacts.
-2. Keep deployment smoke evidence current for release cuts (`tools/smoke_m9_deployment.py` + workflow artifacts).
-3. Continue throughput and infrastructure hardening toward sustained release targets.
+- `engine_core/`: native C simulation runtime with batched stepping APIs.
+- `python/`: reference environment, wrappers, and frozen interface contracts.
+- `training/`: PPO training loop, checkpoint/window lifecycle, eval replay generation, and W&B-capable logging.
+- `replay/`: replay schema and indexing/query helpers.
+- `server/`: FastAPI APIs for runs, metrics, replays, play sessions, and websocket replay transport.
+- `frontend/`: Next.js app with replay (`/`), play (`/play`), and analytics (`/analytics`) pages.
+- `tools/`: parity runners, throughput profilers, smoke checks, and benchmark automation.
+- `tests/`: contract, parity, runtime, API, tooling, and frontend regression coverage.
 
-## Quick Start
+## Setup
 
-1. Run local checks:
+### Prerequisites
+
+- Python `3.11+`
+- Node.js `18+` and npm
+- Docker Desktop (for reproducible Linux trainer runtime)
+- PowerShell (commands below use PowerShell syntax)
+
+### 1. Run local checks
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/run_checks.ps1
 ```
 
-2. Build trainer image:
+### 2. Build the trainer image
 
 ```powershell
 $env:DOCKER_BUILDKIT='1'
 docker compose -f infra/docker-compose.yml build --progress=plain trainer
 ```
 
-3. Run a short PPO smoke job:
+### 3. Run a short PPO smoke training job
 
 ```powershell
 docker compose -f infra/docker-compose.yml run --rm -T trainer python training/train_puffer.py --trainer-backend puffer_ppo --total-env-steps 300 --window-env-steps 100 --checkpoint-every-windows 1 --ppo-num-envs 4 --ppo-num-workers 2 --ppo-rollout-steps 32 --ppo-num-minibatches 2 --ppo-update-epochs 1 --wandb-mode disabled
 ```
 
-4. Run an operator training session with W&B enabled (PufferLib terminal dashboard + W&B-backed monitoring):
+### 4. Run backend and frontend locally (optional product surface)
 
 ```powershell
-docker compose -f infra/docker-compose.yml run --rm -T trainer python training/train_puffer.py --trainer-backend puffer_ppo --total-env-steps 5000 --window-env-steps 1000 --ppo-num-envs 8 --ppo-num-workers 4 --wandb-mode online --wandb-project asteroid-prospector
+python -m uvicorn server.main:app --reload --port 8000
+npm --prefix frontend install
+npm --prefix frontend run dev
 ```
 
 ## Repository Layout
 
 - `engine_core/` native C simulation core
-- `python/` wrappers and reference env
-- `training/` trainer, eval runner, metrics/logging
+- `python/` wrappers and reference environment
+- `training/` trainer, eval runner, and metrics/logging
 - `replay/` replay schema and index helpers
 - `server/` FastAPI API layer
 - `frontend/` Next.js web app
 - `infra/` Docker trainer runtime
-- `tools/` profiling, parity, checklist, and benchmark tooling
+- `tools/` profiling, parity, smoke, and benchmark tooling
 - `tests/` contract/parity/runtime/API/frontend tests
 - `docs/` specs, checklist, status, and ADR log
 
 ## Documentation Entry Points
 
 - `docs/DOCS_INDEX.md`
-- `docs/BUILD_CHECKLIST.md`
 - `docs/PROJECT_STATUS.md`
 - `docs/DECISION_LOG.md`
+- `docs/BUILD_CHECKLIST.md`
 
 ## License
 
